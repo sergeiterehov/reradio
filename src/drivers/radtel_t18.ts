@@ -1,6 +1,7 @@
 import { Buffer } from "buffer";
 import { Radio } from "./radio";
 import { create_mem_reader, ref_bits, ref_lbcd, type MemRef, dup } from "./utils";
+import type { UI } from "./ui";
 
 const CMD_ACK = Buffer.from([0x06]);
 const CMD_EXIT = Buffer.from("b", "ascii");
@@ -38,10 +39,10 @@ type Mem = {
   };
 };
 
-function parseMem(channels: number, data: Buffer) {
+function parseMem(channels: number, data: Buffer, onchange?: () => void) {
   const memory: Mem["memory"] = [];
 
-  const r = create_mem_reader(data);
+  const r = create_mem_reader(data, onchange);
 
   r.seek(0x0000);
 
@@ -91,7 +92,7 @@ export class T18Radio extends Radio {
   protected _echo = false;
   protected _fingerprint = [Buffer.from("SMP558\x00\x00", "ascii")];
   protected _magic = Buffer.from("1ROGRAM", "ascii");
-  protected _memsize = 0x03f0;
+  protected _memSize = 0x03f0;
   protected _ackBlock = true;
   protected _blockSize = 0x08;
   protected _channels = 16;
@@ -122,8 +123,6 @@ export class T18Radio extends Radio {
     if (this._echo) await this._serial_read(1);
 
     const ident = await this._serial_read(8);
-
-    console.log(ident, this._fingerprint);
 
     // Проверка по отпечаткам
     const matchesFingerprint = this._fingerprint.some((fp) => ident.slice(0, fp.length).equals(fp));
@@ -201,7 +200,7 @@ export class T18Radio extends Radio {
     this._img = undefined;
     this._mem = undefined;
 
-    const { _memsize, _blockSize } = this;
+    const { _memSize, _blockSize } = this;
 
     await this._enterProgrammingMode();
 
@@ -209,12 +208,12 @@ export class T18Radio extends Radio {
 
     const blocks: Buffer[] = [];
 
-    for (let addr = 0; addr < _memsize; addr += _blockSize) {
+    for (let addr = 0; addr < _memSize; addr += _blockSize) {
       const block = await this._readBlock(addr, _blockSize);
       blocks.push(block);
 
       // console.log(addr, block.toHex());
-      onProgress(0.1 + 0.8 * ((addr + _blockSize) / _memsize));
+      onProgress(0.1 + 0.8 * ((addr + _blockSize) / _memSize));
     }
 
     await this._exitProgrammingMode();
@@ -222,7 +221,7 @@ export class T18Radio extends Radio {
     const data = Buffer.concat(blocks);
     this._img = data;
 
-    const mem = parseMem(this._channels, data);
+    const mem = parseMem(this._channels, data, () => this.dispatch_ui());
     this._mem = mem;
 
     onProgress(1);
@@ -233,19 +232,19 @@ export class T18Radio extends Radio {
 
     if (!this._img) throw new Error("No data read");
 
-    const { _memsize, _blockSize } = this;
+    const { _memSize, _blockSize } = this;
 
     await this._enterProgrammingMode();
 
     onProgress(0.1);
 
-    for (let addr = 0; addr < _memsize; addr += _blockSize) {
+    for (let addr = 0; addr < _memSize; addr += _blockSize) {
       const block = this._img.slice(addr, addr + _blockSize);
 
       await this._writeBlock(block, addr);
 
       // console.log(addr, block.toHex());
-      onProgress(0.1 + 0.8 * ((addr + _blockSize) / _memsize));
+      onProgress(0.1 + 0.8 * ((addr + _blockSize) / _memSize));
     }
 
     await this._exitProgrammingMode();
@@ -260,7 +259,7 @@ export class RB18Radio extends T18Radio {
 
   protected _magic = Buffer.from("PROGRAL", "ascii");
   protected _fingerprint = [Buffer.from("P3107\xF7", "ascii")];
-  protected _memsize = 0x0660;
+  protected _memSize = 0x0660;
   protected _blockSize = 0x10;
   protected _channels = 22;
   protected CMD_EXIT = Buffer.from("E", "ascii");
@@ -271,4 +270,33 @@ export class RB618Radio extends RB18Radio {
   model = "RB618";
 
   protected _channels = 16;
+
+  ui() {
+    if (!this._mem) return [];
+
+    const { settings } = this._mem;
+
+    const ui: UI.Field.Any[] = [
+      {
+        type: "switcher",
+        id: "beep",
+        name: "Beep",
+        get: () => (settings.beep.get() ? true : false),
+        set: (val) => settings.beep.set(val ? 1 : 0),
+      },
+      {
+        type: "select",
+        id: "language",
+        name: "Voice language",
+        options: [
+          { value: 0, name: "China" },
+          { value: 1, name: "English" },
+        ],
+        get: () => settings.language.get(),
+        set: (val) => settings.language.set(Number(val)),
+      },
+    ];
+
+    return ui;
+  }
 }

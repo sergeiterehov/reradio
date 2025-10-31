@@ -1,4 +1,7 @@
 import { Buffer } from "buffer";
+import type { UI } from "./ui";
+
+const SERIAL_TIMEOUT_MS = 5_000;
 
 export class Radio {
   vendor: string = "Noname";
@@ -13,7 +16,23 @@ export class Radio {
     buffer: Uint8Array[];
   };
 
+  private _callbacks = {
+    progress: new Set<(k: number) => void>(),
+    ui: new Set<() => void>(),
+  };
+
   constructor() {}
+
+  subscribe_ui = (cb: () => void) => {
+    this._callbacks.ui.add(cb);
+    return () => {
+      this._callbacks.ui.delete(cb);
+    };
+  };
+
+  protected dispatch_ui() {
+    for (const cb of this._callbacks.ui) cb();
+  }
 
   async connect() {
     const port = await navigator.serial.requestPort();
@@ -42,10 +61,16 @@ export class Radio {
   }
 
   async read(_onProgress: (k: number) => void) {
+    _onProgress(0);
     throw new Error("Not implemented");
   }
 
   async write(_onProgress: (k: number) => void) {
+    _onProgress(0);
+    throw new Error("Not implemented");
+  }
+
+  ui(): UI.Field.Any[] {
     throw new Error("Not implemented");
   }
 
@@ -58,7 +83,12 @@ export class Radio {
   protected async _serial_write(buf: Buffer) {
     const { w } = this._getSerial();
 
-    await w.write(new Uint8Array(buf));
+    Promise.race([
+      await w.write(new Uint8Array(buf)),
+      new Promise<void>((_, reject) =>
+        setTimeout(reject, SERIAL_TIMEOUT_MS, new Error("Timeout while serial writing"))
+      ),
+    ]);
   }
 
   protected async _serial_read(size: number) {
@@ -87,7 +117,12 @@ export class Radio {
         continue;
       }
 
-      const { value: chunk } = await r.read();
+      const { value: chunk } = await Promise.race([
+        r.read(),
+        new Promise<ReturnType<typeof r.read>>((_, reject) =>
+          setTimeout(reject, SERIAL_TIMEOUT_MS, new Error("Timeout while serial reading"))
+        ),
+      ]);
       if (!chunk || chunk.length === 0) throw new Error("Incomplete response");
 
       if (len + chunk.length > size) {

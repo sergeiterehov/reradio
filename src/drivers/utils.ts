@@ -2,7 +2,7 @@ import type { Buffer } from "buffer";
 
 export type MemRef = { addr: number; get(): number; set(val: number): void };
 
-export const create_mem_reader = (data: Buffer) => {
+export const create_mem_reader = (data: Buffer, onchange?: () => void) => {
   let cur = 0;
 
   const reader = {
@@ -14,7 +14,16 @@ export const create_mem_reader = (data: Buffer) => {
     u8: (): MemRef => {
       const _cur = cur;
       cur += 1;
-      return { addr: _cur, get: () => data.readUInt8(_cur), set: (val) => data.writeUInt8(val, _cur) };
+      return {
+        addr: _cur,
+        get: () => {
+          return data.readUInt8(_cur);
+        },
+        set: (val) => {
+          data.writeUInt8(val, _cur);
+          onchange?.();
+        },
+      };
     },
     u8_: (size: number) => {
       const bytes: MemRef[] = [];
