@@ -28,7 +28,6 @@ type Mem = {
     vox_level: MemRef;
     lovoltnotx: MemRef;
     hivoltnotx: MemRef;
-    unknown2: MemRef[];
     rogerbeep: MemRef;
     batterysaver: MemRef;
     beep: MemRef;
@@ -53,7 +52,7 @@ function parseMem(channels: number, data: Buffer, onchange?: () => void) {
       rxtone: ref_lbcd(r.u8_(2)),
       txtone: ref_lbcd(r.u8_(2)),
       flags: ref_bits(r.u8(), ["jumpcode", null, null, "skip", "highpower", "narrow", null, "bcl"]),
-      ...r.skip(3),
+      ...r.skip(3, {}),
     });
   }
 
@@ -68,7 +67,7 @@ function parseMem(channels: number, data: Buffer, onchange?: () => void) {
 
     ...ref_bits(r.u8(), [...dup(7, null), "lovoltnotx"]),
     ...ref_bits(r.u8(), [...dup(7, null), "hivoltnotx"]),
-    unknown2: r.u8_(8),
+    ...r.skip(8, {}),
 
     ...ref_bits(r.u8(), [...dup(5, null), "rogerbeep", "batterysaver", "beep"]),
     squelchlevel: r.u8(),
@@ -83,6 +82,54 @@ function parseMem(channels: number, data: Buffer, onchange?: () => void) {
   };
 
   return mem;
+}
+
+function provideUI(mem: Mem) {
+  const { settings, memory } = mem;
+
+  const ui: UI.Field.Any[] = [
+    {
+      type: "channels",
+      id: "channels",
+      name: "Channels",
+      tab: "Channels",
+      get: () => memory.length,
+      set: () => {},
+      size: 16,
+      channel: { get: (i) => `CH ${i + 1}` },
+      freq: {
+        get: (i) => memory[i].rxfreq.get() * 10,
+        set: (i, val) => memory[i].rxfreq.set(val / 10),
+      },
+      mode: {
+        options: ["FM", "NFM"],
+        get: (i) => (memory[i].flags.narrow.get() ? "NFM" : "FM"),
+        set: (i, val) => memory[i].flags.narrow.set(val === "NFM" ? 1 : 0),
+      },
+    },
+    {
+      type: "switcher",
+      id: "beep",
+      name: "Beep",
+      tab: "Feedback",
+      get: () => (settings.beep.get() ? true : false),
+      set: (val) => settings.beep.set(val ? 1 : 0),
+    },
+    {
+      type: "select",
+      id: "language",
+      name: "Voice language",
+      tab: "Feedback",
+      options: [
+        { value: 0, name: "China" },
+        { value: 1, name: "English" },
+      ],
+      get: () => settings.language.get(),
+      set: (val) => settings.language.set(Number(val)),
+    },
+  ];
+
+  return ui;
 }
 
 export class T18Radio extends Radio {
@@ -223,8 +270,14 @@ export class T18Radio extends Radio {
 
     const mem = parseMem(this._channels, data, () => this.dispatch_ui());
     this._mem = mem;
+    this.dispatch_ui();
 
     onProgress(1);
+  }
+
+  async load(snapshot: Buffer) {
+    this._img = snapshot;
+    this._mem = parseMem(this._channels, this._img, () => this.dispatch_ui());
   }
 
   async write(onProgress: (k: number) => void) {
@@ -274,29 +327,6 @@ export class RB618Radio extends RB18Radio {
   ui() {
     if (!this._mem) return [];
 
-    const { settings } = this._mem;
-
-    const ui: UI.Field.Any[] = [
-      {
-        type: "switcher",
-        id: "beep",
-        name: "Beep",
-        get: () => (settings.beep.get() ? true : false),
-        set: (val) => settings.beep.set(val ? 1 : 0),
-      },
-      {
-        type: "select",
-        id: "language",
-        name: "Voice language",
-        options: [
-          { value: 0, name: "China" },
-          { value: 1, name: "English" },
-        ],
-        get: () => settings.language.get(),
-        set: (val) => settings.language.set(Number(val)),
-      },
-    ];
-
-    return ui;
+    return provideUI(this._mem);
   }
 }

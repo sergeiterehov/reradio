@@ -31,9 +31,9 @@ export const create_mem_reader = (data: Buffer, onchange?: () => void) => {
       return bytes;
     },
 
-    skip: (size: number): object | null => {
+    skip: <R>(size: number, ret: R): R => {
       cur += size;
-      return null;
+      return ret;
     },
   };
 
@@ -41,22 +41,23 @@ export const create_mem_reader = (data: Buffer, onchange?: () => void) => {
 };
 
 export const ref_bits = <T extends string>(ref: MemRef, names: (T | null)[]): { [K in T]: MemRef } => {
-  const res = {} as { [K in T]: MemRef };
+  const size = names.length;
 
+  const res = {} as { [K in T]: MemRef };
   const nameBits = {} as { [K in T]: number[] };
 
-  for (let i = 0; i < names.length; i += 1) {
+  for (let i = 0; i < size; i += 1) {
     const name = names[i];
     if (!name) continue;
 
-    (nameBits[name] ||= []).push(i);
+    (nameBits[name] ||= []).push(size - i - 1);
   }
 
   for (const name in nameBits) {
     const bits = nameBits[name];
 
     res[name] = {
-      addr: ref.addr + bits[0],
+      addr: ref.addr,
       get: () => {
         const raw = ref.get();
         let value = 0;
@@ -69,7 +70,7 @@ export const ref_bits = <T extends string>(ref: MemRef, names: (T | null)[]): { 
         let raw = ref.get();
         for (let i = 0; i < bits.length; i += 1) {
           raw &= ~(1 << bits[i]);
-          raw |= ((value >> i) & 1) << bits[i];
+          raw |= ((value >> (bits.length - i - 1)) & 1) << bits[i];
         }
         ref.set(raw);
       },

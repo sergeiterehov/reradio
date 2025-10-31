@@ -60,13 +60,17 @@ export class Radio {
     this._serial = undefined;
   }
 
-  async read(_onProgress: (k: number) => void) {
-    _onProgress(0);
+  async read(onProgress: (k: number) => void) {
+    onProgress(0);
     throw new Error("Not implemented");
   }
 
-  async write(_onProgress: (k: number) => void) {
-    _onProgress(0);
+  async write(onProgress: (k: number) => void) {
+    onProgress(0);
+    throw new Error("Not implemented");
+  }
+
+  async load(snapshot: Buffer) {
     throw new Error("Not implemented");
   }
 
