@@ -3,9 +3,20 @@ import type { UI } from "./ui";
 
 const SERIAL_TIMEOUT_MS = 5_000;
 
+export type RadioInfo = {
+  vendor: string;
+  model: string;
+};
+
 export class Radio {
-  vendor: string = "Noname";
-  model: string = "Noname";
+  static Info: RadioInfo = {
+    vendor: "Noname",
+    model: "Noname",
+  };
+
+  get info() {
+    return (this.constructor as typeof Radio).Info;
+  }
 
   baudRate: number = 9600;
 

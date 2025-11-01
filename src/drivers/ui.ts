@@ -1,5 +1,11 @@
 export namespace UI {
   export type RadioMode = "FM" | "NFM" | "WFM";
+  export type SquelchMode = "Off" | "CTCSS" | "DCS";
+
+  export type Squelch =
+    | { mode: "Off" }
+    | { mode: "CTCSS"; freq: number }
+    | { mode: "DCS"; code: number; polarity: "N" | "I" };
 
   export namespace Field {
     type _Field<T extends string> = {
@@ -23,6 +29,11 @@ export namespace UI {
         options: RadioMode[];
         get: (i: number) => RadioMode;
         set: (i: number, val: RadioMode) => void;
+      };
+      squelch?: {
+        options: SquelchMode[];
+        get: (i: number) => Squelch;
+        set: (i: number, val: Squelch) => void;
       };
     };
 

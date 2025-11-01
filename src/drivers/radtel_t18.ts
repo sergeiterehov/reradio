@@ -1,6 +1,6 @@
 import { Buffer } from "buffer";
-import { Radio } from "./radio";
-import { create_mem_reader, ref_bits, ref_lbcd, type MemRef, dup } from "./utils";
+import { Radio, type RadioInfo } from "./radio";
+import { create_mem_mapper, dup, type M } from "./utils";
 import type { UI } from "./ui";
 
 const CMD_ACK = Buffer.from([0x06]);
@@ -8,50 +8,50 @@ const CMD_EXIT = Buffer.from("b", "ascii");
 
 type Mem = {
   memory: {
-    rxfreq: MemRef;
-    txfreq: MemRef;
-    rxtone: MemRef;
-    txtone: MemRef;
+    rxfreq: M.LBCD;
+    txfreq: M.LBCD;
+    rxtone: M.LBCD;
+    txtone: M.LBCD;
     flags: {
-      jumpcode: MemRef;
-      skip: MemRef;
-      highpower: MemRef;
-      narrow: MemRef;
-      bcl: MemRef;
+      jumpcode: M.Bits;
+      skip: M.Bits;
+      highpower: M.Bits;
+      narrow: M.Bits;
+      bcl: M.Bits;
     };
   }[];
   settings: {
-    voice: MemRef;
-    language: MemRef;
-    scan: MemRef;
-    vox: MemRef;
-    vox_level: MemRef;
-    lovoltnotx: MemRef;
-    hivoltnotx: MemRef;
-    rogerbeep: MemRef;
-    batterysaver: MemRef;
-    beep: MemRef;
-    squelchlevel: MemRef;
-    timeouttimer: MemRef;
-    tail: MemRef;
-    channel: MemRef;
+    voice: M.Bits;
+    language: M.Bits;
+    scan: M.Bits;
+    vox: M.Bits;
+    vox_level: M.Bits;
+    lovoltnotx: M.Bits;
+    hivoltnotx: M.Bits;
+    rogerbeep: M.Bits;
+    batterysaver: M.Bits;
+    beep: M.Bits;
+    squelchlevel: M.U8;
+    timeouttimer: M.U8;
+    tail: M.Bits;
+    channel: M.U8;
   };
 };
 
 function parseMem(channels: number, data: Buffer, onchange?: () => void) {
   const memory: Mem["memory"] = [];
 
-  const r = create_mem_reader(data, onchange);
+  const r = create_mem_mapper(data, onchange);
 
   r.seek(0x0000);
 
   for (let i = 0; i < channels; i += 1) {
     memory.push({
-      rxfreq: ref_lbcd(r.u8_(4)),
-      txfreq: ref_lbcd(r.u8_(4)),
-      rxtone: ref_lbcd(r.u8_(2)),
-      txtone: ref_lbcd(r.u8_(2)),
-      flags: ref_bits(r.u8(), ["jumpcode", null, null, "skip", "highpower", "narrow", null, "bcl"]),
+      rxfreq: r.lbcd(4),
+      txfreq: r.lbcd(4),
+      rxtone: r.lbcd(2),
+      txtone: r.lbcd(2),
+      flags: r.bits("jumpcode", null, null, "skip", "highpower", "narrow", null, "bcl"),
       ...r.skip(3, {}),
     });
   }
@@ -59,20 +59,20 @@ function parseMem(channels: number, data: Buffer, onchange?: () => void) {
   r.seek(0x0630);
 
   const settings: Mem["settings"] = {
-    ...ref_bits(r.u8(), [...dup(7, null), "voice"]),
-    ...ref_bits(r.u8(), [...dup(7, null), "language"]),
-    ...ref_bits(r.u8(), [...dup(7, null), "scan"]),
-    ...ref_bits(r.u8(), [...dup(7, null), "vox"]),
-    ...ref_bits(r.u8(), [...dup(5, null), ...dup(3, "vox_level")]),
+    ...r.bits(...dup(7, null), "voice"),
+    ...r.bits(...dup(7, null), "language"),
+    ...r.bits(...dup(7, null), "scan"),
+    ...r.bits(...dup(7, null), "vox"),
+    ...r.bits(...dup(5, null), ...dup(3, "vox_level")),
 
-    ...ref_bits(r.u8(), [...dup(7, null), "lovoltnotx"]),
-    ...ref_bits(r.u8(), [...dup(7, null), "hivoltnotx"]),
+    ...r.bits(...dup(7, null), "lovoltnotx"),
+    ...r.bits(...dup(7, null), "hivoltnotx"),
     ...r.skip(8, {}),
 
-    ...ref_bits(r.u8(), [...dup(5, null), "rogerbeep", "batterysaver", "beep"]),
+    ...r.bits(...dup(5, null), "rogerbeep", "batterysaver", "beep"),
     squelchlevel: r.u8(),
     timeouttimer: r.u8(),
-    ...ref_bits(r.u8(), [...dup(7, null), "tail"]),
+    ...r.bits(...dup(7, null), "tail"),
     channel: r.u8(),
   };
 
@@ -106,6 +106,35 @@ function provideUI(mem: Mem) {
         get: (i) => (memory[i].flags.narrow.get() ? "NFM" : "FM"),
         set: (i, val) => memory[i].flags.narrow.set(val === "NFM" ? 1 : 0),
       },
+      squelch: {
+        options: ["Off", "CTCSS", "DCS"],
+        get: (i) => {
+          const ch = memory[i];
+
+          if (ch.rxtone.raw.get(0) === 0xff) return { mode: "Off" };
+
+          const tone = ch.rxtone.get();
+
+          if (tone >= 12_000) return { mode: "DCS", polarity: "I", code: tone - 12_000 };
+          if (tone >= 8_000) return { mode: "DCS", polarity: "N", code: tone - 8_000 };
+
+          return { mode: "CTCSS", freq: tone / 10 };
+        },
+        set: (i, val) => {
+          const ch = memory[i];
+          const ref = ch.rxtone;
+
+          if (val.mode === "Off") {
+            ref.raw.set(0, 0xff);
+            ref.raw.set(1, 0xff);
+          } else if (val.mode === "CTCSS") {
+            ref.set(val.freq * 10);
+          } else if (val.mode === "DCS") {
+            ref.set(val.code % 1_000);
+            ref.setDigit(3, val.polarity === "I" ? 12 : 8);
+          }
+        },
+      },
     },
     {
       type: "switcher",
@@ -116,16 +145,62 @@ function provideUI(mem: Mem) {
       set: (val) => settings.beep.set(val ? 1 : 0),
     },
     {
+      type: "switcher",
+      id: "prompts",
+      name: "Voice prompts",
+      tab: "Feedback",
+      get: () => settings.voice.get(),
+      set: (val) => settings.voice.set(Number(val)),
+    },
+    {
       type: "select",
       id: "language",
-      name: "Voice language",
+      name: "Language",
       tab: "Feedback",
       options: [
-        { value: 0, name: "China" },
-        { value: 1, name: "English" },
+        { value: 0, name: "English" },
+        { value: 1, name: "Chinese" },
       ],
       get: () => settings.language.get(),
       set: (val) => settings.language.set(Number(val)),
+    },
+    {
+      type: "select",
+      id: "sql",
+      name: "Squelch level",
+      tab: "Radio",
+      options: Array(10)
+        .fill(0)
+        .map((_, i) => ({ value: i, name: String(i) })),
+      get: () => settings.squelchlevel.get(),
+      set: (val) => settings.squelchlevel.set(Number(val)),
+    },
+    {
+      type: "switcher",
+      id: "roger",
+      name: "Roger beep",
+      tab: "Radio",
+      get: () => settings.rogerbeep.get(),
+      set: (val) => settings.rogerbeep.set(Number(val)),
+    },
+    {
+      type: "switcher",
+      id: "vox",
+      name: "VOX",
+      tab: "Radio",
+      get: () => settings.vox.get(),
+      set: (val) => settings.vox.set(Number(val)),
+    },
+    {
+      type: "select",
+      id: "vox_level",
+      name: "VOX level",
+      tab: "Radio",
+      options: Array(5)
+        .fill(0)
+        .map((_, i) => ({ value: i, name: String(i + 1) })),
+      get: () => settings.vox_level.get(),
+      set: (val) => settings.vox_level.set(Number(val)),
     },
   ];
 
@@ -133,8 +208,10 @@ function provideUI(mem: Mem) {
 }
 
 export class T18Radio extends Radio {
-  vendor = "Radtel";
-  model = "T18";
+  static Info: RadioInfo = {
+    vendor: "Radtel",
+    model: "T18",
+  };
 
   protected _echo = false;
   protected _fingerprint = [Buffer.from("SMP558\x00\x00", "ascii")];
@@ -184,14 +261,8 @@ export class T18Radio extends Radio {
 
     const ack2 = await this._serial_read(1);
 
-    if (this.model === "RT647") {
-      if (ack2[0] !== 0xf0) {
-        throw new Error("Radio refused to enter programming mode");
-      }
-    } else {
-      if (ack2[0] !== CMD_ACK[0]) {
-        throw new Error("Radio refused to enter programming mode");
-      }
+    if (ack2[0] !== CMD_ACK[0]) {
+      throw new Error("Radio refused to enter programming mode");
     }
   }
 
@@ -307,8 +378,10 @@ export class T18Radio extends Radio {
 }
 
 export class RB18Radio extends T18Radio {
-  vendor = "Retevis";
-  model = "RB18";
+  static Info: RadioInfo = {
+    vendor: "Retevis",
+    model: "RB18",
+  };
 
   protected _magic = Buffer.from("PROGRAL", "ascii");
   protected _fingerprint = [Buffer.from("P3107\xF7", "ascii")];
@@ -319,8 +392,10 @@ export class RB18Radio extends T18Radio {
 }
 
 export class RB618Radio extends RB18Radio {
-  vendor = "Retevis";
-  model = "RB618";
+  static Info: RadioInfo = {
+    vendor: "Retevis",
+    model: "RB618",
+  };
 
   protected _channels = 16;
 
@@ -329,4 +404,12 @@ export class RB618Radio extends RB18Radio {
 
     return provideUI(this._mem);
   }
+}
+
+export class BFC50Radio extends RB618Radio {
+  // TODO: https://github.com/emuehlstein/baofeng_bfc50/blob/main/chirpdriver/radtel_t18.py#L1189
+  static Info: RadioInfo = {
+    vendor: "Baofeng",
+    model: "BF-C50",
+  };
 }

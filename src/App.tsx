@@ -1,8 +1,9 @@
 import { useStore } from "zustand";
-import { ButtonGroup, HStack, Icon, IconButton, Progress, Tabs, Text } from "@chakra-ui/react";
+import { ButtonGroup, HStack, Icon, IconButton, Progress, Stack, Tabs, Text } from "@chakra-ui/react";
 import { TbEdit, TbEye, TbRadar2 } from "react-icons/tb";
 import { Actions, Store } from "./store";
 import { AnyField } from "./components/fields";
+import { RadioSelector } from "./components/RadioSelector";
 
 function App() {
   const radio = useStore(Store, (s) => s.radio);
@@ -21,7 +22,7 @@ function App() {
             ReRadio
           </Text>
         </HStack>
-        <Text>{radio ? [radio.vendor, radio.model].join(" ") : "ReRadio"}</Text>
+        <RadioSelector />
         <ButtonGroup variant="ghost">
           <IconButton colorPalette="blue" onClick={() => Actions.download()}>
             <TbEye />
@@ -56,11 +57,13 @@ function App() {
             {tabs.map((tab) => {
               return (
                 <Tabs.Content key={tab} value={String(tab)}>
-                  {ui
-                    .filter((f) => f.tab === tab)
-                    .map((field) => (
-                      <AnyField key={field.id} field={field} />
-                    ))}
+                  <Stack>
+                    {ui
+                      .filter((f) => f.tab === tab)
+                      .map((field) => (
+                        <AnyField key={field.id} field={field} />
+                      ))}
+                  </Stack>
                 </Tabs.Content>
               );
             })}
