@@ -4,7 +4,6 @@ import { create_mem_mapper, dup, type M, type MemReader } from "./utils";
 import type { UI } from "./ui";
 
 const CMD_ACK = Buffer.from([0x06]);
-const CMD_EXIT = Buffer.from("b", "ascii");
 
 namespace T18Radio {
   export namespace Mem {
@@ -290,8 +289,8 @@ export class T18Radio extends Radio {
   }
 
   protected async _exitProgrammingMode() {
-    await this._serial_write(CMD_EXIT);
-    if (this._echo) await this._serial_read(CMD_EXIT.length);
+    await this._serial_write(this.CMD_EXIT);
+    if (this._echo) await this._serial_read(this.CMD_EXIT.length);
   }
 
   protected async _readBlock(addr: number, size: number) {
