@@ -10,12 +10,12 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: 24
 
       - name: Install dependencies
         run: npm ci
@@ -23,13 +23,11 @@ jobs:
       - name: Build project
         run: npm run build
 
-      - name: Deploy via SFTP
-        uses: wlixcc/SFTP-Deploy-Action@v1.2.2
+      - name: Deploy via FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.6
         with:
           server: ${{ secrets.FTP_HOST }}
-          port: ${{ secrets.FTP_PORT || '2222' }}
           username: ${{ secrets.FTP_USER }}
           password: ${{ secrets.FTP_PASSWORD }}
-          local_path: ./dist/*
-          remote_path: ${{ secrets.DEPLOY_PATH || '/htdocs' }}
-          args: "-o StrictHostKeyChecking=no"
+          local-dir: ./dist/*
+          server-dir: ${{ secrets.FTP_DEPLOY_PATH }}
