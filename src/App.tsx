@@ -5,6 +5,9 @@ import { Actions, Store } from "./store";
 import { AnyField } from "./components/fields";
 import { RadioSelector } from "./components/RadioSelector";
 import { ChromeOnly } from "./components/ChormeOnly";
+import { Hello } from "./components/Hello";
+import { useEffect } from "react";
+import { Toaster, toaster } from "./components/ui/toaster";
 
 function App() {
   const radio = useStore(Store, (s) => s.radio);
@@ -12,8 +15,24 @@ function App() {
 
   const ui = radio?.ui();
 
+  // Вывод не отловленных ошибок
+  useEffect(() => {
+    const controller = new AbortController();
+
+    window.addEventListener(
+      "unhandledrejection",
+      (e) => {
+        toaster.error({ title: "Unexpected error", description: String(e.reason) });
+      },
+      { signal: controller.signal }
+    );
+
+    return () => controller.abort();
+  }, []);
+
   return (
     <Stack gap="3">
+      <Toaster />
       <ChromeOnly />
       <HStack p="2" gap="4">
         <HStack>
@@ -47,7 +66,7 @@ function App() {
         </IconButton>
       </HStack>
       {(() => {
-        if (!ui) return;
+        if (!ui?.length) return <Hello />;
 
         const tabs = [...new Set(ui.map((f) => f.tab))];
 

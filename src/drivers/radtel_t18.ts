@@ -96,7 +96,10 @@ export class T18Radio extends Radio {
       channel: { get: (i) => `CH ${i + 1}` },
       freq: {
         get: (i) => channels[i].rxfreq.get() * 10,
-        set: (i, val) => channels[i].rxfreq.set(val / 10),
+        set: (i, val) => {
+          channels[i].rxfreq.set(val / 10);
+          channels[i].txfreq.set(val / 10);
+        },
       },
       mode: {
         options: ["FM", "NFM"],
@@ -127,7 +130,7 @@ export class T18Radio extends Radio {
   protected _parse(data: Buffer) {
     const channels: T18Radio.Mem.Channel[] = [];
 
-    const r = create_mem_mapper(data, () => this.dispatch_ui);
+    const r = create_mem_mapper(data, this.dispatch_ui);
 
     r.seek(0x0000);
 

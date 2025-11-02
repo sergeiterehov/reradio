@@ -12,6 +12,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v5
 
+      - name: Generate .env with build info
+        run: |
+          echo "VITE_BUILD=$(git rev-parse --short HEAD)-$(date -u +'%Y%m%d-%H%M%S')" > .env
+
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
