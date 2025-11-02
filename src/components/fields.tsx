@@ -8,7 +8,6 @@ import {
   Button,
   Field,
   HStack,
-  Input,
   InputGroup,
   NativeSelect,
   NumberInput,
