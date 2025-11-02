@@ -1,9 +1,10 @@
 import { useStore } from "zustand";
-import { ButtonGroup, HStack, Icon, IconButton, Progress, Stack, Tabs, Text } from "@chakra-ui/react";
-import { TbEdit, TbEye, TbRadar2 } from "react-icons/tb";
+import { ButtonGroup, HStack, Icon, IconButton, Link, Progress, Stack, Tabs, Text } from "@chakra-ui/react";
+import { TbBrandGithub, TbEdit, TbEye, TbRadar2 } from "react-icons/tb";
 import { Actions, Store } from "./store";
 import { AnyField } from "./components/fields";
 import { RadioSelector } from "./components/RadioSelector";
+import { ChromeOnly } from "./components/ChormeOnly";
 
 function App() {
   const radio = useStore(Store, (s) => s.radio);
@@ -12,8 +13,9 @@ function App() {
   const ui = radio?.ui();
 
   return (
-    <>
-      <HStack>
+    <Stack gap="3">
+      <ChromeOnly />
+      <HStack p="2" gap="4">
         <HStack>
           <Icon size="lg">
             <TbRadar2 />
@@ -23,11 +25,11 @@ function App() {
           </Text>
         </HStack>
         <RadioSelector />
-        <ButtonGroup variant="ghost">
-          <IconButton colorPalette="blue" onClick={() => Actions.download()}>
+        <ButtonGroup variant="surface">
+          <IconButton colorPalette="blue" rounded="full" onClick={() => Actions.download()}>
             <TbEye />
           </IconButton>
-          <IconButton colorPalette="green" onClick={() => Actions.upload()}>
+          <IconButton colorPalette="green" rounded="full" onClick={() => Actions.upload()}>
             <TbEdit />
           </IconButton>
         </ButtonGroup>
@@ -38,6 +40,11 @@ function App() {
             </Progress.Track>
           </Progress.Root>
         )}
+        <IconButton asChild rounded="full" variant="ghost">
+          <Link href="https://github.com/sergeiterehov/reradio" target="_blank" rel="noopener noreferrer">
+            <TbBrandGithub />
+          </Link>
+        </IconButton>
       </HStack>
       {(() => {
         if (!ui) return;
@@ -45,7 +52,7 @@ function App() {
         const tabs = [...new Set(ui.map((f) => f.tab))];
 
         return (
-          <Tabs.Root variant="subtle" defaultValue={tabs[0]} orientation="vertical">
+          <Tabs.Root variant="subtle" defaultValue={tabs[0]} orientation="vertical" px="3">
             <Tabs.List>
               {tabs.map((tab) => (
                 <Tabs.Trigger key={tab} value={String(tab)}>
@@ -70,7 +77,7 @@ function App() {
           </Tabs.Root>
         );
       })()}
-    </>
+    </Stack>
   );
 }
 

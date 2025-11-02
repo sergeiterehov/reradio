@@ -41,9 +41,9 @@ export class Radio {
     };
   };
 
-  protected dispatch_ui() {
+  protected readonly dispatch_ui = () => {
     for (const cb of this._callbacks.ui) cb();
-  }
+  };
 
   async connect() {
     const port = await navigator.serial.requestPort();
@@ -85,7 +85,7 @@ export class Radio {
     throw new Error("Not implemented");
   }
 
-  ui(): UI.Field.Any[] {
+  ui(): UI.Root {
     throw new Error("Not implemented");
   }
 

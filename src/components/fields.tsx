@@ -3,18 +3,31 @@ import { useSyncExternalStore } from "react";
 import { useStore } from "zustand";
 import { Store } from "@/store";
 import type { UI } from "@/drivers/ui";
-import { Box, Field, HStack, Input, InputGroup, NativeSelect, NumberInput, Stack, Switch } from "@chakra-ui/react";
+import {
+  Box,
+  Button,
+  Field,
+  HStack,
+  Input,
+  InputGroup,
+  NativeSelect,
+  NumberInput,
+  Popover,
+  Portal,
+  Stack,
+  Switch,
+} from "@chakra-ui/react";
 
 function useShallow<T>(selector: () => T): () => T {
   const shallow = useShallowZustand(() => selector());
   return () => shallow(undefined);
 }
 
-function useField(field: UI.Field.Any) {
+function useRadioOn<T>(on: () => T): T {
   const radio = useStore(Store, (s) => s.radio);
   if (!radio) throw new Error();
 
-  return useSyncExternalStore(radio.subscribe_ui, useShallow(field.get));
+  return useSyncExternalStore(radio.subscribe_ui, useShallow(on));
 }
 
 function RadioWatch<T>(props: { on: () => T; children: (value: T) => React.ReactNode }) {
@@ -28,153 +41,209 @@ function RadioWatch<T>(props: { on: () => T; children: (value: T) => React.React
   return children(value);
 }
 
+function ChannelCard(props: { field: UI.Field.Channels; index: number }) {
+  const { field, index } = props;
+  const { freq, mode, channel, squelch_rx } = field;
+
+  const channel_value = useRadioOn(() => channel.get(index));
+  const freq_value = useRadioOn(() => freq?.get(index));
+  const mode_value = useRadioOn(() => mode?.get(index));
+  const squelch_rx_value = useRadioOn(() => squelch_rx?.get(index));
+
+  return (
+    <Popover.Root lazyMount unmountOnExit positioning={{ placement: "right-start" }}>
+      <Popover.Trigger asChild>
+        <Button variant="outline" height="auto" p="3" fontFamily="monospace" width="200px">
+          <Stack>
+            <Box>
+              {channel_value} {freq_value ? freq_value / 1_000_000 : "-"} {mode_value}
+            </Box>
+            <Box>
+              {(() => {
+                if (!squelch_rx_value || squelch_rx_value.mode === "Off") return "No squelch";
+
+                if (squelch_rx_value.mode === "CTCSS") return `CTCSS ${squelch_rx_value.freq}`;
+                if (squelch_rx_value.mode === "DCS")
+                  return `DCS D${squelch_rx_value.code.toString().padStart(3, "0")}${squelch_rx_value.polarity}`;
+
+                return "?";
+              })()}
+            </Box>
+          </Stack>
+        </Button>
+      </Popover.Trigger>
+      <Portal>
+        <Popover.Positioner>
+          <Popover.Content>
+            <Popover.Arrow />
+            <Popover.Body>
+              <ChannelForm {...props} />
+            </Popover.Body>
+          </Popover.Content>
+        </Popover.Positioner>
+      </Portal>
+    </Popover.Root>
+  );
+}
+
+function SquelchForm(props: { squelch: NonNullable<UI.Field.Channels["squelch_rx"]>; index: number; name: string }) {
+  const { squelch, index, name } = props;
+
+  return (
+    <RadioWatch on={() => squelch.get(index)}>
+      {(value) => (
+        <>
+          <Field.Root>
+            <Field.Label>{name}</Field.Label>
+            <NativeSelect.Root>
+              <NativeSelect.Field
+                value={value.mode}
+                onChange={(e) => {
+                  const mode = e.currentTarget.value as UI.SquelchMode;
+
+                  if (mode === "Off") {
+                    squelch.set(index, { mode });
+                  } else if (mode === "CTCSS") {
+                    squelch.set(index, { mode, freq: 67.0 });
+                  } else if (mode === "DCS") {
+                    squelch.set(index, { mode, code: 23, polarity: "N" });
+                  }
+                }}
+              >
+                {squelch.options.map((opt, i_opt) => (
+                  <option key={i_opt} value={opt}>
+                    {opt}
+                  </option>
+                ))}
+              </NativeSelect.Field>
+              <NativeSelect.Indicator />
+            </NativeSelect.Root>
+          </Field.Root>
+          {value.mode === "CTCSS" && (
+            <Field.Root>
+              <Field.Label>Frequency</Field.Label>
+              <NumberInput.Root
+                value={String(value.freq)}
+                onValueChange={(e) => squelch.set(index, { ...value, freq: e.valueAsNumber })}
+                formatOptions={{
+                  minimumFractionDigits: 1,
+                }}
+              >
+                <NumberInput.Input />
+              </NumberInput.Root>
+            </Field.Root>
+          )}
+          {value.mode === "DCS" && (
+            <>
+              <InputGroup
+                flex="1"
+                startElement="D"
+                endElement={
+                  <NativeSelect.Root size="xs" variant="plain" width="auto" me="-1">
+                    <NativeSelect.Field
+                      fontSize="sm"
+                      value={value.polarity}
+                      onChange={(e) => {
+                        const polarity = e.currentTarget.value as "I" | "N";
+                        squelch.set(index, { ...value, polarity });
+                      }}
+                    >
+                      <option value="N">N</option>
+                      <option value="I">I</option>
+                    </NativeSelect.Field>
+                    <NativeSelect.Indicator />
+                  </NativeSelect.Root>
+                }
+              >
+                <NumberInput.Root
+                  asChild
+                  pe="0"
+                  value={String(value.code)}
+                  onValueChange={(e) => squelch.set(index, { ...value, code: e.valueAsNumber })}
+                >
+                  <NumberInput.Input />
+                </NumberInput.Root>
+              </InputGroup>
+            </>
+          )}
+        </>
+      )}
+    </RadioWatch>
+  );
+}
+
+function ChannelForm(props: { field: UI.Field.Channels; index: number }) {
+  const { field, index } = props;
+  const { freq, mode, channel, squelch_rx, squelch_tx } = field;
+
+  return (
+    <Stack>
+      {channel.get(index)}
+      {freq && (
+        <RadioWatch on={() => freq.get(index)}>
+          {(value) => (
+            <Field.Root>
+              <Field.Label>Frequency</Field.Label>
+              <NumberInput.Root
+                width="full"
+                value={String(value / 1_000_000)}
+                onValueChange={(e) => freq.set(index, e.valueAsNumber * 1_000_000)}
+                formatOptions={{
+                  minimumFractionDigits: 6,
+                }}
+              >
+                <NumberInput.Input />
+              </NumberInput.Root>
+            </Field.Root>
+          )}
+        </RadioWatch>
+      )}
+      {mode && (
+        <RadioWatch on={() => mode.get(index)}>
+          {(value) => (
+            <Field.Root>
+              <Field.Label>Mode</Field.Label>
+              <NativeSelect.Root>
+                <NativeSelect.Field
+                  value={value}
+                  onChange={(e) => mode.set(index, e.currentTarget.value as UI.RadioMode)}
+                >
+                  {mode.options.map((opt, i_opt) => (
+                    <option key={i_opt} value={opt}>
+                      {opt}
+                    </option>
+                  ))}
+                </NativeSelect.Field>
+                <NativeSelect.Indicator />
+              </NativeSelect.Root>
+            </Field.Root>
+          )}
+        </RadioWatch>
+      )}
+      {squelch_rx && <SquelchForm name="Squelch RX" squelch={squelch_rx} index={index} />}
+      {squelch_tx && <SquelchForm name="Squelch TX" squelch={squelch_tx} index={index} />}
+    </Stack>
+  );
+}
+
 function ChannelsField(props: { field: UI.Field.Channels }) {
   const { field } = props;
-  useField(field);
+  useRadioOn(field.get);
 
   return (
     <HStack wrap="wrap">
       {Array(field.size)
         .fill(0)
-        .map((_, i) => {
-          const { freq, mode, channel, squelch } = field;
-
-          return (
-            <Box key={i} borderWidth="thin" p="4" borderRadius="lg">
-              <Stack>
-                {channel.get(i)}
-                {freq && (
-                  <RadioWatch on={() => freq.get(i)}>
-                    {(value) => (
-                      <Field.Root>
-                        <Field.Label>Frequency</Field.Label>
-                        <NumberInput.Root
-                          value={String(value / 1_000_000)}
-                          onValueChange={(e) => freq.set(i, e.valueAsNumber * 1_000_000)}
-                          formatOptions={{
-                            minimumFractionDigits: 6,
-                          }}
-                        >
-                          <NumberInput.Input />
-                        </NumberInput.Root>
-                      </Field.Root>
-                    )}
-                  </RadioWatch>
-                )}
-                {mode && (
-                  <RadioWatch on={() => mode.get(i)}>
-                    {(value) => (
-                      <Field.Root>
-                        <Field.Label>Mode</Field.Label>
-                        <NativeSelect.Root>
-                          <NativeSelect.Field
-                            value={value}
-                            onChange={(e) => mode.set(i, e.currentTarget.value as UI.RadioMode)}
-                          >
-                            {mode.options.map((opt, i_opt) => (
-                              <option key={i_opt} value={opt}>
-                                {opt}
-                              </option>
-                            ))}
-                          </NativeSelect.Field>
-                          <NativeSelect.Indicator />
-                        </NativeSelect.Root>
-                      </Field.Root>
-                    )}
-                  </RadioWatch>
-                )}
-                {squelch && (
-                  <RadioWatch on={() => squelch.get(i)}>
-                    {(value) => (
-                      <>
-                        <Field.Root>
-                          <Field.Label>Squelch</Field.Label>
-                          <NativeSelect.Root>
-                            <NativeSelect.Field
-                              value={value.mode}
-                              onChange={(e) => {
-                                const mode = e.currentTarget.value as UI.SquelchMode;
-
-                                if (mode === "Off") {
-                                  squelch.set(i, { mode });
-                                } else if (mode === "CTCSS") {
-                                  squelch.set(i, { mode, freq: 67.0 });
-                                } else if (mode === "DCS") {
-                                  squelch.set(i, { mode, code: 23, polarity: "N" });
-                                }
-                              }}
-                            >
-                              {squelch.options.map((opt, i_opt) => (
-                                <option key={i_opt} value={opt}>
-                                  {opt}
-                                </option>
-                              ))}
-                            </NativeSelect.Field>
-                            <NativeSelect.Indicator />
-                          </NativeSelect.Root>
-                        </Field.Root>
-                        {value.mode === "CTCSS" && (
-                          <Field.Root>
-                            <Field.Label>Frequency</Field.Label>
-                            <NumberInput.Root
-                              value={String(value.freq)}
-                              onValueChange={(e) => squelch.set(i, { ...value, freq: e.valueAsNumber })}
-                              formatOptions={{
-                                minimumFractionDigits: 1,
-                              }}
-                            >
-                              <NumberInput.Input />
-                            </NumberInput.Root>
-                          </Field.Root>
-                        )}
-                        {value.mode === "DCS" && (
-                          <>
-                            <InputGroup
-                              flex="1"
-                              startElement="D"
-                              endElement={
-                                <NativeSelect.Root size="xs" variant="plain" width="auto" me="-1">
-                                  <NativeSelect.Field
-                                    fontSize="sm"
-                                    value={value.polarity}
-                                    onChange={(e) => {
-                                      const polarity = e.currentTarget.value as "I" | "N";
-                                      squelch.set(i, { ...value, polarity });
-                                    }}
-                                  >
-                                    <option value="N">N</option>
-                                    <option value="I">I</option>
-                                  </NativeSelect.Field>
-                                  <NativeSelect.Indicator />
-                                </NativeSelect.Root>
-                              }
-                            >
-                              <NumberInput.Root
-                                asChild
-                                pe="0"
-                                value={String(value.code)}
-                                onValueChange={(e) => squelch.set(i, { ...value, code: e.valueAsNumber })}
-                              >
-                                <NumberInput.Input />
-                              </NumberInput.Root>
-                            </InputGroup>
-                          </>
-                        )}
-                      </>
-                    )}
-                  </RadioWatch>
-                )}
-              </Stack>
-            </Box>
-          );
-        })}
+        .map((_, i) => (
+          <ChannelCard key={i} field={field} index={i} />
+        ))}
     </HStack>
   );
 }
 
 function SwitcherField(props: { field: UI.Field.Switcher }) {
   const { field } = props;
-  const value = useField(field);
+  const value = useRadioOn(field.get);
 
   return (
     <Field.Root>
@@ -189,7 +258,7 @@ function SwitcherField(props: { field: UI.Field.Switcher }) {
 
 function SelectField(props: { field: UI.Field.Select }) {
   const { field } = props;
-  const value = useField(field);
+  const value = useRadioOn(field.get);
 
   return (
     <Field.Root>

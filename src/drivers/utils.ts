@@ -12,7 +12,16 @@ export namespace M {
   };
 }
 
-export const create_mem_mapper = (data: Buffer, onchange?: () => void) => {
+export type MemReader = {
+  seek: (addr: number) => MemReader;
+  skip: <R>(size: number, ret: R) => R;
+  u8: () => M.U8;
+  u8_array: (size: number) => M.U8array;
+  bits: <T extends string>(...names: (T | null)[]) => { [K in T]: M.Bits };
+  lbcd: (size: number) => M.LBCD;
+};
+
+export const create_mem_mapper = (data: Buffer, onchange?: () => void): MemReader => {
   let cur = 0;
 
   const mapper = {

@@ -30,7 +30,12 @@ export namespace UI {
         get: (i: number) => RadioMode;
         set: (i: number, val: RadioMode) => void;
       };
-      squelch?: {
+      squelch_rx?: {
+        options: SquelchMode[];
+        get: (i: number) => Squelch;
+        set: (i: number, val: Squelch) => void;
+      };
+      squelch_tx?: {
         options: SquelchMode[];
         get: (i: number) => Squelch;
         set: (i: number, val: Squelch) => void;
@@ -42,4 +47,6 @@ export namespace UI {
 
     export type Any = Channels | Switcher | Select;
   }
+
+  export type Root = Field.Any[];
 }
