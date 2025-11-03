@@ -1,6 +1,7 @@
 export namespace UI {
   export type RadioMode = "FM" | "NFM" | "WFM";
   export type SquelchMode = "Off" | "CTCSS" | "DCS";
+  export type ChannelScanMode = "On" | "Off" | "Priority";
 
   export type Squelch =
     | { mode: "Off" }
@@ -16,12 +17,17 @@ export namespace UI {
       set: (val: unknown) => void;
 
       tab?: string;
+      description?: string;
     };
 
     export type Channels = _Field<"channels"> & {
       size: number;
       channel: { get: (i: number) => string };
       freq?: {
+        get: (i: number) => number;
+        set: (i: number, val: number) => void;
+      };
+      offset?: {
         get: (i: number) => number;
         set: (i: number, val: number) => void;
       };
@@ -40,13 +46,24 @@ export namespace UI {
         get: (i: number) => Squelch;
         set: (i: number, val: Squelch) => void;
       };
+      power?: {
+        options: number[];
+        name?: (val: number) => string;
+        get: (i: number) => number;
+        set: (i: number, val: number) => void;
+      };
+      scan?: {
+        options: ChannelScanMode[];
+        get: (i: number) => ChannelScanMode;
+        set: (i: number, val: ChannelScanMode) => void;
+      };
     };
 
     export type Switcher = _Field<"switcher">;
-    export type Select<V = unknown> = _Field<"select"> & { options: { value: V; name: string }[] };
+    export type Select = _Field<"select"> & { options: string[] };
 
     export type Any = Channels | Switcher | Select;
   }
 
-  export type Root = Field.Any[];
+  export type Root = { fields: Field.Any[] };
 }

@@ -12,8 +12,8 @@ export namespace M {
   };
 }
 
-export type MemReader = {
-  seek: (addr: number) => MemReader;
+export type MemMapper = {
+  seek: (addr: number) => MemMapper;
   skip: <R>(size: number, ret: R) => R;
   u8: () => M.U8;
   u8_array: (size: number) => M.U8array;
@@ -21,10 +21,10 @@ export type MemReader = {
   lbcd: (size: number) => M.LBCD;
 };
 
-export const create_mem_mapper = (data: Buffer, onchange?: () => void): MemReader => {
+export const create_mem_mapper = (data: Buffer, onchange?: () => void): MemMapper => {
   let cur = 0;
 
-  const mapper = {
+  const mapper: MemMapper = {
     seek: (addr: number) => {
       cur = addr;
       return mapper;
@@ -147,4 +147,46 @@ export const create_mem_mapper = (data: Buffer, onchange?: () => void): MemReade
   return mapper;
 };
 
+type ToJS<T = unknown> = T extends null | undefined
+  ? T
+  : T extends Array<infer E>
+  ? ToJS<E>
+  : T extends { size: number; get(i: number): infer V }
+  ? V[]
+  : T extends { get(): infer V }
+  ? V
+  : T extends object
+  ? { [K in keyof T]: ToJS<T[K]> }
+  : undefined;
+
+export const to_js = <T>(value: T): ToJS<T> => {
+  if (value === null || value === undefined) return value as ToJS<T>;
+
+  if (Array.isArray(value)) {
+    return value.map(to_js) as ToJS<T>;
+  }
+
+  if (typeof value === "object") {
+    if ("get" in value && typeof value.get === "function") {
+      const get = value.get;
+
+      if ("size" in value) {
+        return Array(value.size)
+          .fill(0)
+          .map((_, i) => get(i)) as ToJS<T>;
+      }
+
+      return get() as ToJS<T>;
+    }
+
+    return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, to_js(v)])) as ToJS<T>;
+  }
+
+  return undefined as ToJS<T>;
+};
+
 export const dup = <T extends string | null>(size: number, value: T): T[] => Array(size).fill(value);
+export const array_of = <T>(size: number, fn: (i: number) => T): T[] =>
+  Array(size)
+    .fill(0)
+    .map((_, i) => fn(i));

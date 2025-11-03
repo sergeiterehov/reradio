@@ -3,13 +3,11 @@ import type { Radio } from "./drivers/radio";
 import { Library } from "./drivers/library";
 
 export type Store = {
-  radio?: Radio;
+  radio: Radio;
   task?: string;
   progress?: number;
 
   _actions: {
-    init: () => void;
-
     download: () => void;
     upload: () => void;
 
@@ -23,13 +21,6 @@ export const Store = createStore<Store>((set, get) => {
   const _clearTask = () => set({ task: undefined, progress: undefined });
 
   const _actions: Store["_actions"] = {
-    init: () => {
-      const RadioClass = Library[0];
-
-      const { radio = new RadioClass() } = get();
-      set({ radio });
-    },
-
     download: async () => {
       const { radio } = get();
 
@@ -38,8 +29,11 @@ export const Store = createStore<Store>((set, get) => {
       set({ task: "Downloading" });
       try {
         await radio.connect();
-        await radio.read(_handleProgress);
-        await radio.disconnect();
+        try {
+          await radio.read(_handleProgress);
+        } finally {
+          await radio.disconnect();
+        }
       } finally {
         _clearTask();
       }
@@ -53,8 +47,11 @@ export const Store = createStore<Store>((set, get) => {
       set({ task: "Uploading" });
       try {
         await radio.connect();
-        await radio.write(_handleProgress);
-        await radio.disconnect();
+        try {
+          await radio.write(_handleProgress);
+        } finally {
+          await radio.disconnect();
+        }
       } finally {
         _clearTask();
       }
@@ -66,9 +63,9 @@ export const Store = createStore<Store>((set, get) => {
   };
 
   return {
+    radio: new Library[0](),
     _actions,
   };
 });
-export const Actions = Store.getState()._actions;
 
-Actions.init();
+export const Actions = Store.getState()._actions;
