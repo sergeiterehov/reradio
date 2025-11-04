@@ -24,6 +24,8 @@ export namespace UI {
       size: number;
       channel: { get: (i: number) => string };
       freq?: {
+        min?: number;
+        max?: number;
         get: (i: number) => number;
         set: (i: number, val: number) => void;
       };

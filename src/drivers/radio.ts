@@ -89,7 +89,7 @@ export class Radio {
       ),
     ]);
 
-    if (SERIAL_LOG) console.log("W:", buf.length, buf.toString("hex"));
+    if (SERIAL_LOG) console.log(new Date().toISOString(), "W:", buf.length, buf.toString("hex"));
   }
 
   protected async _serial_read(size: number) {
@@ -126,7 +126,7 @@ export class Radio {
       ]);
       if (!chunk || chunk.length === 0) throw new Error("Incomplete response");
 
-      if (SERIAL_LOG) console.log("R:", chunk.length, Buffer.from(chunk).toString("hex"));
+      if (SERIAL_LOG) console.log(new Date().toISOString(), "R:", chunk.length, Buffer.from(chunk).toString("hex"));
 
       if (SERIAL_SOFT_BUFFER && len + chunk.length > size) {
         const chunkSlice = chunk.subarray(0, size - len);

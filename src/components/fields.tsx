@@ -197,6 +197,8 @@ function ChannelForm(props: { field: UI.Field.Channels; index: number }) {
                     formatOptions={{
                       minimumFractionDigits: 6,
                     }}
+                    min={typeof freq.min === "number" ? freq.min / 1_000_000 : undefined}
+                    max={typeof freq.max === "number" ? freq.max / 1_000_000 : undefined}
                   >
                     <NumberInput.Input />
                   </NumberInput.Root>

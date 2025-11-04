@@ -79,7 +79,15 @@ export class BF888Radio extends Radio {
           tab: Tab.Channels,
           size: 16,
           channel: { get: (i) => `CH${i + 1}` },
-          freq: { get: (i) => memory[i].rxfreq.get() * 10, set: (i, val) => memory[i].rxfreq.set(val / 10) },
+          freq: {
+            min: 400_000_000,
+            max: 470_000_000,
+            get: (i) => memory[i].rxfreq.get() * 10,
+            set: (i, val) => {
+              memory[i].rxfreq.set(val / 10);
+              memory[i].txfreq.set(val / 10);
+            },
+          },
           offset: {
             get: (i) => (memory[i].txfreq.get() - memory[i].rxfreq.get()) * 10,
             set: (i, val) => memory[i].txfreq.set(memory[i].rxfreq.get() + val / 10),
@@ -307,6 +315,7 @@ export class BF888Radio extends Radio {
     const ack = await this._serial_read(1);
     if (!ack.equals(CMD_ACK)) throw new Error("Radio refused to enter programming mode");
 
+    // Эта команда должна быть отправлена с минимальной задержкой! Можно отправить с командой prog
     await this._serial_write(Buffer.from([0x02]));
 
     const ident = await this._serial_read(8);
@@ -320,6 +329,7 @@ export class BF888Radio extends Radio {
 
   protected async _exit_programming_mode() {
     await this._serial_write(Buffer.from("E", "ascii"));
+    await this._serial_read(1);
   }
 
   protected async _read_block(addr: number, size: number) {
