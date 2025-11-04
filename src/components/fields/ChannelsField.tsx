@@ -133,7 +133,7 @@ function SquelchTxRx(props: {
           }}
         />
         <Button variant="subtle" size="xs" onClick={() => setSync(false)}>
-          Change squelch RX
+          Split squelch
         </Button>
       </>
     );
@@ -156,7 +156,7 @@ function SquelchTxRx(props: {
             setSync(true);
           }}
         >
-          Sync squelch TX with RX
+          Link squelch
         </Button>
       ) : null}
     </>
