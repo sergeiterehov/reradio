@@ -16,95 +16,150 @@ import { RadioWatch } from "../RadioWatch";
 import { useRadioOn } from "../useRadioOn";
 import { TbHelp } from "react-icons/tb";
 import { Tooltip } from "../ui/tooltip";
+import { useState } from "react";
 
-function SquelchForm(props: { squelch: NonNullable<UI.Field.Channels["squelch_rx"]>; index: number; name: string }) {
-  const { squelch, index, name } = props;
+function SquelchForm(props: {
+  options: UI.SquelchMode[];
+  squelch: UI.Squelch;
+  name: string;
+  onChange: (squelch: UI.Squelch) => void;
+}) {
+  const { squelch, name, options, onChange } = props;
 
   return (
-    <RadioWatch on={() => squelch.get(index)}>
-      {(value) => (
-        <>
-          <Field.Root>
-            <Field.Label>
-              {name}
-              <Tooltip content="Tone-based access control that mutes the speaker unless a specific sub-audible tone (CTCSS) or digital code (DCS) is detected, reducing unwanted noise from other users on the same frequency.">
-                <TbHelp />
-              </Tooltip>
-            </Field.Label>
-            <NativeSelect.Root>
-              <NativeSelect.Field
-                value={value.mode}
-                onChange={(e) => {
-                  const mode = e.currentTarget.value as UI.SquelchMode;
+    <>
+      <Field.Root>
+        <Field.Label>
+          {name}
+          <Tooltip content="Tone-based access control that mutes the speaker unless a specific sub-audible tone (CTCSS) or digital code (DCS) is detected, reducing unwanted noise from other users on the same frequency.">
+            <TbHelp />
+          </Tooltip>
+        </Field.Label>
+        <NativeSelect.Root>
+          <NativeSelect.Field
+            value={squelch.mode}
+            onChange={(e) => {
+              const mode = e.currentTarget.value as UI.SquelchMode;
 
-                  if (mode === "Off") {
-                    squelch.set(index, { mode });
-                  } else if (mode === "CTCSS") {
-                    squelch.set(index, { mode, freq: 67.0 });
-                  } else if (mode === "DCS") {
-                    squelch.set(index, { mode, code: 23, polarity: "N" });
-                  }
+              if (mode === "Off") {
+                onChange({ mode });
+              } else if (mode === "CTCSS") {
+                onChange({ mode, freq: 67.0 });
+              } else if (mode === "DCS") {
+                onChange({ mode, code: 23, polarity: "N" });
+              }
+            }}
+          >
+            {options.map((opt, i_opt) => (
+              <option key={i_opt} value={opt}>
+                {opt}
+              </option>
+            ))}
+          </NativeSelect.Field>
+          <NativeSelect.Indicator />
+        </NativeSelect.Root>
+      </Field.Root>
+      {squelch.mode === "CTCSS" && (
+        <InputGroup flex="1" endElement={"Hz"}>
+          <NumberInput.Root
+            asChild
+            value={String(squelch.freq)}
+            onValueChange={(e) => onChange({ ...squelch, freq: e.valueAsNumber })}
+            formatOptions={{
+              minimumFractionDigits: 1,
+            }}
+          >
+            <NumberInput.Input />
+          </NumberInput.Root>
+        </InputGroup>
+      )}
+      {squelch.mode === "DCS" && (
+        <InputGroup
+          flex="1"
+          startElement="D"
+          endElement={
+            <NativeSelect.Root size="xs" variant="plain" width="auto" me="-1">
+              <NativeSelect.Field
+                fontSize="sm"
+                value={squelch.polarity}
+                onChange={(e) => {
+                  const polarity = e.currentTarget.value as "I" | "N";
+                  onChange({ ...squelch, polarity });
                 }}
               >
-                {squelch.options.map((opt, i_opt) => (
-                  <option key={i_opt} value={opt}>
-                    {opt}
-                  </option>
-                ))}
+                <option value="N">N</option>
+                <option value="I">I</option>
               </NativeSelect.Field>
               <NativeSelect.Indicator />
             </NativeSelect.Root>
-          </Field.Root>
-          {value.mode === "CTCSS" && (
-            <InputGroup flex="1" endElement={"Hz"}>
-              <NumberInput.Root
-                asChild
-                value={String(value.freq)}
-                onValueChange={(e) => squelch.set(index, { ...value, freq: e.valueAsNumber })}
-                formatOptions={{
-                  minimumFractionDigits: 1,
-                }}
-              >
-                <NumberInput.Input />
-              </NumberInput.Root>
-            </InputGroup>
-          )}
-          {value.mode === "DCS" && (
-            <>
-              <InputGroup
-                flex="1"
-                startElement="D"
-                endElement={
-                  <NativeSelect.Root size="xs" variant="plain" width="auto" me="-1">
-                    <NativeSelect.Field
-                      fontSize="sm"
-                      value={value.polarity}
-                      onChange={(e) => {
-                        const polarity = e.currentTarget.value as "I" | "N";
-                        squelch.set(index, { ...value, polarity });
-                      }}
-                    >
-                      <option value="N">N</option>
-                      <option value="I">I</option>
-                    </NativeSelect.Field>
-                    <NativeSelect.Indicator />
-                  </NativeSelect.Root>
-                }
-              >
-                <NumberInput.Root
-                  asChild
-                  pe="0"
-                  value={String(value.code)}
-                  onValueChange={(e) => squelch.set(index, { ...value, code: e.valueAsNumber })}
-                >
-                  <NumberInput.Input />
-                </NumberInput.Root>
-              </InputGroup>
-            </>
-          )}
-        </>
+          }
+        >
+          <NumberInput.Root
+            asChild
+            pe="0"
+            value={String(squelch.code)}
+            onValueChange={(e) => onChange({ ...squelch, code: e.valueAsNumber })}
+          >
+            <NumberInput.Input />
+          </NumberInput.Root>
+        </InputGroup>
       )}
-    </RadioWatch>
+    </>
+  );
+}
+
+function SquelchTxRx(props: {
+  tx: UI.Field.Channels["squelch_tx"];
+  rx: UI.Field.Channels["squelch_rx"];
+  index: number;
+}) {
+  const { index, rx, tx } = props;
+
+  const [sync, setSync] = useState(true);
+
+  const rx_value = useRadioOn(() => rx?.get(index));
+  const tx_value = useRadioOn(() => tx?.get(index));
+
+  if (sync && tx_value && rx_value && JSON.stringify(tx_value) === JSON.stringify(rx_value)) {
+    return (
+      <>
+        <SquelchForm
+          name="Squelch TX/RX"
+          options={rx!.options}
+          squelch={rx_value}
+          onChange={(s) => {
+            rx!.set(index, s);
+            tx!.set(index, s);
+          }}
+        />
+        <Button variant="subtle" size="xs" onClick={() => setSync(false)}>
+          Change squelch RX
+        </Button>
+      </>
+    );
+  }
+
+  return (
+    <>
+      {rx_value && (
+        <SquelchForm name="Squelch RX" options={rx!.options} squelch={rx_value} onChange={(s) => rx!.set(index, s)} />
+      )}
+      {tx_value && (
+        <SquelchForm name="Squelch TX" options={tx!.options} squelch={tx_value} onChange={(s) => tx!.set(index, s)} />
+      )}
+      {tx_value && rx_value ? (
+        <Button
+          variant="subtle"
+          size="xs"
+          onClick={() => {
+            tx!.set(index, rx_value);
+            setSync(true);
+          }}
+        >
+          Sync squelch TX with RX
+        </Button>
+      ) : null}
+    </>
   );
 }
 
@@ -197,8 +252,7 @@ function ChannelForm(props: { field: UI.Field.Channels; index: number }) {
             )}
           </RadioWatch>
         )}
-        {squelch_rx && <SquelchForm name="Squelch RX" squelch={squelch_rx} index={index} />}
-        {squelch_tx && <SquelchForm name="Squelch TX" squelch={squelch_tx} index={index} />}
+        <SquelchTxRx tx={squelch_tx} rx={squelch_rx} index={index} />
         {power && (
           <RadioWatch on={() => power.get(index)}>
             {(value) => (
