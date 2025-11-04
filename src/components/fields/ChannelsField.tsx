@@ -1,94 +1,21 @@
-import { useShallow as useShallowZustand } from "zustand/shallow";
-import { useSyncExternalStore } from "react";
-import { useStore } from "zustand";
-import { Store } from "@/store";
 import type { UI } from "@/drivers/ui";
 import {
-  Box,
+  Drawer,
   Button,
-  Field,
-  Fieldset,
-  HStack,
-  InputGroup,
-  NativeSelect,
-  NumberInput,
-  Popover,
-  Portal,
   Stack,
-  Switch,
+  HStack,
+  Box,
+  Portal,
+  Field,
+  NativeSelect,
+  InputGroup,
+  NumberInput,
+  Fieldset,
 } from "@chakra-ui/react";
-
-function useShallow<T>(selector: () => T): () => T {
-  const shallow = useShallowZustand(() => selector());
-  return () => shallow(undefined);
-}
-
-function useRadioOn<T>(on: () => T): T {
-  const radio = useStore(Store, (s) => s.radio);
-  if (!radio) throw new Error();
-
-  return useSyncExternalStore(radio.subscribe_ui, useShallow(on));
-}
-
-function RadioWatch<T>(props: { on: () => T; children: (value: T) => React.ReactNode }) {
-  const { on, children } = props;
-
-  const radio = useStore(Store, (s) => s.radio);
-  if (!radio) throw new Error();
-
-  const value = useSyncExternalStore(radio.subscribe_ui, useShallow(on));
-
-  return children(value);
-}
-
-function ChannelCard(props: { field: UI.Field.Channels; index: number }) {
-  const { field, index } = props;
-  const { freq, offset, mode, channel, squelch_rx } = field;
-
-  const channel_value = useRadioOn(() => channel.get(index));
-  const freq_value = useRadioOn(() => freq?.get(index));
-  const offset_value = useRadioOn(() => offset?.get(index));
-  const mode_value = useRadioOn(() => mode?.get(index));
-  const squelch_rx_value = useRadioOn(() => squelch_rx?.get(index));
-
-  return (
-    <Popover.Root lazyMount unmountOnExit positioning={{ placement: "right-start" }}>
-      <Popover.Trigger asChild>
-        <Button variant="outline" height="auto" p="3" fontFamily="monospace" width="200px">
-          <Stack>
-            <HStack>
-              <Box>{channel_value}</Box>
-              <Box fontWeight="bolder">{freq_value ? freq_value / 1_000_000 : "-"}</Box>
-              {mode_value ? <Box>{mode_value}</Box> : null}
-              {offset_value ? `${offset_value > 0 ? "+" : ""}${offset_value / 1_000_000}` : null}
-            </HStack>
-            <Box>
-              {(() => {
-                if (!squelch_rx_value || squelch_rx_value.mode === "Off") return "No squelch";
-
-                if (squelch_rx_value.mode === "CTCSS") return `CTCSS ${squelch_rx_value.freq}`;
-                if (squelch_rx_value.mode === "DCS")
-                  return `DCS D${squelch_rx_value.code.toString().padStart(3, "0")}${squelch_rx_value.polarity}`;
-
-                return "?";
-              })()}
-            </Box>
-          </Stack>
-        </Button>
-      </Popover.Trigger>
-      <Portal>
-        <Popover.Positioner>
-          <Popover.Content>
-            <Popover.Arrow />
-            <Popover.Body>
-              <ChannelForm {...props} />
-            </Popover.Body>
-          </Popover.Content>
-        </Popover.Positioner>
-      </Portal>
-    </Popover.Root>
-  );
-}
+import { RadioWatch } from "../RadioWatch";
+import { useRadioOn } from "../useRadioOn";
+import { TbHelp } from "react-icons/tb";
+import { Tooltip } from "../ui/tooltip";
 
 function SquelchForm(props: { squelch: NonNullable<UI.Field.Channels["squelch_rx"]>; index: number; name: string }) {
   const { squelch, index, name } = props;
@@ -98,7 +25,12 @@ function SquelchForm(props: { squelch: NonNullable<UI.Field.Channels["squelch_rx
       {(value) => (
         <>
           <Field.Root>
-            <Field.Label>{name}</Field.Label>
+            <Field.Label>
+              {name}
+              <Tooltip content="Tone-based access control that mutes the speaker unless a specific sub-audible tone (CTCSS) or digital code (DCS) is detected, reducing unwanted noise from other users on the same frequency.">
+                <TbHelp />
+              </Tooltip>
+            </Field.Label>
             <NativeSelect.Root>
               <NativeSelect.Field
                 value={value.mode}
@@ -178,17 +110,21 @@ function SquelchForm(props: { squelch: NonNullable<UI.Field.Channels["squelch_rx
 
 function ChannelForm(props: { field: UI.Field.Channels; index: number }) {
   const { field, index } = props;
-  const { freq, offset, mode, channel, squelch_rx, squelch_tx, power, scan } = field;
+  const { freq, offset, mode, squelch_rx, squelch_tx, power, scan } = field;
 
   return (
     <Fieldset.Root>
-      <Fieldset.Legend>{channel.get(index)}</Fieldset.Legend>
       <Fieldset.Content>
         {freq && (
           <RadioWatch on={() => freq.get(index)}>
             {(value) => (
               <Field.Root>
-                <Field.Label>Frequency</Field.Label>
+                <Field.Label>
+                  Frequency
+                  <Tooltip content="The radio frequency used for receiving and transmitting signals.">
+                    <TbHelp />
+                  </Tooltip>
+                </Field.Label>
                 <InputGroup flex="1" endElement={"MHz"}>
                   <NumberInput.Root
                     asChild
@@ -211,7 +147,12 @@ function ChannelForm(props: { field: UI.Field.Channels; index: number }) {
           <RadioWatch on={() => offset.get(index)}>
             {(value) => (
               <Field.Root>
-                <Field.Label>Offset</Field.Label>
+                <Field.Label>
+                  Offset
+                  <Tooltip content="The difference between the transmit and receive frequencies, used to enable communication through repeaters or to avoid interference when operating simplex.">
+                    <TbHelp />
+                  </Tooltip>
+                </Field.Label>
                 <InputGroup flex="1" endElement={"MHz"}>
                   <NumberInput.Root
                     asChild
@@ -233,7 +174,12 @@ function ChannelForm(props: { field: UI.Field.Channels; index: number }) {
           <RadioWatch on={() => mode.get(index)}>
             {(value) => (
               <Field.Root>
-                <Field.Label>Mode</Field.Label>
+                <Field.Label>
+                  Mode
+                  <Tooltip content="The type of frequency modulation used for the signal, affecting bandwidth and audio quality. Common modes include FM (standard narrowband), NFM (narrower bandwidth), and WFM (wideband, typically for broadcast reception).">
+                    <TbHelp />
+                  </Tooltip>
+                </Field.Label>
                 <NativeSelect.Root>
                   <NativeSelect.Field
                     value={value}
@@ -257,7 +203,12 @@ function ChannelForm(props: { field: UI.Field.Channels; index: number }) {
           <RadioWatch on={() => power.get(index)}>
             {(value) => (
               <Field.Root>
-                <Field.Label>Power</Field.Label>
+                <Field.Label>
+                  Power
+                  <Tooltip content="Transmit power level; use low power for short-range communication to save battery and reduce interference, high power for longer range when needed.">
+                    <TbHelp />
+                  </Tooltip>
+                </Field.Label>
                 <NativeSelect.Root>
                   <NativeSelect.Field value={value} onChange={(e) => power.set(index, Number(e.currentTarget.value))}>
                     {power.options.map((opt, i_opt) => (
@@ -276,7 +227,12 @@ function ChannelForm(props: { field: UI.Field.Channels; index: number }) {
           <RadioWatch on={() => scan.get(index)}>
             {(value) => (
               <Field.Root>
-                <Field.Label>Scan behavior</Field.Label>
+                <Field.Label>
+                  Scan behavior
+                  <Tooltip content="Controls whether and how the channel is included during scanning operations, allowing it to be skipped, scanned normally, or given higher attention.">
+                    <TbHelp />
+                  </Tooltip>
+                </Field.Label>
                 <NativeSelect.Root>
                   <NativeSelect.Field
                     value={value}
@@ -299,7 +255,59 @@ function ChannelForm(props: { field: UI.Field.Channels; index: number }) {
   );
 }
 
-function ChannelsField(props: { field: UI.Field.Channels }) {
+function ChannelCard(props: { field: UI.Field.Channels; index: number }) {
+  const { field, index } = props;
+  const { freq, offset, mode, channel, squelch_rx } = field;
+
+  const channel_value = useRadioOn(() => channel.get(index));
+  const freq_value = useRadioOn(() => freq?.get(index));
+  const offset_value = useRadioOn(() => offset?.get(index));
+  const mode_value = useRadioOn(() => mode?.get(index));
+  const squelch_rx_value = useRadioOn(() => squelch_rx?.get(index));
+
+  return (
+    <Drawer.Root lazyMount unmountOnExit>
+      <Drawer.Trigger asChild>
+        <Button variant="outline" height="auto" p="3" fontFamily="monospace" width="200px">
+          <Stack>
+            <HStack>
+              <Box>{channel_value}</Box>
+              <Box fontWeight="bolder">{freq_value ? freq_value / 1_000_000 : "-"}</Box>
+              {mode_value ? <Box>{mode_value}</Box> : null}
+              {offset_value ? `${offset_value > 0 ? "+" : ""}${offset_value / 1_000_000}` : null}
+            </HStack>
+            <Box>
+              {(() => {
+                if (!squelch_rx_value || squelch_rx_value.mode === "Off") return "No squelch";
+
+                if (squelch_rx_value.mode === "CTCSS") return `CTCSS ${squelch_rx_value.freq}`;
+                if (squelch_rx_value.mode === "DCS")
+                  return `DCS D${squelch_rx_value.code.toString().padStart(3, "0")}${squelch_rx_value.polarity}`;
+
+                return "?";
+              })()}
+            </Box>
+          </Stack>
+        </Button>
+      </Drawer.Trigger>
+      <Portal>
+        <Drawer.Backdrop />
+        <Drawer.Positioner>
+          <Drawer.Content>
+            <Drawer.Header>
+              <Drawer.Title>{channel_value}</Drawer.Title>
+            </Drawer.Header>
+            <Drawer.Body>
+              <ChannelForm {...props} />
+            </Drawer.Body>
+          </Drawer.Content>
+        </Drawer.Positioner>
+      </Portal>
+    </Drawer.Root>
+  );
+}
+
+export function ChannelsField(props: { field: UI.Field.Channels }) {
   const { field } = props;
   useRadioOn(field.get);
 
@@ -312,52 +320,4 @@ function ChannelsField(props: { field: UI.Field.Channels }) {
         ))}
     </HStack>
   );
-}
-
-function SwitcherField(props: { field: UI.Field.Switcher }) {
-  const { field } = props;
-  const value = useRadioOn(field.get);
-
-  return (
-    <Field.Root>
-      <Switch.Root key={field.id} checked={Boolean(value)} onCheckedChange={(e) => field.set(e.checked)}>
-        <Switch.HiddenInput />
-        <Switch.Control />
-        <Switch.Label>{field.name}</Switch.Label>
-      </Switch.Root>
-      <Field.HelperText>{field.description}</Field.HelperText>
-    </Field.Root>
-  );
-}
-
-function SelectField(props: { field: UI.Field.Select }) {
-  const { field } = props;
-  const value = useRadioOn(field.get);
-
-  return (
-    <Field.Root>
-      <Field.Label>{field.name}</Field.Label>
-      <NativeSelect.Root>
-        <NativeSelect.Field value={String(value)} onChange={(e) => field.set(Number(e.currentTarget.value))}>
-          {field.options.map((opt, i) => (
-            <option key={i} value={String(i)}>
-              {opt}
-            </option>
-          ))}
-        </NativeSelect.Field>
-        <NativeSelect.Indicator />
-      </NativeSelect.Root>
-      <Field.HelperText>{field.description}</Field.HelperText>
-    </Field.Root>
-  );
-}
-
-export function AnyField(props: { field: UI.Field.Any }) {
-  const { field } = props;
-
-  if (field.type === "channels") return <ChannelsField field={field} />;
-  if (field.type === "switcher") return <SwitcherField field={field} />;
-  if (field.type === "select") return <SelectField field={field} />;
-
-  return null;
 }
