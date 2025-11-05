@@ -120,7 +120,7 @@ export class T18Radio extends Radio {
     const ui: UI.Root = {
       fields: [
         {
-          ...common_ui.channels({ size: 16 }),
+          ...common_ui.channels({ size: memory.length }),
           freq: {
             min: 400_000_000,
             max: 470_000_000,
@@ -156,10 +156,10 @@ export class T18Radio extends Radio {
         common_ui.beep(settings.beep),
         common_ui.voice_prompt(settings.voice),
         common_ui.voice_language(settings.language, { languages: ["English", "Chinese"] }),
-        common_ui.sql(settings.squelchlevel, { min: 0, max: 9 }),
-        common_ui.roger_beep(settings.rogerbeep),
         common_ui.vox(settings.vox),
         common_ui.vox_level(settings.vox_level, { min: 0, max: 9 }),
+        common_ui.roger_beep(settings.rogerbeep),
+        common_ui.sql(settings.squelchlevel, { min: 0, max: 9 }),
       ],
     };
 

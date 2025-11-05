@@ -64,7 +64,7 @@ export class BF888Radio extends Radio {
     return {
       fields: [
         {
-          ...common_ui.channels({ size: 16 }),
+          ...common_ui.channels({ size: memory.length }),
           freq: {
             min: 400_000_000,
             max: 470_000_000,
@@ -117,12 +117,6 @@ export class BF888Radio extends Radio {
       ],
     };
   }
-
-  protected _ranges = [
-    [0x0000, 0x0110],
-    [0x0380, 0x03e0],
-    [0x02b0, 0x02c0],
-  ];
 
   protected _img?: Buffer;
   protected _mem?: ReturnType<typeof this._parse>;

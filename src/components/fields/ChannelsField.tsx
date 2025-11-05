@@ -12,12 +12,21 @@ import {
   NumberInput,
   Fieldset,
   SegmentGroup,
+  Text,
+  IconButton,
+  Popover,
+  Select,
+  createListCollection,
 } from "@chakra-ui/react";
 import { RadioWatch } from "../RadioWatch";
 import { useRadioOn } from "../useRadioOn";
-import { TbHelp } from "react-icons/tb";
+import { TbHelp, TbTrash } from "react-icons/tb";
 import { Tooltip } from "../ui/tooltip";
 import { useState } from "react";
+
+const frequencies = createListCollection({
+  items: [1, 2, 3],
+});
 
 function SquelchForm(props: {
   options: UI.SquelchMode[];
@@ -64,6 +73,7 @@ function SquelchForm(props: {
         <InputGroup flex="1" endElement={"Hz"}>
           <NumberInput.Root
             asChild
+            size="sm"
             value={String(squelch.freq)}
             onValueChange={(e) => onChange({ ...squelch, freq: e.valueAsNumber })}
             formatOptions={{
@@ -184,6 +194,7 @@ function ChannelForm(props: { field: UI.Field.Channels; index: number }) {
                 <InputGroup flex="1" endElement={"MHz"}>
                   <NumberInput.Root
                     asChild
+                    size="lg"
                     value={String(value / 1_000_000)}
                     onValueChange={(e) => freq.set(index, e.valueAsNumber * 1_000_000)}
                     formatOptions={{
@@ -306,18 +317,46 @@ function ChannelForm(props: { field: UI.Field.Channels; index: number }) {
 
 function ChannelCard(props: { field: UI.Field.Channels; index: number }) {
   const { field, index } = props;
-  const { freq, offset, mode, channel, squelch_rx } = field;
+  const { empty, freq, offset, mode, channel, squelch_rx } = field;
 
+  const empty_value = useRadioOn(() => empty?.get(index));
   const channel_value = useRadioOn(() => channel.get(index));
   const freq_value = useRadioOn(() => freq?.get(index));
   const offset_value = useRadioOn(() => offset?.get(index));
   const mode_value = useRadioOn(() => mode?.get(index));
   const squelch_rx_value = useRadioOn(() => squelch_rx?.get(index));
 
+  if (empty_value) {
+    return (
+      <Popover.Root lazyMount unmountOnExit>
+        <Popover.Trigger asChild>
+          <Button variant="subtle" p="3" fontFamily="monospace" width="200px" height="80px">
+            {channel_value}
+          </Button>
+        </Popover.Trigger>
+        <Portal>
+          <Popover.Positioner>
+            <Popover.Content>
+              <Popover.Arrow />
+              <Popover.Body>
+                <Popover.Title fontWeight="medium">Channel is empty</Popover.Title>
+                <Text my="4">
+                  The channel slot contains no configured frequency or essential settings and is not usable for
+                  communication.
+                </Text>
+                <Button onClick={() => empty!.init(index)}>Initialize</Button>
+              </Popover.Body>
+            </Popover.Content>
+          </Popover.Positioner>
+        </Portal>
+      </Popover.Root>
+    );
+  }
+
   return (
     <Drawer.Root lazyMount unmountOnExit>
       <Drawer.Trigger asChild>
-        <Button variant="outline" height="auto" p="3" fontFamily="monospace" width="200px">
+        <Button variant="outline" p="3" fontFamily="monospace" width="200px" height="80px">
           <Stack>
             <HStack>
               <Box>{channel_value}</Box>
@@ -344,7 +383,18 @@ function ChannelCard(props: { field: UI.Field.Channels; index: number }) {
         <Drawer.Positioner>
           <Drawer.Content>
             <Drawer.Header>
-              <Drawer.Title>{channel_value}</Drawer.Title>
+              <Drawer.Title>
+                <HStack>
+                  <Text flexGrow="1">{channel_value}</Text>
+                  {empty ? (
+                    <Tooltip content="Delete channel">
+                      <IconButton variant="ghost" rounded="full" colorPalette="red" onClick={() => empty.delete(index)}>
+                        <TbTrash />
+                      </IconButton>
+                    </Tooltip>
+                  ) : null}
+                </HStack>
+              </Drawer.Title>
             </Drawer.Header>
             <Drawer.Body>
               <ChannelForm {...props} />

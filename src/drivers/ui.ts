@@ -23,6 +23,11 @@ export namespace UI {
     export type Channels = _Field<"channels"> & {
       size: number;
       channel: { get: (i: number) => string };
+      empty?: {
+        get: (i: number) => boolean;
+        init: (i: number) => void;
+        delete: (i: number) => void;
+      };
       freq?: {
         min?: number;
         max?: number;
