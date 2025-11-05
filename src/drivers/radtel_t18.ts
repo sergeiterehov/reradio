@@ -2,7 +2,7 @@ import { Buffer } from "buffer";
 import { Radio, type RadioInfo } from "./radio";
 import { create_mem_mapper, dup, type M } from "./mem";
 import type { UI } from "./ui";
-import { ui_get_lbcd_squelch } from "./common";
+import { common_ui } from "./common_ui";
 
 const CMD_ACK = Buffer.from([0x06]);
 
@@ -13,13 +13,11 @@ namespace T18Radio {
       txfreq: M.LBCD;
       rxtone: M.LBCD;
       txtone: M.LBCD;
-      flags: {
-        jumpcode: M.Bits;
-        skip: M.Bits;
-        highpower: M.Bits;
-        narrow: M.Bits;
-        bcl: M.Bits;
-      };
+      jumpcode: M.Bits;
+      skip: M.Bits;
+      highpower: M.Bits;
+      narrow: M.Bits;
+      bcl: M.Bits;
     };
 
     export type Settings = {
@@ -52,33 +50,6 @@ export class T18Radio extends Radio {
     model: "T18",
   };
 
-  protected static _uiChannels(channels: T18Radio.Mem.Channel[]): UI.Field.Channels {
-    return {
-      type: "channels",
-      id: "channels",
-      name: "Channels",
-      tab: "Channels",
-      get: () => channels.length,
-      set: () => {},
-      size: 16,
-      channel: { get: (i) => `CH ${i + 1}` },
-      freq: {
-        get: (i) => channels[i].rxfreq.get() * 10,
-        set: (i, val) => {
-          channels[i].rxfreq.set(val / 10);
-          channels[i].txfreq.set(val / 10);
-        },
-      },
-      mode: {
-        options: ["FM", "NFM"],
-        get: (i) => (channels[i].flags.narrow.get() ? "NFM" : "FM"),
-        set: (i, val) => channels[i].flags.narrow.set(val === "NFM" ? 1 : 0),
-      },
-      squelch_rx: ui_get_lbcd_squelch((i) => channels[i].rxtone),
-      squelch_tx: ui_get_lbcd_squelch((i) => channels[i].txtone),
-    };
-  }
-
   protected _echo = false;
   protected _fingerprint = [Buffer.from("SMP558\x00\x00", "ascii")];
   protected _magic = Buffer.from("1ROGRAM", "ascii");
@@ -108,7 +79,7 @@ export class T18Radio extends Radio {
         txfreq: r.lbcd(4),
         rxtone: r.lbcd(2),
         txtone: r.lbcd(2),
-        flags: r.bits("jumpcode", null, null, "skip", "highpower", "narrow", null, "bcl"),
+        ...r.bits("jumpcode", null, null, "skip", "highpower", "narrow", null, "bcl"),
         ...r.skip(3, {}),
       });
     }
@@ -148,70 +119,47 @@ export class T18Radio extends Radio {
 
     const ui: UI.Root = {
       fields: [
-        T18Radio._uiChannels(memory),
         {
-          type: "switcher",
-          id: "beep",
-          name: "Beep",
-          tab: "Feedback",
-          get: () => (settings.beep.get() ? true : false),
-          set: (val) => settings.beep.set(val ? 1 : 0),
+          ...common_ui.channels({ size: 16 }),
+          freq: {
+            min: 400_000_000,
+            max: 470_000_000,
+            get: (i) => memory[i].rxfreq.get() * 10,
+            set: (i, val) => {
+              memory[i].rxfreq.set(val / 10);
+              memory[i].txfreq.set(val / 10);
+            },
+          },
+          offset: {
+            get: (i) => (memory[i].txfreq.get() - memory[i].rxfreq.get()) * 10,
+            set: (i, val) => memory[i].txfreq.set(memory[i].rxfreq.get() + val / 10),
+          },
+          mode: {
+            options: ["FM", "NFM"],
+            get: (i) => (memory[i].narrow.get() ? "NFM" : "FM"),
+            set: (i, val) => memory[i].narrow.set(val === "NFM" ? 1 : 0),
+          },
+          squelch_rx: common_ui.channel_squelch((i) => memory[i].rxtone),
+          squelch_tx: common_ui.channel_squelch((i) => memory[i].txtone),
+          power: {
+            options: [1, 5],
+            name: (val) => (val < 5 ? "Low" : "Height"),
+            get: (i) => (memory[i].highpower.get() ? 5 : 1),
+            set: (i, val) => memory[i].highpower.set(val === 5 ? 1 : 0),
+          },
+          scan: {
+            options: ["Off", "On"],
+            get: (i) => (memory[i].skip.get() ? "Off" : "On"),
+            set: (i, val) => memory[i].skip.set(val === "Off" ? 1 : 0),
+          },
         },
-        {
-          type: "switcher",
-          id: "prompts",
-          name: "Voice prompts",
-          tab: "Feedback",
-          get: () => settings.voice.get(),
-          set: (val) => settings.voice.set(Number(val)),
-        },
-        {
-          type: "select",
-          id: "language",
-          name: "Language",
-          tab: "Feedback",
-          options: ["English", "Chinese"],
-          get: () => settings.language.get(),
-          set: (val) => settings.language.set(Number(val)),
-        },
-        {
-          type: "select",
-          id: "sql",
-          name: "Squelch level",
-          tab: "Radio",
-          options: Array(10)
-            .fill(0)
-            .map((_, i) => String(i)),
-          get: () => settings.squelchlevel.get(),
-          set: (val) => settings.squelchlevel.set(Number(val)),
-        },
-        {
-          type: "switcher",
-          id: "roger",
-          name: "Roger beep",
-          tab: "Radio",
-          get: () => settings.rogerbeep.get(),
-          set: (val) => settings.rogerbeep.set(Number(val)),
-        },
-        {
-          type: "switcher",
-          id: "vox",
-          name: "VOX",
-          tab: "Radio",
-          get: () => settings.vox.get(),
-          set: (val) => settings.vox.set(Number(val)),
-        },
-        {
-          type: "select",
-          id: "vox_level",
-          name: "VOX level",
-          tab: "Radio",
-          options: Array(5)
-            .fill(0)
-            .map((_, i) => String(i + 1)),
-          get: () => settings.vox_level.get(),
-          set: (val) => settings.vox_level.set(Number(val)),
-        },
+        common_ui.beep(settings.beep),
+        common_ui.voice_prompt(settings.voice),
+        common_ui.voice_language(settings.language, { languages: ["English", "Chinese"] }),
+        common_ui.sql(settings.squelchlevel, { min: 0, max: 9 }),
+        common_ui.roger_beep(settings.rogerbeep),
+        common_ui.vox(settings.vox),
+        common_ui.vox_level(settings.vox_level, { min: 0, max: 9 }),
       ],
     };
 

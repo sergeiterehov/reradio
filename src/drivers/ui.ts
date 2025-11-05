@@ -62,9 +62,11 @@ export namespace UI {
     };
 
     export type Switcher = _Field<"switcher">;
-    export type Select = _Field<"select"> & { options: string[] };
+    export type Label = _Field<"label">;
+    export type Select = _Field<"select"> & { options: string[]; short?: boolean };
+    export type Slider = _Field<"slider"> & { min: number; max: number; label?: (val: number) => string };
 
-    export type Any = Channels | Switcher | Select;
+    export type Any = Channels | Switcher | Select | Label | Slider;
   }
 
   export type Root = { fields: Field.Any[] };

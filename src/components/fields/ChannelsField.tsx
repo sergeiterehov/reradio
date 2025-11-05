@@ -11,6 +11,7 @@ import {
   InputGroup,
   NumberInput,
   Fieldset,
+  SegmentGroup,
 } from "@chakra-ui/react";
 import { RadioWatch } from "../RadioWatch";
 import { useRadioOn } from "../useRadioOn";
@@ -235,19 +236,13 @@ function ChannelForm(props: { field: UI.Field.Channels; index: number }) {
                     <TbHelp />
                   </Tooltip>
                 </Field.Label>
-                <NativeSelect.Root>
-                  <NativeSelect.Field
-                    value={value}
-                    onChange={(e) => mode.set(index, e.currentTarget.value as UI.RadioMode)}
-                  >
-                    {mode.options.map((opt, i_opt) => (
-                      <option key={i_opt} value={opt}>
-                        {opt}
-                      </option>
-                    ))}
-                  </NativeSelect.Field>
-                  <NativeSelect.Indicator />
-                </NativeSelect.Root>
+                <SegmentGroup.Root
+                  value={String(value)}
+                  onValueChange={(e) => mode.set(index, e.value as UI.RadioMode)}
+                >
+                  <SegmentGroup.Indicator />
+                  <SegmentGroup.Items items={mode.options} />
+                </SegmentGroup.Root>
               </Field.Root>
             )}
           </RadioWatch>

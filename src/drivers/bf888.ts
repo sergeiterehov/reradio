@@ -2,22 +2,13 @@ import { Buffer } from "buffer";
 import { Radio, type RadioInfo } from "./radio";
 import { array_of, create_mem_mapper, dup } from "./mem";
 import type { UI } from "./ui";
-import { ui_get_lbcd_squelch } from "./common";
+import { common_ui } from "./common_ui";
 
 const CMD_ACK = Buffer.from([0x06]);
 const PROGRAM_CMD = Buffer.from("PROGRAM", "ascii");
 const IDENT = [Buffer.from("P3107", "ascii")];
 const BLOCK_SIZE = 0x08;
 const MEM_SIZE = 0x03e0;
-
-const Tab = {
-  Channels: "Channels",
-  Feedback: "Feedback",
-  Scanning: "Scanning",
-  VOX: "Voice Activation",
-  Power: "Power Management",
-  System: "System Settings",
-};
 
 export class BF888Radio extends Radio {
   static override Info: RadioInfo = {
@@ -73,12 +64,7 @@ export class BF888Radio extends Radio {
     return {
       fields: [
         {
-          type: "channels",
-          id: "channels",
-          name: "Channels",
-          tab: Tab.Channels,
-          size: 16,
-          channel: { get: (i) => `CH${i + 1}` },
+          ...common_ui.channels({ size: 16 }),
           freq: {
             min: 400_000_000,
             max: 470_000_000,
@@ -97,8 +83,8 @@ export class BF888Radio extends Radio {
             get: (i) => (memory[i].narrow.get() ? "NFM" : "FM"),
             set: (i, val) => memory[i].narrow.set(val === "NFM" ? 1 : 0),
           },
-          squelch_rx: ui_get_lbcd_squelch((i) => memory[i].rxtone),
-          squelch_tx: ui_get_lbcd_squelch((i) => memory[i].txtone),
+          squelch_rx: common_ui.channel_squelch((i) => memory[i].rxtone),
+          squelch_tx: common_ui.channel_squelch((i) => memory[i].txtone),
           power: {
             options: [1, 5],
             name: (val) => (val < 5 ? "Low" : "Height"),
@@ -110,184 +96,24 @@ export class BF888Radio extends Radio {
             get: (i) => (memory[i].skip.get() ? "Off" : "On"),
             set: (i, val) => memory[i].skip.set(val === "Off" ? 1 : 0),
           },
-          get: () => null,
-          set: () => null,
         },
 
-        // Tab.Feedback
-        {
-          type: "switcher",
-          id: "alarm",
-          name: "Alarm",
-          description: "Loud, repeating alert tone to get attention.",
-          tab: Tab.Feedback,
-          get: () => settings.alarm.get(),
-          set: (val) => settings.alarm.set(val ? 1 : 0),
-        },
-        {
-          type: "switcher",
-          id: "beep",
-          name: "Beep",
-          description: "Short audible tone when pressing buttons.",
-          tab: Tab.Feedback,
-          get: () => settings2.beep.get(),
-          set: (val) => settings2.beep.set(val ? 1 : 0),
-        },
-        {
-          type: "switcher",
-          id: "voice_prompt",
-          name: "Voice prompt",
-          description: "Plays spoken confirmation when changing channels or pressing buttons.",
-          tab: Tab.Feedback,
-          get: () => settings.voiceprompt.get(),
-          set: (val) => settings.voiceprompt.set(val ? 1 : 0),
-        },
-        {
-          type: "select",
-          id: "lang",
-          name: "Voice language",
-          description: "Language used for voice prompts.",
-          tab: Tab.Feedback,
-          options: ["English", "Chinese"],
-          get: () => settings.voicelanguage.get(),
-          set: (val) => settings.voicelanguage.set(Number(val)),
-        },
-
-        // Tab.Scan
-        {
-          type: "switcher",
-          id: "scan",
-          name: "Scan",
-          description: "Automatically checks channels for activity and stops on active ones.",
-          tab: Tab.Scanning,
-          get: () => settings.scan.get(),
-          set: (val) => settings.scan.set(val ? 1 : 0),
-        },
-        {
-          type: "select",
-          id: "scan_mode",
-          name: "Scan mode",
-          description: "How the radio detects activity during scan.",
-          tab: Tab.Scanning,
-          options: ["Carrier", "Time"],
-          get: () => settings2.scanmode.get(),
-          set: (val) => settings2.scanmode.set(Number(val)),
-        },
-
-        // Tab.VOX
-        {
-          type: "switcher",
-          id: "vox",
-          name: "VOX",
-          description: "Voice-activated transmit: microphone turns on automatically when you speak (no PTT needed).",
-          tab: Tab.VOX,
-          get: () => settings.vox.get(),
-          set: (val) => settings.vox.set(val ? 1 : 0),
-        },
-        {
-          type: "switcher",
-          id: "vox_inhibit",
-          name: "Inhibit VOX on receive",
-          description: "Disables VOX while receiving to prevent false activation from incoming audio.",
-          tab: Tab.VOX,
-          get: () => settings.voxinhibitonrx.get(),
-          set: (val) => settings.voxinhibitonrx.set(val ? 1 : 0),
-        },
-        {
-          type: "select",
-          id: "vox_level",
-          name: "VOX level",
-          description: "VOX sensitivity: lower values = easier to trigger transmit with your voice.",
-          tab: Tab.VOX,
-          options: Array(5)
-            .fill(0)
-            .map((_, i) => String(i + 1)),
-          get: () => settings.voxlevel.get(),
-          set: (val) => settings.voxlevel.set(Number(val)),
-        },
-
-        // Tab.Power
-        {
-          type: "switcher",
-          id: "bat_save",
-          name: "Battery saver",
-          description: "Reduces power consumption during standby by periodically turning off the receiver.",
-          tab: Tab.Power,
-          get: () => settings2.batterysaver.get(),
-          set: (val) => settings2.batterysaver.set(val ? 1 : 0),
-        },
-        {
-          type: "switcher",
-          id: "low_no_tx",
-          name: "Low voltage inhibit transmit",
-          description: "Blocks transmission when battery voltage is too low (protects battery).",
-          tab: Tab.Power,
-          get: () => settings.lowvolinhibittx.get(),
-          set: (val) => settings.voxinhibitonrx.set(val ? 1 : 0),
-        },
-        {
-          type: "switcher",
-          id: "hight_no_tx",
-          name: "High voltage inhibit transmit",
-          description: "Blocks transmission if battery voltage is abnormally high (rarely used).",
-          tab: Tab.Power,
-          get: () => settings.highvolinhibittx.get(),
-          set: (val) => settings.highvolinhibittx.set(val ? 1 : 0),
-        },
-        {
-          type: "select",
-          id: "tot",
-          name: "Timeout timer",
-          description: "Limits continuous transmit time to prevent overheating or PTT stuck.",
-          tab: Tab.Power,
-          options: [
-            "Off",
-            "30 seconds",
-            "60 seconds",
-            "90 seconds",
-            "120 seconds",
-            "150 seconds",
-            "180 seconds",
-            "210 seconds",
-            "240 seconds",
-            "270 seconds",
-            "300 seconds",
-          ],
-          get: () => settings2.timeouttimer.get(),
-          set: (val) => settings2.timeouttimer.set(Number(val)),
-        },
-
-        // Tab.System
-        {
-          type: "switcher",
-          id: "fm",
-          name: "FM function",
-          description: "Enables listening to commercial FM broadcast radio.",
-          tab: Tab.System,
-          get: () => settings.fmradio.get(),
-          set: (val) => settings.fmradio.set(val ? 1 : 0),
-        },
-        {
-          type: "select",
-          id: "sql",
-          name: "Squelch level",
-          description: "Noise suppression threshold: higher = quieter background, but weak signals may be blocked.",
-          tab: Tab.System,
-          options: Array(10)
-            .fill(0)
-            .map((_, i) => String(i)),
-          get: () => settings2.squelchlevel.get(),
-          set: (val) => settings2.squelchlevel.set(Number(val)),
-        },
-        {
-          type: "select",
-          id: "key_fn",
-          name: "Side key function",
-          tab: Tab.System,
-          options: ["Off", "Monitor", "Transmit Power", "Alarm"],
-          get: () => settings2.sidekeyfunction.get(),
-          set: (val) => settings2.sidekeyfunction.set(Number(val)),
-        },
+        common_ui.alarm(settings.alarm),
+        common_ui.beep(settings2.beep),
+        common_ui.voice_prompt(settings.voiceprompt),
+        common_ui.voice_language(settings.voicelanguage, { languages: ["English", "Chinese"] }),
+        common_ui.scan(settings.scan),
+        common_ui.scan_mode(settings2.scanmode),
+        common_ui.vox(settings.vox),
+        common_ui.vox_inhibit(settings.voxinhibitonrx),
+        common_ui.vox_level(settings.voxlevel, { min: 0, max: 4 }),
+        common_ui.pow_battery_save(settings2.batterysaver),
+        common_ui.pow_low_no_tx(settings.lowvolinhibittx),
+        common_ui.pow_high_no_tx(settings.highvolinhibittx),
+        common_ui.pow_tot(settings2.timeouttimer),
+        common_ui.fm(settings.fmradio),
+        common_ui.sql(settings2.squelchlevel, { min: 0, max: 9 }),
+        common_ui.key_side_fn(settings2.sidekeyfunction, { functions: ["Off", "Monitor", "Transmit Power", "Alarm"] }),
       ],
     };
   }
