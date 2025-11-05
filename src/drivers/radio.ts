@@ -48,6 +48,8 @@ export class Radio {
   };
 
   async connect() {
+    if (!navigator.serial) throw new Error("Web Serial API not available");
+
     const port = await navigator.serial.requestPort();
     await port.open({ baudRate: 9600 });
 
