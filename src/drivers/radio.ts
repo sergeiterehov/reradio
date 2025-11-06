@@ -2,7 +2,6 @@ import { Buffer } from "buffer";
 import type { UI } from "./ui";
 
 const SERIAL_TIMEOUT_MS = 1_000;
-const SERIAL_SOFT_BUFFER = false;
 const SERIAL_LOG = true;
 
 export type RadioInfo = {
@@ -27,6 +26,7 @@ export class Radio {
     r: ReadableStreamDefaultReader<Uint8Array>;
     w: WritableStreamDefaultWriter<Uint8Array>;
     buffer: Uint8Array[];
+    readPromise: Promise<unknown>;
   };
 
   private _callbacks = {
@@ -62,7 +62,9 @@ export class Radio {
 
     const buffer: Uint8Array[] = [];
 
-    this._serial = { port, r, w, buffer };
+    this._serial = { port, r, w, buffer, readPromise: new Promise(() => null) };
+
+    this._begin_serial_reader();
   }
 
   async disconnect() {
@@ -81,6 +83,25 @@ export class Radio {
     return this._serial;
   }
 
+  private async _begin_serial_reader() {
+    const serial = this._getSerial();
+
+    while (true) {
+      const readPromise = serial.r.read().catch((e): { value: undefined; done: true } => {
+        console.log("Serial reader exception:", e);
+        return { value: undefined, done: true };
+      });
+      serial.readPromise = readPromise;
+
+      const { value, done } = await readPromise;
+      if (done) break;
+
+      if (SERIAL_LOG) console.log(new Date().toISOString(), "AR:", value.length);
+
+      serial.buffer.push(value);
+    }
+  }
+
   protected async _serial_write(buf: Buffer) {
     const { w } = this._getSerial();
 
@@ -94,57 +115,47 @@ export class Radio {
     if (SERIAL_LOG) console.log(new Date().toISOString(), "W:", buf.length, buf.toString("hex"));
   }
 
-  protected async _serial_read(size: number) {
-    const { r, buffer } = this._getSerial();
+  protected async _serial_read(size: number, config: { timeout?: number } = {}) {
+    const { timeout = SERIAL_TIMEOUT_MS } = config;
+
+    const serial = this._getSerial();
 
     const chunks: Uint8Array[] = [];
     let len = 0;
 
     while (len < size) {
-      if (buffer.length) {
-        const bufChunk = buffer.shift()!;
-
-        if (bufChunk.length > size - len) {
-          const bufChunkSlice = bufChunk.subarray(0, size - len);
-          buffer.unshift(bufChunk.subarray(bufChunkSlice.length));
-
-          chunks.push(bufChunkSlice);
-          len += bufChunkSlice.length;
-
-          break;
-        }
-
-        chunks.push(bufChunk);
-        len += bufChunk.length;
-
-        continue;
+      if (!serial.buffer.length) {
+        const prevReadPromise = serial.readPromise;
+        serial.readPromise = new Promise(() => null);
+        await Promise.race([
+          prevReadPromise,
+          new Promise((_, reject) => setTimeout(reject, timeout, new Error("Timeout while serial reading"))),
+        ]);
       }
 
-      const { value: chunk } = await Promise.race([
-        r.read(),
-        new Promise<ReturnType<typeof r.read>>((_, reject) =>
-          setTimeout(reject, SERIAL_TIMEOUT_MS, new Error("Timeout while serial reading"))
-        ),
-      ]);
-      if (!chunk || chunk.length === 0) throw new Error("Incomplete response");
+      if (!serial.buffer.length) continue;
 
-      if (SERIAL_LOG) console.log(new Date().toISOString(), "R:", chunk.length, Buffer.from(chunk).toString("hex"));
+      const bufChunk = serial.buffer.shift()!;
 
-      if (SERIAL_SOFT_BUFFER && len + chunk.length > size) {
-        const chunkSlice = chunk.subarray(0, size - len);
-        buffer.push(chunk.subarray(chunkSlice.length));
+      if (bufChunk.length > size - len) {
+        const bufChunkSlice = bufChunk.subarray(0, size - len);
+        serial.buffer.unshift(bufChunk.subarray(bufChunkSlice.length));
 
-        chunks.push(chunkSlice);
-        len += chunkSlice.length;
+        chunks.push(bufChunkSlice);
+        len += bufChunkSlice.length;
 
         break;
       }
 
-      chunks.push(chunk);
-      len += chunk.length;
+      chunks.push(bufChunk);
+      len += bufChunk.length;
     }
 
-    return Buffer.concat(chunks);
+    const data = Buffer.concat(chunks);
+
+    if (SERIAL_LOG) console.log(new Date().toISOString(), "R:", data.length, data.toString("hex"));
+
+    return data;
   }
 
   async read(onProgress: (k: number) => void) {
