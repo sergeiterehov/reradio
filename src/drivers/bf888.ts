@@ -191,6 +191,8 @@ export class BF888Radio extends Radio {
   override async read(onProgress: (k: number) => void) {
     onProgress(0);
 
+    await this._serial_read(128, { timeout: 100 }).catch(() => null);
+
     this._img = undefined;
     this._mem = undefined;
     this.dispatch_ui();
@@ -220,6 +222,8 @@ export class BF888Radio extends Radio {
     if (!this._img) throw new Error("No data");
 
     onProgress(0);
+
+    await this._serial_read(128, { timeout: 100 }).catch(() => null);
 
     await this._enter_programming_mode();
     onProgress(0.1);

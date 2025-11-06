@@ -252,6 +252,8 @@ export class T18Radio extends Radio {
   async read(onProgress: (k: number) => void) {
     onProgress(0);
 
+    await this._serial_read(128, { timeout: 100 }).catch(() => null);
+
     this._img = undefined;
     this._mem = undefined;
     this.dispatch_ui();
@@ -296,6 +298,8 @@ export class T18Radio extends Radio {
 
   async write(onProgress: (k: number) => void) {
     onProgress(0);
+
+    await this._serial_read(128, { timeout: 100 }).catch(() => null);
 
     if (!this._img) throw new Error("No data read");
 

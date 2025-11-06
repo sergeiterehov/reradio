@@ -26,7 +26,7 @@ export class Radio {
     r: ReadableStreamDefaultReader<Uint8Array>;
     w: WritableStreamDefaultWriter<Uint8Array>;
     buffer: Uint8Array[];
-    readPromise: Promise<unknown>;
+    onRead?: (size: number) => void;
   };
 
   private _callbacks = {
@@ -62,7 +62,7 @@ export class Radio {
 
     const buffer: Uint8Array[] = [];
 
-    this._serial = { port, r, w, buffer, readPromise: new Promise(() => null) };
+    this._serial = { port, r, w, buffer };
 
     this._begin_serial_reader();
   }
@@ -87,13 +87,13 @@ export class Radio {
     const serial = this._getSerial();
 
     while (true) {
-      const readPromise = serial.r.read().catch((e): { value: undefined; done: true } => {
+      const { value, done } = await serial.r.read().catch((e): { value: undefined; done: true } => {
         console.log("Serial reader exception:", e);
         return { value: undefined, done: true };
       });
-      serial.readPromise = readPromise;
 
-      const { value, done } = await readPromise;
+      serial.onRead?.(value ? value.length : 0);
+
       if (done) break;
 
       if (SERIAL_LOG) console.log(new Date().toISOString(), "AR:", value.length);
@@ -125,12 +125,22 @@ export class Radio {
 
     while (len < size) {
       if (!serial.buffer.length) {
-        const prevReadPromise = serial.readPromise;
-        serial.readPromise = new Promise(() => null);
-        await Promise.race([
-          prevReadPromise,
-          new Promise((_, reject) => setTimeout(reject, timeout, new Error("Timeout while serial reading"))),
-        ]);
+        const prevOnRead = serial.onRead;
+        try {
+          await Promise.race([
+            new Promise<void>((resolve, reject) => {
+              serial.onRead = (size) => {
+                if (prevOnRead) prevOnRead(size);
+
+                if (!size) return reject(new Error("Serial closed"));
+                resolve();
+              };
+            }),
+            new Promise((_, reject) => setTimeout(reject, timeout, new Error("Timeout while serial reading"))),
+          ]);
+        } finally {
+          serial.onRead = prevOnRead;
+        }
       }
 
       if (!serial.buffer.length) continue;
