@@ -1,9 +1,15 @@
 import type { Buffer } from "buffer";
 
 export namespace M {
+  export type U8Ptr = { addr: number; get(i: number): number; set(i: number, val: number): void };
   export type U8 = { addr: number; get(): number; set(val: number): void };
   export type U16 = { addr: number; get(): number; set(val: number): void };
-  export type U8array = { addr: number; size: number; get(i: number): number; set(i: number, val: number): void };
+  export type U8array = {
+    addr: number;
+    size: number;
+    get(): number[];
+    set(val: number[]): void;
+  };
   export type Bits = { raw: U8; bits: number[]; get(): number; set(val: number): void };
   export type LBCD = {
     raw: U8array;
@@ -17,6 +23,7 @@ export namespace M {
 export type MemMapper = {
   seek: (addr: number) => MemMapper;
   skip: <R>(size: number, ret: R) => R;
+  u8_ptr: () => M.U8Ptr;
   u8: () => M.U8;
   u16: () => M.U16;
   u8_array: (size: number) => M.U8array;
@@ -24,6 +31,7 @@ export type MemMapper = {
   bitmap: <T extends string>(names: { [K in T]: number }) => { [K in T]: M.Bits };
   lbcd: (size: number) => M.LBCD;
   str: (size: number) => M.Str;
+  struct: <T extends object>(fn: (mapper: MemMapper) => T) => T & { __raw: M.U8array };
 };
 
 export const create_mem_mapper = (data: Buffer, onchange?: () => void): MemMapper => {
@@ -38,6 +46,20 @@ export const create_mem_mapper = (data: Buffer, onchange?: () => void): MemMappe
     skip: <R>(size: number, ret: R): R => {
       cur += size;
       return ret;
+    },
+
+    u8_ptr: (): M.U8Ptr => {
+      const _cur = cur;
+      return {
+        addr: _cur,
+        get: (i) => {
+          return data.readUInt8(_cur + i);
+        },
+        set: (i, val) => {
+          data.writeUInt8(val, _cur + i);
+          onchange?.();
+        },
+      };
     },
 
     u8: (): M.U8 => {
@@ -76,11 +98,15 @@ export const create_mem_mapper = (data: Buffer, onchange?: () => void): MemMappe
       return {
         addr: _cur,
         size,
-        get: (i) => {
-          return data.readUInt8(_cur + i);
+        get: () => {
+          const res: number[] = [];
+          for (let i = 0; i < size; i += 1) res.push(data.readUInt8(_cur + i));
+          return res;
         },
-        set: (i, val) => {
-          data.writeUInt8(val, _cur + i);
+        set: (vals) => {
+          if (size !== vals.length) throw new Error("Wrong array length");
+
+          for (let i = 0; i < size; i += 1) data.writeUInt8(vals[i], _cur + i);
           onchange?.();
         },
       };
@@ -137,21 +163,24 @@ export const create_mem_mapper = (data: Buffer, onchange?: () => void): MemMappe
     },
 
     lbcd: (size: number): M.LBCD => {
+      const _cur = cur;
       const raw = mapper.u8_array(size);
 
       return {
         raw,
         get: () => {
           const digits: number[] = [];
+          const bytes = raw.get();
 
           for (let i = size - 1; i >= 0; i--) {
-            const byte = raw.get(i);
+            const byte = bytes[i];
             digits.push((byte >> 4) & 0x0f, byte & 0x0f);
           }
 
           return Number(digits.join(""));
         },
         set: (value) => {
+          const bytes = raw.get();
           const digits = String(value >>> 0)
             .padStart(size * 2, "0")
             .split("")
@@ -162,18 +191,23 @@ export const create_mem_mapper = (data: Buffer, onchange?: () => void): MemMappe
             const high = digits[i];
             const low = digits[i + 1];
 
-            raw.set(size - 1 - i / 2, (high << 4) | low);
+            bytes[size - 1 - i / 2] = (high << 4) | low;
           }
+
+          raw.set(bytes);
         },
         setDigit: (order, value) => {
           const q = 4 * (order % 2);
           const byte = (order / 2) >>> 0;
-          raw.set(byte, (raw.get(byte) & ~(0x0f << q)) | ((value & 0xf) << q));
+
+          data.writeUInt8(_cur + byte, (data.readUInt8(_cur + byte) & ~(0x0f << q)) | ((value & 0xf) << q));
+          onchange?.();
         },
       };
     },
 
     str: (size: number) => {
+      const _cur = cur;
       const raw = mapper.u8_array(size);
 
       return {
@@ -181,7 +215,7 @@ export const create_mem_mapper = (data: Buffer, onchange?: () => void): MemMappe
         get: () => {
           const chars: string[] = [];
           for (let i = 0; i < size; i += 1) {
-            chars.push(String.fromCharCode(raw.get(i)));
+            chars.push(String.fromCharCode(data.readUInt8(_cur + i)));
           }
           return chars.join("");
         },
@@ -189,10 +223,20 @@ export const create_mem_mapper = (data: Buffer, onchange?: () => void): MemMappe
           if (val.length !== size) throw new Error("String has wrong len");
 
           for (let i = 0; i < size; i += 1) {
-            raw.set(i, val.charCodeAt(i));
+            data.writeUInt8(_cur + i, val.charCodeAt(i));
           }
+
+          onchange?.();
         },
       };
+    },
+
+    struct: (fn) => {
+      const begin_cur = cur;
+      const props = fn(mapper);
+      const end_cur = cur;
+
+      return { ...props, __raw: mapper.seek(begin_cur).u8_array(end_cur - begin_cur) };
     },
   };
 

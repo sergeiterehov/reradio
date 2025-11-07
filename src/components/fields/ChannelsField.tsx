@@ -15,8 +15,7 @@ import {
   Text,
   IconButton,
   Popover,
-  Select,
-  createListCollection,
+  Switch,
 } from "@chakra-ui/react";
 import { RadioWatch } from "../RadioWatch";
 import { useRadioOn } from "../useRadioOn";
@@ -24,20 +23,16 @@ import { TbHelp, TbTrash } from "react-icons/tb";
 import { Tooltip } from "../ui/tooltip";
 import { useState } from "react";
 
-const frequencies = createListCollection({
-  items: [1, 2, 3],
-});
-
 function SquelchForm(props: {
-  options: UI.SquelchMode[];
+  config: NonNullable<UI.Field.Channels["squelch_rx"]>;
   squelch: UI.Squelch;
   name: string;
   onChange: (squelch: UI.Squelch) => void;
 }) {
-  const { squelch, name, options, onChange } = props;
+  const { squelch, name, config, onChange } = props;
 
   return (
-    <>
+    <Stack>
       <Field.Root>
         <Field.Label>
           {name}
@@ -60,7 +55,7 @@ function SquelchForm(props: {
               }
             }}
           >
-            {options.map((opt, i_opt) => (
+            {config.options.map((opt, i_opt) => (
               <option key={i_opt} value={opt}>
                 {opt}
               </option>
@@ -105,17 +100,35 @@ function SquelchForm(props: {
             </NativeSelect.Root>
           }
         >
-          <NumberInput.Root
-            asChild
-            pe="0"
-            value={String(squelch.code)}
-            onValueChange={(e) => onChange({ ...squelch, code: e.valueAsNumber })}
-          >
-            <NumberInput.Input />
-          </NumberInput.Root>
+          {config.codes ? (
+            <NativeSelect.Root asChild height="var(--select-field-height)">
+              <NativeSelect.Field
+                value={squelch.code}
+                onChange={(e) => {
+                  onChange({ ...squelch, code: Number(e.currentTarget.value) });
+                }}
+              >
+                {config.codes.map((code, i_code) => (
+                  <option key={i_code}>{code}</option>
+                ))}
+              </NativeSelect.Field>
+              <NativeSelect.Indicator />
+            </NativeSelect.Root>
+          ) : (
+            <NumberInput.Root
+              asChild
+              pe="0"
+              min={1}
+              max={999}
+              value={String(squelch.code)}
+              onValueChange={(e) => onChange({ ...squelch, code: e.valueAsNumber })}
+            >
+              <NumberInput.Input />
+            </NumberInput.Root>
+          )}
         </InputGroup>
       )}
-    </>
+    </Stack>
   );
 }
 
@@ -136,7 +149,7 @@ function SquelchTxRx(props: {
       <>
         <SquelchForm
           name="Squelch TX/RX"
-          options={rx!.options}
+          config={rx!}
           squelch={rx_value}
           onChange={(s) => {
             rx!.set(index, s);
@@ -153,10 +166,10 @@ function SquelchTxRx(props: {
   return (
     <>
       {rx_value && (
-        <SquelchForm name="Squelch RX" options={rx!.options} squelch={rx_value} onChange={(s) => rx!.set(index, s)} />
+        <SquelchForm name="Squelch RX" config={rx!} squelch={rx_value} onChange={(s) => rx!.set(index, s)} />
       )}
       {tx_value && (
-        <SquelchForm name="Squelch TX" options={tx!.options} squelch={tx_value} onChange={(s) => tx!.set(index, s)} />
+        <SquelchForm name="Squelch TX" config={tx!} squelch={tx_value} onChange={(s) => tx!.set(index, s)} />
       )}
       {tx_value && rx_value ? (
         <Button
@@ -176,7 +189,7 @@ function SquelchTxRx(props: {
 
 function ChannelForm(props: { field: UI.Field.Channels; index: number }) {
   const { field, index } = props;
-  const { freq, offset, mode, squelch_rx, squelch_tx, power, scan } = field;
+  const { freq, offset, mode, squelch_rx, squelch_tx, power, scan, bcl, ptt_id } = field;
 
   return (
     <Fieldset.Root>
@@ -306,6 +319,72 @@ function ChannelForm(props: { field: UI.Field.Channels; index: number }) {
                   </NativeSelect.Field>
                   <NativeSelect.Indicator />
                 </NativeSelect.Root>
+              </Field.Root>
+            )}
+          </RadioWatch>
+        )}
+        {ptt_id && (
+          <RadioWatch on={() => ptt_id.get(index)}>
+            {(value) => (
+              <Stack>
+                <Field.Root>
+                  <Field.Label>
+                    Send PTT ID
+                    <Tooltip content="Sends a short identifying signal (such as a callsign or code) automatically when the PTT button is pressed, allowing other users to identify the transmitting station.">
+                      <TbHelp />
+                    </Tooltip>
+                  </Field.Label>
+                  <NativeSelect.Root>
+                    <NativeSelect.Field
+                      value={value.on}
+                      onChange={(e) => ptt_id.set(index, { ...value, on: e.currentTarget.value as UI.ChannelPTTIdOn })}
+                    >
+                      {ptt_id.on_options.map((opt, i_opt) => (
+                        <option key={i_opt} value={opt}>
+                          {opt}
+                        </option>
+                      ))}
+                    </NativeSelect.Field>
+                    <NativeSelect.Indicator />
+                  </NativeSelect.Root>
+                </Field.Root>
+                {value.on !== "Off" && (
+                  <Field.Root>
+                    <NativeSelect.Root size="sm">
+                      <NativeSelect.Field
+                        value={value.id}
+                        onChange={(e) => ptt_id.set(index, { ...value, id: e.currentTarget.value as string })}
+                      >
+                        {ptt_id.id_options.map((opt, i_opt) => (
+                          <option key={i_opt} value={opt}>
+                            {opt}
+                          </option>
+                        ))}
+                      </NativeSelect.Field>
+                      <NativeSelect.Indicator />
+                    </NativeSelect.Root>
+                  </Field.Root>
+                )}
+              </Stack>
+            )}
+          </RadioWatch>
+        )}
+        {bcl && (
+          <RadioWatch on={() => bcl.get(index)}>
+            {(value) => (
+              <Field.Root>
+                <Switch.Root checked={Boolean(value)} onCheckedChange={(e) => bcl.set(index, e.checked)}>
+                  <Switch.HiddenInput />
+                  <Switch.Control />
+                  <Switch.Label>
+                    <HStack>
+                      Busy channel lockout
+                      <Tooltip content="Prevents transmission when the channel is already in use, helping to avoid interference.">
+                        <TbHelp />
+                      </Tooltip>
+                    </HStack>
+                  </Switch.Label>
+                </Switch.Root>
               </Field.Root>
             )}
           </RadioWatch>

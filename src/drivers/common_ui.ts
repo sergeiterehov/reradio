@@ -1,5 +1,6 @@
 import type { M } from "./mem";
 import type { UI } from "./ui";
+import { DCS_CODES } from "./utils";
 
 type _GetSetNumber = { get(): number; set(val: number): void };
 
@@ -24,12 +25,12 @@ export const common_ui = {
     set: () => null,
   }),
 
-  channel_squelch: (ref_by_channel: (i: number) => M.LBCD): UI.Field.Channels["squelch_rx"] => ({
+  channel_squelch_lbcd: (ref_by_channel: (i: number) => M.LBCD): UI.Field.Channels["squelch_rx"] => ({
     options: ["Off", "CTCSS", "DCS"],
     get: (i) => {
       const ref = ref_by_channel(i);
 
-      if (ref.raw.get(0) === 0xff) return { mode: "Off" };
+      if (ref.raw.get()[0] === 0xff) return { mode: "Off" };
 
       const tone = ref.get();
 
@@ -42,13 +43,45 @@ export const common_ui = {
       const ref = ref_by_channel(i);
 
       if (val.mode === "Off") {
-        ref.raw.set(0, 0xff);
-        ref.raw.set(1, 0xff);
+        ref.raw.set([0xff, 0xff]);
       } else if (val.mode === "CTCSS") {
         ref.set(val.freq * 10);
       } else if (val.mode === "DCS") {
         ref.set(val.code % 1_000);
         ref.setDigit(3, val.polarity === "I" ? 12 : 8);
+      }
+    },
+  }),
+
+  channel_squelch_u16: (
+    ref_by_channel: (i: number) => M.U16,
+    codes: number[] = DCS_CODES
+  ): UI.Field.Channels["squelch_rx"] => ({
+    options: ["Off", "CTCSS", "DCS"],
+    codes,
+    get: (i) => {
+      const ref = ref_by_channel(i);
+      const tone = ref.get();
+
+      if (tone === 0x00 || tone === 0xffff) return { mode: "Off" };
+
+      if (tone <= 0x0258) {
+        if (tone > 0x69) return { mode: "DCS", polarity: "I", code: codes[tone - 0x6a] };
+
+        return { mode: "DCS", polarity: "N", code: codes[tone - 1] };
+      }
+
+      return { mode: "CTCSS", freq: tone / 10 };
+    },
+    set: (i, val) => {
+      const ref = ref_by_channel(i);
+
+      if (val.mode === "Off") {
+        ref.set(0);
+      } else if (val.mode === "CTCSS") {
+        ref.set(Math.max(0x0259, val.freq * 10));
+      } else if (val.mode === "DCS") {
+        ref.set(codes.indexOf(val.code) + 1 + (val.polarity === "I" ? 0x69 : 0));
       }
     },
   }),
@@ -230,6 +263,16 @@ export const common_ui = {
     id: "roger",
     name: "Roger beep",
     description: "A short audible tone sent at the end of a transmission to indicate the speaker has finished talking.",
+    tab: UITab.System,
+    get: () => ref.get(),
+    set: (val) => ref.set(Number(val)),
+  }),
+
+  bcl: (ref: _GetSetNumber): UI.Field.Switcher => ({
+    type: "switcher",
+    id: "bcl",
+    name: "Busy channel lockout",
+    description: "Prevents transmission when the channel is already in use, helping to avoid interference.",
     tab: UITab.System,
     get: () => ref.get(),
     set: (val) => ref.set(Number(val)),

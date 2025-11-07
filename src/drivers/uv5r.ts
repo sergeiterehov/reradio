@@ -1,11 +1,14 @@
 import { Buffer } from "buffer";
 import { Radio, type RadioInfo } from "./radio";
 import type { UI } from "./ui";
-import { array_of, create_mem_mapper, dup } from "./mem";
+import { array_of, create_mem_mapper } from "./mem";
 import { common_ui } from "./common_ui";
+import { DCS_CODES } from "./utils";
 
 const INDENT_291 = Buffer.from([0x50, 0xbb, 0xff, 0x20, 0x12, 0x07, 0x25]);
 const INDENT_5R = Buffer.from([0x50, 0xbb, 0xff, 0x01, 0x25, 0x98, 0x4d]);
+const UV5R_DCS = [...DCS_CODES, 645].sort((a, b) => a - b);
+const PTT_ID_ON_OPTIONS: UI.ChannelPTTIdOn[] = ["Off", "Begin", "End", "Begin & End"];
 
 const ACK = Buffer.from([0x06]);
 
@@ -27,38 +30,40 @@ export class UV5RRadio extends Radio {
 
     return {
       ...m.seek(0x0000).skip(0, {}),
-      memory: array_of(128, () => ({
-        rxfreq: m.lbcd(4),
-        txfreq: m.lbcd(4),
-        rxtone: m.u16(),
-        txtone: m.u16(),
-        ...m.bitmap({
-          unused1: 3,
-          isuhf: 1,
-          scode: 4,
-        }),
-        ...m.bitmap({
-          unknown1: 7,
-          txtoneicon: 1,
-        }),
-        ...m.bitmap({ mailicon: 3, unknown2: 3, lowpower: 2 }),
-        ...m.bitmap({
-          unknown3: 1,
-          wide: 1,
-          unknown4: 2,
-          bcl: 1,
-          scan: 1,
-          pttid: 2,
-        }),
-      })),
+      memory: array_of(128, () =>
+        m.struct(() => ({
+          rxfreq: m.lbcd(4),
+          txfreq: m.lbcd(4),
+          rxtone: m.u16(),
+          txtone: m.u16(),
+          ...m.bitmap({
+            unused1: 3,
+            isuhf: 1,
+            scode: 4,
+          }),
+          ...m.bitmap({
+            unknown1: 7,
+            txtoneicon: 1,
+          }),
+          ...m.bitmap({ mailicon: 3, unknown2: 3, lowpower: 2 }),
+          ...m.bitmap({
+            unknown3: 1,
+            wide: 1,
+            unknown4: 2,
+            bcl: 1,
+            scan: 1,
+            pttid: 2,
+          }),
+        }))
+      ),
 
-      ...m.seek(0x0b08).skip(0, {}),
+      ...m.seek(0x0b00).skip(0, {}),
       pttid: array_of(15, () => ({
         code: m.u8_array(5),
         unused: m.u8_array(11),
       })),
 
-      ...m.seek(0x0e28).skip(0, {}),
+      ...m.seek(0x0e20).skip(0, {}),
       settings: {
         squelch: m.u8(),
         step: m.u8(),
@@ -114,7 +119,7 @@ export class UV5RRadio extends Radio {
         keylock: m.u8(),
       },
 
-      ...m.seek(0x1008).skip(0, {}),
+      ...m.seek(0x1000).skip(0, {}),
       names: array_of(128, () => ({
         name: m.str(7),
         unknown2: m.u8_array(9),
@@ -127,18 +132,72 @@ export class UV5RRadio extends Radio {
 
     if (!mem) return { fields: [] };
 
+    const { memory, names, pttid } = mem;
+
+    const ptt_id_code_options: string[] = pttid.map((id) => id.code.get().join(""));
+
     return {
       fields: [
         {
-          ...common_ui.channels({ size: mem.memory.length }),
-          channel: { get: (i) => mem.names[i].name.get().replaceAll("\xFF", "").trim() || `CH-${i + 1}` },
+          ...common_ui.channels({ size: memory.length }),
+          channel: { get: (i) => names[i].name.get().replaceAll("\xFF", "").trimEnd() || `CH-${i}` },
           empty: {
-            get: (i) => mem.memory[i].rxfreq.raw.get(0) === 0xff,
-            // TODO: empty methods
+            get: (i) => memory[i].rxfreq.raw.get()[0] === 0xff,
+            delete: (i) => {
+              const raw = memory[i].__raw;
+              raw.set(Array(raw.size).fill(0xff));
+            },
+            init: (i) => {
+              const ch = memory[i];
+              ch.__raw.set([...Array(12).fill(0xff), 0x00, 0x00, 0x00, 0x00]);
+              ch.rxfreq.set(130_000_00);
+              ch.txfreq.set(130_000_00);
+            },
           },
           freq: {
-            get: (i) => mem.memory[i].rxfreq.get() * 10,
-            set: (i, val) => mem.memory[i].rxfreq.set(val / 10),
+            get: (i) => memory[i].rxfreq.get() * 10,
+            set: (i, val) => {
+              memory[i].rxfreq.set(val / 10);
+              memory[i].txfreq.set(val / 10);
+            },
+          },
+          offset: {
+            get: (i) => (memory[i].txfreq.get() - memory[i].rxfreq.get()) * 10,
+            set: (i, val) => memory[i].txfreq.set(memory[i].rxfreq.get() + val / 10),
+          },
+          mode: {
+            options: ["FM", "NFM"],
+            get: (i) => (memory[i].wide.get() ? "FM" : "NFM"),
+            set: (i, val) => memory[i].wide.set(val === "FM" ? 1 : 0),
+          },
+          squelch_rx: common_ui.channel_squelch_u16((i) => memory[i].rxtone, UV5R_DCS),
+          squelch_tx: common_ui.channel_squelch_u16((i) => memory[i].txtone, UV5R_DCS),
+          scan: {
+            options: ["Off", "On"],
+            get: (i) => (memory[i].scan.get() ? "On" : "Off"),
+            set: (i, val) => memory[i].scan.set(val === "On" ? 1 : 0),
+          },
+          power: {
+            options: [1, 4],
+            name: (val) => (val < 4 ? "Low" : "Height"),
+            get: (i) => (memory[i].lowpower.get() ? 1 : 4),
+            set: (i, val) => memory[i].lowpower.set(val === 1 ? 1 : 0),
+          },
+          bcl: {
+            get: (i) => memory[i].bcl.get() === 1,
+            set: (i, val) => memory[i].bcl.set(val ? 1 : 0),
+          },
+          ptt_id: {
+            on_options: PTT_ID_ON_OPTIONS,
+            id_options: ptt_id_code_options,
+            get: (i) => ({
+              on: PTT_ID_ON_OPTIONS[memory[i].pttid.get()],
+              id: ptt_id_code_options[memory[i].scode.get()],
+            }),
+            set: (i, val) => {
+              memory[i].pttid.set(PTT_ID_ON_OPTIONS.indexOf(val.on));
+              memory[i].scode.set(ptt_id_code_options.indexOf(val.id));
+            },
           },
         },
       ],

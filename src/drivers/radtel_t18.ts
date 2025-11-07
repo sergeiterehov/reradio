@@ -139,8 +139,8 @@ export class T18Radio extends Radio {
             get: (i) => (memory[i].narrow.get() ? "NFM" : "FM"),
             set: (i, val) => memory[i].narrow.set(val === "NFM" ? 1 : 0),
           },
-          squelch_rx: common_ui.channel_squelch((i) => memory[i].rxtone),
-          squelch_tx: common_ui.channel_squelch((i) => memory[i].txtone),
+          squelch_rx: common_ui.channel_squelch_lbcd((i) => memory[i].rxtone),
+          squelch_tx: common_ui.channel_squelch_lbcd((i) => memory[i].txtone),
           power: {
             options: [1, 5],
             name: (val) => (val < 5 ? "Low" : "Height"),
