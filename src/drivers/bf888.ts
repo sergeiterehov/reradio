@@ -1,6 +1,6 @@
 import { Buffer } from "buffer";
 import { Radio, type RadioInfo } from "./radio";
-import { array_of, create_mem_mapper, dup } from "./mem";
+import { array_of, create_mem_mapper } from "./mem";
 import type { UI } from "./ui";
 import { common_ui } from "./common_ui";
 
@@ -28,7 +28,7 @@ export class BF888Radio extends Radio {
         txfreq: m.lbcd(4),
         rxtone: m.lbcd(2),
         txtone: m.lbcd(2),
-        ...m.bits("unknown3", "unknown2", "unknown1", "skip", "highpower", "narrow", "beatshift", "bcl"),
+        ...m.bitmap({ unknown3: 1, unknown2: 1, unknown1: 1, skip: 1, highpower: 1, narrow: 1, beatshift: 1, bcl: 1 }),
         unknown4: m.u8_array(3),
       })),
       ...m.seek(0x02b0).skip(0, {}),
@@ -46,12 +46,12 @@ export class BF888Radio extends Radio {
       },
       ...m.seek(0x03c0).skip(0, {}),
       settings2: {
-        ...m.bits(...dup(6, "unused"), "batterysaver", "beep"),
+        ...m.bitmap({ unused: 6, batterysaver: 1, beep: 1 }),
         squelchlevel: m.u8(),
         sidekeyfunction: m.u8(),
         timeouttimer: m.u8(),
         unused2: m.u8_array(3),
-        ...m.bits(...dup(7, "unused3"), "scanmode"),
+        ...m.bitmap({ unused3: 7, scanmode: 1 }),
       },
     };
   }
@@ -83,8 +83,8 @@ export class BF888Radio extends Radio {
             get: (i) => (memory[i].narrow.get() ? "NFM" : "FM"),
             set: (i, val) => memory[i].narrow.set(val === "NFM" ? 1 : 0),
           },
-          squelch_rx: common_ui.channel_squelch((i) => memory[i].rxtone),
-          squelch_tx: common_ui.channel_squelch((i) => memory[i].txtone),
+          squelch_rx: common_ui.channel_squelch_lbcd((i) => memory[i].rxtone),
+          squelch_tx: common_ui.channel_squelch_lbcd((i) => memory[i].txtone),
           power: {
             options: [1, 5],
             name: (val) => (val < 5 ? "Low" : "Height"),
@@ -110,7 +110,7 @@ export class BF888Radio extends Radio {
         common_ui.pow_battery_save(settings2.batterysaver),
         common_ui.pow_low_no_tx(settings.lowvolinhibittx),
         common_ui.pow_high_no_tx(settings.highvolinhibittx),
-        common_ui.pow_tot(settings2.timeouttimer),
+        common_ui.pow_tot(settings2.timeouttimer, { from: 30, to: 300, step: 30 }),
         common_ui.fm(settings.fmradio),
         common_ui.sql(settings2.squelchlevel, { min: 0, max: 9 }),
         common_ui.key_side_fn(settings2.sidekeyfunction, { functions: ["Off", "Monitor", "Transmit Power", "Alarm"] }),
@@ -124,7 +124,7 @@ export class BF888Radio extends Radio {
   override async load(snapshot: Buffer) {
     this._img = snapshot;
     this._mem = this._parse(this._img);
-    this.dispatch_ui();
+    this.dispatch_ui_change();
   }
 
   protected async _enter_programming_mode() {
@@ -191,9 +191,11 @@ export class BF888Radio extends Radio {
   override async read(onProgress: (k: number) => void) {
     onProgress(0);
 
+    await this._serial_clear();
+
     this._img = undefined;
     this._mem = undefined;
-    this.dispatch_ui();
+    this.dispatch_ui_change();
 
     await this._enter_programming_mode();
     onProgress(0.1);
@@ -220,6 +222,8 @@ export class BF888Radio extends Radio {
     if (!this._img) throw new Error("No data");
 
     onProgress(0);
+
+    await this._serial_clear();
 
     await this._enter_programming_mode();
     onProgress(0.1);

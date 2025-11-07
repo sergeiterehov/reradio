@@ -2,6 +2,7 @@ export namespace UI {
   export type RadioMode = "FM" | "NFM" | "WFM";
   export type SquelchMode = "Off" | "CTCSS" | "DCS";
   export type ChannelScanMode = "On" | "Off" | "Priority";
+  export type ChannelPTTIdOn = "Off" | "Begin" | "End" | "Begin & End";
 
   export type Squelch =
     | { mode: "Off" }
@@ -45,11 +46,13 @@ export namespace UI {
       };
       squelch_rx?: {
         options: SquelchMode[];
+        codes?: number[];
         get: (i: number) => Squelch;
         set: (i: number, val: Squelch) => void;
       };
       squelch_tx?: {
         options: SquelchMode[];
+        codes?: number[];
         get: (i: number) => Squelch;
         set: (i: number, val: Squelch) => void;
       };
@@ -64,14 +67,26 @@ export namespace UI {
         get: (i: number) => ChannelScanMode;
         set: (i: number, val: ChannelScanMode) => void;
       };
+      bcl?: {
+        get: (i: number) => boolean;
+        set: (i: number, val: boolean) => void;
+      };
+      ptt_id?: {
+        on_options: ChannelPTTIdOn[];
+        id_options: string[];
+        get: (i: number) => { on: ChannelPTTIdOn; id: string };
+        set: (i: number, val: { on: ChannelPTTIdOn; id: string }) => void;
+      };
     };
 
     export type Switcher = _Field<"switcher">;
     export type Label = _Field<"label">;
     export type Select = _Field<"select"> & { options: string[]; short?: boolean };
     export type Slider = _Field<"slider"> & { min: number; max: number; label?: (val: number) => string };
+    export type Text = _Field<"text">;
+    export type Chars = _Field<"chars"> & { abc: string; pad: string; length: number; uppercase?: boolean };
 
-    export type Any = Channels | Switcher | Select | Label | Slider;
+    export type Any = Channels | Switcher | Select | Label | Slider | Text | Chars;
   }
 
   export type Root = { fields: Field.Any[] };

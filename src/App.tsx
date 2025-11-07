@@ -6,16 +6,20 @@ import { AnyField } from "./components/fields/AnyField";
 import { RadioSelector } from "./components/RadioSelector";
 import { ChromeOnly } from "./components/ChormeOnly";
 import { Hello } from "./components/Hello";
-import { useEffect, useSyncExternalStore } from "react";
+import { useEffect, useState } from "react";
 import { Toaster, toaster } from "./components/ui/toaster";
 import { TaskProgress } from "./components/TaskProgress";
 import { Tooltip } from "./components/ui/tooltip";
+import type { UI } from "./drivers/ui";
 
 function App() {
   const radio = useStore(Store, (s) => s.radio);
 
-  const ui = radio.ui();
-  useSyncExternalStore(radio.subscribe_ui, () => radio.ui().fields.length);
+  const [ui, setUI] = useState<UI.Root>();
+  useEffect(() => {
+    setUI(radio.ui());
+    return radio.subscribe_ui_change(() => setUI(radio.ui()));
+  }, [radio]);
 
   // Вывод не отловленных ошибок
   useEffect(() => {

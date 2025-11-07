@@ -1,5 +1,6 @@
 import type { M } from "./mem";
 import type { UI } from "./ui";
+import { DCS_CODES, range } from "./utils";
 
 type _GetSetNumber = { get(): number; set(val: number): void };
 
@@ -10,6 +11,7 @@ export const UITab = {
   VOX: "Voice Activation",
   Power: "Power Management",
   System: "System Settings",
+  DTMF: "DTMF",
 };
 
 export const common_ui = {
@@ -24,12 +26,12 @@ export const common_ui = {
     set: () => null,
   }),
 
-  channel_squelch: (ref_by_channel: (i: number) => M.LBCD): UI.Field.Channels["squelch_rx"] => ({
+  channel_squelch_lbcd: (ref_by_channel: (i: number) => M.LBCD): UI.Field.Channels["squelch_rx"] => ({
     options: ["Off", "CTCSS", "DCS"],
     get: (i) => {
       const ref = ref_by_channel(i);
 
-      if (ref.raw.get(0) === 0xff) return { mode: "Off" };
+      if (ref.raw.get()[0] === 0xff) return { mode: "Off" };
 
       const tone = ref.get();
 
@@ -42,13 +44,45 @@ export const common_ui = {
       const ref = ref_by_channel(i);
 
       if (val.mode === "Off") {
-        ref.raw.set(0, 0xff);
-        ref.raw.set(1, 0xff);
+        ref.raw.set([0xff, 0xff]);
       } else if (val.mode === "CTCSS") {
         ref.set(val.freq * 10);
       } else if (val.mode === "DCS") {
         ref.set(val.code % 1_000);
         ref.setDigit(3, val.polarity === "I" ? 12 : 8);
+      }
+    },
+  }),
+
+  channel_squelch_u16: (
+    ref_by_channel: (i: number) => M.U16,
+    codes: number[] = DCS_CODES
+  ): UI.Field.Channels["squelch_rx"] => ({
+    options: ["Off", "CTCSS", "DCS"],
+    codes,
+    get: (i) => {
+      const ref = ref_by_channel(i);
+      const tone = ref.get();
+
+      if (tone === 0x00 || tone === 0xffff) return { mode: "Off" };
+
+      if (tone <= 0x0258) {
+        if (tone > 0x69) return { mode: "DCS", polarity: "I", code: codes[tone - 0x6a] };
+
+        return { mode: "DCS", polarity: "N", code: codes[tone - 1] };
+      }
+
+      return { mode: "CTCSS", freq: tone / 10 };
+    },
+    set: (i, val) => {
+      const ref = ref_by_channel(i);
+
+      if (val.mode === "Off") {
+        ref.set(0);
+      } else if (val.mode === "CTCSS") {
+        ref.set(Math.max(0x0259, val.freq * 10));
+      } else if (val.mode === "DCS") {
+        ref.set(codes.indexOf(val.code) + 1 + (val.polarity === "I" ? 0x69 : 0));
       }
     },
   }),
@@ -153,6 +187,17 @@ export const common_ui = {
     get: () => ref.get(),
     set: (val) => ref.set(val ? 1 : 0),
   }),
+  pow_battery_save_ratio: (ref: _GetSetNumber): UI.Field.Select => ({
+    type: "select",
+    id: "bat_save_ratio",
+    name: "Battery saver",
+    description:
+      "Controls how aggressively the radio reduces power consumption during receive mode by cycling the receiver on and off, trading slight responsiveness for extended battery life.",
+    tab: UITab.Power,
+    options: ["Off", "1:1", "1:2", "1:3", "1:4"],
+    get: () => ref.get(),
+    set: (val) => ref.set(Number(val)),
+  }),
   pow_low_no_tx: (ref: _GetSetNumber): UI.Field.Switcher => ({
     type: "switcher",
     id: "low_no_tx",
@@ -171,25 +216,13 @@ export const common_ui = {
     get: () => ref.get(),
     set: (val) => ref.set(val ? 1 : 0),
   }),
-  pow_tot: (ref: _GetSetNumber): UI.Field.Select => ({
+  pow_tot: (ref: _GetSetNumber, config: { from: number; to: number; step: number }): UI.Field.Select => ({
     type: "select",
     id: "tot",
     name: "Timeout timer",
     description: "Limits continuous transmit time to prevent overheating or PTT stuck.",
     tab: UITab.Power,
-    options: [
-      "Off",
-      "30 seconds",
-      "60 seconds",
-      "90 seconds",
-      "120 seconds",
-      "150 seconds",
-      "180 seconds",
-      "210 seconds",
-      "240 seconds",
-      "270 seconds",
-      "300 seconds",
-    ],
+    options: ["Off", ...[...range(config.from, config.to + config.step, config.step)].map((i) => `${i} seconds`)],
     get: () => ref.get(),
     set: (val) => ref.set(Number(val)),
   }),
@@ -197,12 +230,13 @@ export const common_ui = {
   fm: (ref: _GetSetNumber): UI.Field.Switcher => ({
     type: "switcher",
     id: "fm",
-    name: "FM function",
+    name: "FM Radio",
     description: "Enables listening to commercial FM broadcast radio.",
     tab: UITab.System,
     get: () => ref.get(),
     set: (val) => ref.set(val ? 1 : 0),
   }),
+
   sql: (ref: _GetSetNumber, config: { min: number; max: number }): UI.Field.Slider => ({
     type: "slider",
     id: "sql",
@@ -215,6 +249,18 @@ export const common_ui = {
     get: () => ref.get(),
     set: (val) => ref.set(Number(val)),
   }),
+  sql_ste: (ref: _GetSetNumber, config: { from: number; to: number; step: number }): UI.Field.Select => ({
+    type: "select",
+    id: "sql_ste",
+    name: "Squelch Tail Eliminator",
+    description:
+      "Introduces a short delay before the transmitter fully turns off, ensuring the repeater properly recognizes the end of transmission and resets correctly.",
+    tab: UITab.System,
+    options: ["Off", ...[...range(config.from, config.to + config.step, config.step)].map((i) => `${i} ms`)],
+    get: () => ref.get(),
+    set: (val) => ref.set(Number(val)),
+  }),
+
   key_side_fn: (ref: _GetSetNumber, config: { functions: string[] }): UI.Field.Select => ({
     type: "select",
     id: "key_fn",
@@ -230,6 +276,27 @@ export const common_ui = {
     id: "roger",
     name: "Roger beep",
     description: "A short audible tone sent at the end of a transmission to indicate the speaker has finished talking.",
+    tab: UITab.System,
+    get: () => ref.get(),
+    set: (val) => ref.set(Number(val)),
+  }),
+
+  roger_beep_select: (ref: _GetSetNumber, config: { options: string[] }): UI.Field.Select => ({
+    type: "select",
+    id: "roger_list",
+    name: "Roger beep",
+    description: "A short audible tone sent at the end of a transmission to indicate the speaker has finished talking.",
+    tab: UITab.System,
+    options: config.options,
+    get: () => ref.get(),
+    set: (val) => ref.set(Number(val)),
+  }),
+
+  bcl: (ref: _GetSetNumber): UI.Field.Switcher => ({
+    type: "switcher",
+    id: "bcl",
+    name: "Busy channel lockout",
+    description: "Prevents transmission when the channel is already in use, helping to avoid interference.",
     tab: UITab.System,
     get: () => ref.get(),
     set: (val) => ref.set(Number(val)),

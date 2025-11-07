@@ -139,8 +139,8 @@ export class T18Radio extends Radio {
             get: (i) => (memory[i].narrow.get() ? "NFM" : "FM"),
             set: (i, val) => memory[i].narrow.set(val === "NFM" ? 1 : 0),
           },
-          squelch_rx: common_ui.channel_squelch((i) => memory[i].rxtone),
-          squelch_tx: common_ui.channel_squelch((i) => memory[i].txtone),
+          squelch_rx: common_ui.channel_squelch_lbcd((i) => memory[i].rxtone),
+          squelch_tx: common_ui.channel_squelch_lbcd((i) => memory[i].txtone),
           power: {
             options: [1, 5],
             name: (val) => (val < 5 ? "Low" : "Height"),
@@ -252,9 +252,11 @@ export class T18Radio extends Radio {
   async read(onProgress: (k: number) => void) {
     onProgress(0);
 
+    await this._serial_clear();
+
     this._img = undefined;
     this._mem = undefined;
-    this.dispatch_ui();
+    this.dispatch_ui_change();
 
     const { _memSize, _blockSize } = this;
 
@@ -275,11 +277,7 @@ export class T18Radio extends Radio {
     await this._exitProgrammingMode();
 
     const data = Buffer.concat(blocks);
-    this._img = data;
-
-    const mem = this._parse(data);
-    this._mem = mem;
-    this.dispatch_ui();
+    await this.load(data);
 
     onProgress(1);
   }
@@ -291,11 +289,13 @@ export class T18Radio extends Radio {
   async load(snapshot: Buffer) {
     this._img = snapshot;
     this._mem = this._parse(this._img);
-    this.dispatch_ui();
+    this.dispatch_ui_change();
   }
 
   async write(onProgress: (k: number) => void) {
     onProgress(0);
+
+    await this._serial_clear();
 
     if (!this._img) throw new Error("No data read");
 
