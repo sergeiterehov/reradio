@@ -83,8 +83,10 @@ export namespace UI {
     export type Label = _Field<"label">;
     export type Select = _Field<"select"> & { options: string[]; short?: boolean };
     export type Slider = _Field<"slider"> & { min: number; max: number; label?: (val: number) => string };
+    export type Text = _Field<"text">;
+    export type Chars = _Field<"chars"> & { abc: string; pad: string; length: number; uppercase?: boolean };
 
-    export type Any = Channels | Switcher | Select | Label | Slider;
+    export type Any = Channels | Switcher | Select | Label | Slider | Text | Chars;
   }
 
   export type Root = { fields: Field.Any[] };

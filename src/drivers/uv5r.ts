@@ -2,7 +2,7 @@ import { Buffer } from "buffer";
 import { Radio, type RadioInfo } from "./radio";
 import type { UI } from "./ui";
 import { array_of, create_mem_mapper } from "./mem";
-import { common_ui } from "./common_ui";
+import { common_ui, UITab } from "./common_ui";
 import { DCS_CODES } from "./utils";
 
 const INDENT_291 = Buffer.from([0x50, 0xbb, 0xff, 0x20, 0x12, 0x07, 0x25]);
@@ -132,9 +132,15 @@ export class UV5RRadio extends Radio {
 
     if (!mem) return { fields: [] };
 
-    const { memory, names, pttid } = mem;
+    const { memory, names, pttid, settings } = mem;
 
-    const ptt_id_code_options: string[] = pttid.map((id) => id.code.get().join(""));
+    const dtmf_chars = "0123456789ABCD*#";
+    const ptt_id_code_options: string[] = pttid.map((id) =>
+      id.code
+        .get()
+        .map((c) => dtmf_chars[c])
+        .join("")
+    );
 
     return {
       fields: [
@@ -200,6 +206,35 @@ export class UV5RRadio extends Radio {
             },
           },
         },
+
+        common_ui.sql(settings.squelch, { min: 0, max: 9 }),
+        common_ui.sql_ste(settings.ste, { from: 100, to: 1000, step: 100 }),
+        common_ui.pow_battery_save_ratio(settings.save),
+        common_ui.beep(settings.beep),
+        common_ui.roger_beep_select(settings.roger, { options: ["Off", "Beep", "TO-1200"] }),
+        common_ui.pow_tot(settings.timeout, { from: 15, to: 600, step: 15 }),
+        common_ui.voice_language(settings.voice, { languages: ["Off", "English", "Chinese"] }),
+        common_ui.bcl(settings.bcl),
+        common_ui.fm(settings.fmradio),
+
+        ...pttid.map(
+          (id, i): UI.Field.Any => ({
+            type: "chars",
+            id: `ptt_id_${i}`,
+            name: `PTT ID ${i + 1}`,
+            tab: UITab.DTMF,
+            abc: dtmf_chars,
+            pad: "0",
+            uppercase: true,
+            length: id.code.size,
+            get: () => id.code.get(),
+            set: (val) => {
+              id.code.set(val as number[]);
+              // update ptt_id_code_options
+              this.dispatch_ui_change();
+            },
+          })
+        ),
       ],
     };
   }
@@ -278,13 +313,17 @@ export class UV5RRadio extends Radio {
 
     this._img = snapshot;
     this._mem = mem;
-    this.dispatch_ui();
+    this.dispatch_ui_change();
   }
 
   override async read(onProgress: (k: number) => void) {
     onProgress(0);
 
-    await this._serial_read(128, { timeout: 100 }).catch(() => null);
+    this._img = undefined;
+    this._mem = undefined;
+    this.dispatch_ui_change();
+
+    await this._serial_clear();
 
     const ident = await this._read_ident();
 
@@ -308,6 +347,30 @@ export class UV5RRadio extends Radio {
 
     const img = Buffer.concat(chunks);
     this.load(img);
+
+    onProgress(1);
+  }
+
+  override async write(onProgress: (k: number) => void) {
+    onProgress(0);
+
+    const img = this._img;
+    if (!img) throw new Error("No data");
+
+    await this._serial_clear();
+
+    const ident = await this._read_ident();
+
+    const block_size = 0x10;
+
+    for (let i = 0; i < this.MEM_SIZE; i += block_size) {
+      if (i >= 0x0cf0 && i <= 0x0d00) continue;
+      if (i >= 0x0df0 && i <= 0x0e00) continue;
+
+      await this._write_block(i, img.slice(i, i + block_size));
+
+      onProgress(i / this.MEM_SIZE);
+    }
 
     onProgress(1);
   }

@@ -1,6 +1,6 @@
 import type { M } from "./mem";
 import type { UI } from "./ui";
-import { DCS_CODES } from "./utils";
+import { DCS_CODES, range } from "./utils";
 
 type _GetSetNumber = { get(): number; set(val: number): void };
 
@@ -11,6 +11,7 @@ export const UITab = {
   VOX: "Voice Activation",
   Power: "Power Management",
   System: "System Settings",
+  DTMF: "DTMF",
 };
 
 export const common_ui = {
@@ -186,6 +187,17 @@ export const common_ui = {
     get: () => ref.get(),
     set: (val) => ref.set(val ? 1 : 0),
   }),
+  pow_battery_save_ratio: (ref: _GetSetNumber): UI.Field.Select => ({
+    type: "select",
+    id: "bat_save_ratio",
+    name: "Battery saver",
+    description:
+      "Controls how aggressively the radio reduces power consumption during receive mode by cycling the receiver on and off, trading slight responsiveness for extended battery life.",
+    tab: UITab.Power,
+    options: ["Off", "1:1", "1:2", "1:3", "1:4"],
+    get: () => ref.get(),
+    set: (val) => ref.set(Number(val)),
+  }),
   pow_low_no_tx: (ref: _GetSetNumber): UI.Field.Switcher => ({
     type: "switcher",
     id: "low_no_tx",
@@ -204,25 +216,13 @@ export const common_ui = {
     get: () => ref.get(),
     set: (val) => ref.set(val ? 1 : 0),
   }),
-  pow_tot: (ref: _GetSetNumber): UI.Field.Select => ({
+  pow_tot: (ref: _GetSetNumber, config: { from: number; to: number; step: number }): UI.Field.Select => ({
     type: "select",
     id: "tot",
     name: "Timeout timer",
     description: "Limits continuous transmit time to prevent overheating or PTT stuck.",
     tab: UITab.Power,
-    options: [
-      "Off",
-      "30 seconds",
-      "60 seconds",
-      "90 seconds",
-      "120 seconds",
-      "150 seconds",
-      "180 seconds",
-      "210 seconds",
-      "240 seconds",
-      "270 seconds",
-      "300 seconds",
-    ],
+    options: ["Off", ...[...range(config.from, config.to + config.step, config.step)].map((i) => `${i} seconds`)],
     get: () => ref.get(),
     set: (val) => ref.set(Number(val)),
   }),
@@ -230,12 +230,13 @@ export const common_ui = {
   fm: (ref: _GetSetNumber): UI.Field.Switcher => ({
     type: "switcher",
     id: "fm",
-    name: "FM function",
+    name: "FM Radio",
     description: "Enables listening to commercial FM broadcast radio.",
     tab: UITab.System,
     get: () => ref.get(),
     set: (val) => ref.set(val ? 1 : 0),
   }),
+
   sql: (ref: _GetSetNumber, config: { min: number; max: number }): UI.Field.Slider => ({
     type: "slider",
     id: "sql",
@@ -248,6 +249,18 @@ export const common_ui = {
     get: () => ref.get(),
     set: (val) => ref.set(Number(val)),
   }),
+  sql_ste: (ref: _GetSetNumber, config: { from: number; to: number; step: number }): UI.Field.Select => ({
+    type: "select",
+    id: "sql_ste",
+    name: "Squelch Tail Eliminator",
+    description:
+      "Introduces a short delay before the transmitter fully turns off, ensuring the repeater properly recognizes the end of transmission and resets correctly.",
+    tab: UITab.System,
+    options: ["Off", ...[...range(config.from, config.to + config.step, config.step)].map((i) => `${i} ms`)],
+    get: () => ref.get(),
+    set: (val) => ref.set(Number(val)),
+  }),
+
   key_side_fn: (ref: _GetSetNumber, config: { functions: string[] }): UI.Field.Select => ({
     type: "select",
     id: "key_fn",
@@ -264,6 +277,17 @@ export const common_ui = {
     name: "Roger beep",
     description: "A short audible tone sent at the end of a transmission to indicate the speaker has finished talking.",
     tab: UITab.System,
+    get: () => ref.get(),
+    set: (val) => ref.set(Number(val)),
+  }),
+
+  roger_beep_select: (ref: _GetSetNumber, config: { options: string[] }): UI.Field.Select => ({
+    type: "select",
+    id: "roger_list",
+    name: "Roger beep",
+    description: "A short audible tone sent at the end of a transmission to indicate the speaker has finished talking.",
+    tab: UITab.System,
+    options: config.options,
     get: () => ref.get(),
     set: (val) => ref.set(Number(val)),
   }),

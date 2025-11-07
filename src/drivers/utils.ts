@@ -8,6 +8,12 @@ export const DCS_CODES = [
   703, 712, 723, 731, 732, 734, 743, 754,
 ];
 
+export function* range(start: number, end: number, step: number = 1) {
+  for (let i = start; i < end; i += step) {
+    yield i;
+  }
+}
+
 export function download_buffer(img: Buffer) {
   const blob = new Blob([img], { type: "application/octet-stream" });
   const url = URL.createObjectURL(blob);

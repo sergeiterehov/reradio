@@ -32,20 +32,27 @@ export class Radio {
   private _callbacks = {
     progress: new Set<(k: number) => void>(),
     ui: new Set<() => void>(),
+    ui_change: new Set<() => void>(),
   };
 
   constructor() {}
 
-  subscribe_ui = (cb: () => void) => {
+  readonly subscribe_ui = (cb: () => void) => {
     this._callbacks.ui.add(cb);
     return () => {
       this._callbacks.ui.delete(cb);
     };
   };
 
-  protected readonly dispatch_ui = () => {
-    for (const cb of this._callbacks.ui) cb();
+  readonly subscribe_ui_change = (cb: () => void) => {
+    this._callbacks.ui_change.add(cb);
+    return () => {
+      this._callbacks.ui_change.delete(cb);
+    };
   };
+
+  protected readonly dispatch_ui = () => this._callbacks.ui.forEach((cb) => cb());
+  protected readonly dispatch_ui_change = () => this._callbacks.ui_change.forEach((cb) => cb());
 
   async connect() {
     if (!navigator.serial) throw new Error("Web Serial API not available");
@@ -166,6 +173,10 @@ export class Radio {
     if (SERIAL_LOG) console.log(new Date().toISOString(), "R:", data.length, data.toString("hex"));
 
     return data;
+  }
+
+  protected async _serial_clear() {
+    await this._serial_read(0xffffff, { timeout: 300 }).catch(() => null);
   }
 
   async read(onProgress: (k: number) => void) {
