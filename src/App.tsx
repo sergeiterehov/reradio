@@ -78,9 +78,11 @@ function App() {
           </IconButton>
         </HStack>
         {(() => {
-          if (!ui?.fields.length) return <Hello />;
+          const fields = ui?.fields.filter((f) => f.type !== "none");
 
-          const tabs = [...new Set(ui.fields.map((f) => f.tab))];
+          if (!fields?.length) return <Hello />;
+
+          const tabs = [...new Set(fields.map((f) => f.tab))];
 
           return (
             <Tabs.Root lazyMount unmountOnExit variant="subtle" defaultValue={tabs[0]} orientation="vertical" px="3">
@@ -97,7 +99,7 @@ function App() {
                   <Tabs.Content key={tab} value={String(tab)}>
                     <Fieldset.Root>
                       <Fieldset.Content>
-                        {ui.fields
+                        {fields
                           .filter((f) => f.tab === tab)
                           .map((field) => (
                             <AnyField key={field.id} field={field} />

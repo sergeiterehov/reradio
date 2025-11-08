@@ -21,6 +21,8 @@ export namespace UI {
       description?: string;
     };
 
+    export type None = _Field<"none">;
+
     export type Channels = _Field<"channels"> & {
       size: number;
       channel: { get: (i: number) => string };
@@ -86,7 +88,7 @@ export namespace UI {
     export type Text = _Field<"text">;
     export type Chars = _Field<"chars"> & { abc: string; pad: string; length: number; uppercase?: boolean };
 
-    export type Any = Channels | Switcher | Select | Label | Slider | Text | Chars;
+    export type Any = None | Channels | Switcher | Select | Label | Slider | Text | Chars;
   }
 
   export type Root = { fields: Field.Any[] };

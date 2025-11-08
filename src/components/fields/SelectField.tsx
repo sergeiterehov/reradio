@@ -15,7 +15,7 @@ export function SelectField(props: { field: UI.Field.Select }) {
           <SegmentGroup.Items items={field.options.map((opt, i) => ({ value: String(i), label: opt }))} />
         </SegmentGroup.Root>
       ) : (
-        <NativeSelect.Root>
+        <NativeSelect.Root width="fit-content">
           <NativeSelect.Field value={String(value)} onChange={(e) => field.set(Number(e.currentTarget.value))}>
             {field.options.map((opt, i) => (
               <option key={i} value={String(i)}>

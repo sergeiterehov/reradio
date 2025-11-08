@@ -4,7 +4,7 @@ import { Buffer } from "buffer";
 import type { Radio } from "./radio";
 import { BF888Radio } from "./bf888";
 import { BFC50Radio, RB618Radio } from "./radtel_t18";
-import { UV5RRadio } from "./uv5r";
+import { UV5RRadio, UV82HPRadio, UV82Radio } from "./uv5r";
 
 export class Demo_UV5RRadio extends UV5RRadio {
   static Info = {
@@ -36,5 +36,7 @@ export const Library: (typeof Radio)[] = [
   BF888Radio,
   BFC50Radio,
   UV5RRadio,
+  UV82Radio,
+  UV82HPRadio,
   RB618Radio,
 ];

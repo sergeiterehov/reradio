@@ -6,15 +6,28 @@ type _GetSetNumber = { get(): number; set(val: number): void };
 
 export const UITab = {
   Channels: "Channels",
-  Feedback: "Feedback",
+  Interface: "Interface",
   Scanning: "Scanning",
   VOX: "Voice Activation",
   Power: "Power Management",
   System: "System Settings",
+  Control: "Control",
+  Exchange: "Exchange",
   DTMF: "DTMF",
 };
 
+export const modify_field = <F extends UI.Field.Any, R extends UI.Field.Any>(field: F, modifier: (field: F) => R): R =>
+  modifier(field);
+
 export const common_ui = {
+  none: (): UI.Field.None => ({
+    type: "none",
+    id: "none",
+    name: "None",
+    get: () => null,
+    set: () => null,
+  }),
+
   channels: (config: { size: number }): UI.Field.Channels => ({
     type: "channels",
     id: "channels",
@@ -117,6 +130,12 @@ export const common_ui = {
     get: () => ref.get(),
     set: (val) => ref.set(Number(val)),
   }),
+  vox_sens: (ref: _GetSetNumber, config: { max: number }): UI.Field.Slider => ({
+    ...common_ui.vox_level(ref, { ...config, min: 0 }),
+    id: "vox_sens",
+    name: "VOX sensitivity",
+    label: (val) => (val ? String(val) : "Off"),
+  }),
 
   scan: (ref: _GetSetNumber): UI.Field.Switcher => ({
     type: "switcher",
@@ -127,13 +146,13 @@ export const common_ui = {
     get: () => ref.get(),
     set: (val) => ref.set(val ? 1 : 0),
   }),
-  scan_mode: (ref: _GetSetNumber): UI.Field.Select => ({
+  scan_mode: (ref: _GetSetNumber, config: { options: string[] }): UI.Field.Select => ({
     type: "select",
     id: "scan_mode",
     name: "Scan mode",
-    description: "How the radio detects activity during scan.",
+    description: "Defines the scanning method used when searching for active signals across channels or frequencies.",
     tab: UITab.Scanning,
-    options: ["Carrier", "Time"],
+    options: config.options,
     short: true,
     get: () => ref.get(),
     set: (val) => ref.set(Number(val)),
@@ -144,9 +163,20 @@ export const common_ui = {
     id: "alarm",
     name: "Alarm",
     description: "Loud, repeating alert tone to get attention.",
-    tab: UITab.Feedback,
+    tab: UITab.Control,
     get: () => ref.get(),
     set: (val) => ref.set(val ? 1 : 0),
+  }),
+
+  alarm_mode: (ref: _GetSetNumber, config: { options: string[] }): UI.Field.Select => ({
+    type: "select",
+    id: "alarm_mode",
+    name: "Alarm mode",
+    description: "Loud, repeating alert tone to get attention.",
+    tab: UITab.Control,
+    options: config.options,
+    get: () => ref.get(),
+    set: (val) => ref.set(Number(val)),
   }),
 
   beep: (ref: _GetSetNumber): UI.Field.Switcher => ({
@@ -154,7 +184,7 @@ export const common_ui = {
     id: "beep",
     name: "Beep",
     description: "Short audible tone when pressing buttons.",
-    tab: UITab.Feedback,
+    tab: UITab.Interface,
     get: () => ref.get(),
     set: (val) => ref.set(val ? 1 : 0),
   }),
@@ -163,7 +193,7 @@ export const common_ui = {
     id: "voice_prompt",
     name: "Voice prompt",
     description: "Plays spoken confirmation when changing channels or pressing buttons.",
-    tab: UITab.Feedback,
+    tab: UITab.Interface,
     get: () => ref.get(),
     set: (val) => ref.set(val ? 1 : 0),
   }),
@@ -172,7 +202,7 @@ export const common_ui = {
     id: "lang",
     name: "Voice language",
     description: "Language used for voice prompts.",
-    tab: UITab.Feedback,
+    tab: UITab.Interface,
     options: config.languages,
     get: () => ref.get(),
     set: (val) => ref.set(Number(val)),
@@ -216,13 +246,15 @@ export const common_ui = {
     get: () => ref.get(),
     set: (val) => ref.set(val ? 1 : 0),
   }),
-  pow_tot: (ref: _GetSetNumber, config: { from: number; to: number; step: number }): UI.Field.Select => ({
-    type: "select",
+  pow_tot: (ref: _GetSetNumber, config: { from: number; to: number; step: number }): UI.Field.Slider => ({
+    type: "slider",
     id: "tot",
     name: "Timeout timer",
     description: "Limits continuous transmit time to prevent overheating or PTT stuck.",
     tab: UITab.Power,
-    options: ["Off", ...[...range(config.from, config.to + config.step, config.step)].map((i) => `${i} seconds`)],
+    min: 0,
+    max: (config.to - config.from) / config.step,
+    label: (val) => (val ? `${config.from + val * config.step} sec` : "Off"),
     get: () => ref.get(),
     set: (val) => ref.set(Number(val)),
   }),
@@ -237,6 +269,18 @@ export const common_ui = {
     set: (val) => ref.set(val ? 1 : 0),
   }),
 
+  rtone: (ref: _GetSetNumber, config: { frequencies: number[] }): UI.Field.Select => ({
+    type: "select",
+    id: "rtone",
+    name: "Repeater Tone",
+    tab: UITab.System,
+    description:
+      "Tone Burst Frequency. Sets the frequency of the short audio tone sent at the start of a transmission to activate certain older repeaters that require a specific tone burst for access.",
+    options: config.frequencies.map((f) => `${f} Hz`),
+    get: () => ref.get(),
+    set: (val) => ref.set(Number(val)),
+  }),
+
   sql: (ref: _GetSetNumber, config: { min: number; max: number }): UI.Field.Slider => ({
     type: "slider",
     id: "sql",
@@ -249,14 +293,16 @@ export const common_ui = {
     get: () => ref.get(),
     set: (val) => ref.set(Number(val)),
   }),
-  sql_ste: (ref: _GetSetNumber, config: { from: number; to: number; step: number }): UI.Field.Select => ({
-    type: "select",
+  sql_ste: (ref: _GetSetNumber, config: { from: number; to: number; step: number }): UI.Field.Slider => ({
+    type: "slider",
     id: "sql_ste",
     name: "Squelch Tail Eliminator",
     description:
       "Introduces a short delay before the transmitter fully turns off, ensuring the repeater properly recognizes the end of transmission and resets correctly.",
     tab: UITab.System,
-    options: ["Off", ...[...range(config.from, config.to + config.step, config.step)].map((i) => `${i} ms`)],
+    min: 0,
+    max: (config.to - config.from) / config.step,
+    label: (val) => (val ? `${config.from + val * config.step} ms` : "Off"),
     get: () => ref.get(),
     set: (val) => ref.set(Number(val)),
   }),
@@ -265,10 +311,20 @@ export const common_ui = {
     type: "select",
     id: "key_fn",
     name: "Side key function",
-    tab: UITab.System,
+    tab: UITab.Control,
     options: config.functions,
     get: () => ref.get(),
     set: (val) => ref.set(Number(val)),
+  }),
+  keypad_lock: (ref: _GetSetNumber): UI.Field.Switcher => ({
+    type: "switcher",
+    id: "keypad_lock",
+    name: "Keypad auto-lock",
+    description:
+      "Prevents accidental changes to settings or unintended transmissions by disabling the keypad except for essential functions like PTT or emergency keys.",
+    tab: UITab.Control,
+    get: () => ref.get(),
+    set: (val) => ref.set(val ? 1 : 0),
   }),
 
   roger_beep: (ref: _GetSetNumber): UI.Field.Switcher => ({
@@ -276,7 +332,7 @@ export const common_ui = {
     id: "roger",
     name: "Roger beep",
     description: "A short audible tone sent at the end of a transmission to indicate the speaker has finished talking.",
-    tab: UITab.System,
+    tab: UITab.Exchange,
     get: () => ref.get(),
     set: (val) => ref.set(Number(val)),
   }),
@@ -286,7 +342,7 @@ export const common_ui = {
     id: "roger_list",
     name: "Roger beep",
     description: "A short audible tone sent at the end of a transmission to indicate the speaker has finished talking.",
-    tab: UITab.System,
+    tab: UITab.Exchange,
     options: config.options,
     get: () => ref.get(),
     set: (val) => ref.set(Number(val)),
@@ -297,7 +353,45 @@ export const common_ui = {
     id: "bcl",
     name: "Busy channel lockout",
     description: "Prevents transmission when the channel is already in use, helping to avoid interference.",
+    tab: UITab.Exchange,
+    get: () => ref.get(),
+    set: (val) => ref.set(Number(val)),
+  }),
+
+  backlight_timeout: (ref: _GetSetNumber, config: { min: number; max: number }): UI.Field.Slider => ({
+    type: "slider",
+    id: "backlight_timeout",
+    name: "Backlight Timeout",
+    description:
+      "Sets how long the display backlight remains on after the last user interaction before automatically turning off to save battery.",
+    tab: UITab.Interface,
+    min: config.min,
+    max: config.max,
+    label: (val) => (val ? `${val} sec` : "Off"),
+    get: () => ref.get(),
+    set: (val) => ref.set(Number(val)),
+  }),
+
+  dw: (ref: _GetSetNumber): UI.Field.Switcher => ({
+    type: "switcher",
+    id: "dw",
+    name: "Dual Watch",
+    description:
+      "Enables monitoring of two channels simultaneously, automatically switching to the active one when a signal is detected.",
     tab: UITab.System,
+    get: () => ref.get(),
+    set: (val) => ref.set(val ? 1 : 0),
+  }),
+
+  dw_priority_ab: (ref: _GetSetNumber): UI.Field.Select => ({
+    type: "select",
+    id: "dw_priority_ab",
+    name: "Dual Watch Priority",
+    description:
+      "Specifies which receiver (A or B) remains active after a signal is received in dual-watch mode. When set to OFF, the receiver that last received a signal stays active; when set to A or B, the selected receiver always resumes after any transmission ends.",
+    tab: UITab.System,
+    short: true,
+    options: ["Off", "A", "B"],
     get: () => ref.get(),
     set: (val) => ref.set(Number(val)),
   }),

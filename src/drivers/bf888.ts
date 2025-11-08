@@ -103,7 +103,7 @@ export class BF888Radio extends Radio {
         common_ui.voice_prompt(settings.voiceprompt),
         common_ui.voice_language(settings.voicelanguage, { languages: ["English", "Chinese"] }),
         common_ui.scan(settings.scan),
-        common_ui.scan_mode(settings2.scanmode),
+        common_ui.scan_mode(settings2.scanmode, { options: ["Carrier", "Time"] }),
         common_ui.vox(settings.vox),
         common_ui.vox_inhibit(settings.voxinhibitonrx),
         common_ui.vox_level(settings.voxlevel, { min: 0, max: 4 }),

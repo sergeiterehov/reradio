@@ -2,11 +2,12 @@ import { Buffer } from "buffer";
 import { Radio, type RadioInfo } from "./radio";
 import type { UI } from "./ui";
 import { array_of, create_mem_mapper } from "./mem";
-import { common_ui, UITab } from "./common_ui";
+import { common_ui, modify_field, UITab } from "./common_ui";
 import { DCS_CODES } from "./utils";
 
 const INDENT_291 = Buffer.from([0x50, 0xbb, 0xff, 0x20, 0x12, 0x07, 0x25]);
 const INDENT_5R = Buffer.from([0x50, 0xbb, 0xff, 0x01, 0x25, 0x98, 0x4d]);
+const INDENT_UV82 = Buffer.from([0x50, 0xbb, 0xff, 0x20, 0x13, 0x01, 0x05]);
 const UV5R_DCS = [...DCS_CODES, 645].sort((a, b) => a - b);
 const PTT_ID_ON_OPTIONS: UI.ChannelPTTIdOn[] = ["Off", "Begin", "End", "Begin & End"];
 
@@ -18,9 +19,16 @@ export class UV5RRadio extends Radio {
     model: "UV-5R",
   };
 
-  protected readonly _indents = [INDENT_291, INDENT_5R];
+  protected readonly INDENTS = [INDENT_291, INDENT_5R];
   protected readonly MEM_SIZE = 0x1800;
   protected readonly BLOCK_SIZE = 0x40;
+  protected readonly POWER_LEVELS = [
+    { watt: 5, name: "Hight" },
+    { watt: 1, name: "Low" },
+  ];
+
+  protected readonly HAS_RTONE: boolean = false;
+  protected readonly HAS_DUAL_PTT: boolean = false;
 
   protected _img?: Buffer;
   protected _mem?: ReturnType<typeof this._parse>;
@@ -89,10 +97,6 @@ export class UV5RRadio extends Radio {
         mdfa: m.u8(),
         mdfb: m.u8(),
         bcl: m.u8(),
-        /**
-         * The UV-6 calls this byte voxenable, but the UV-5R calls it autolk.
-         * Since this is a minor difference, it will be referred to by the wrong name for the UV-6.
-         */
         autolk: m.u8(),
         sftd: m.u8(),
         unknown6: m.u8_array(3),
@@ -108,11 +112,7 @@ export class UV5RRadio extends Radio {
         ponmsg: m.u8(),
         roger: m.u8(),
         rogerrx: m.u8(),
-        /**
-         * The UV-82HP calls this byte rtone, but the UV-6 calls it tdrch.
-         * Since this is a minor difference, it will be referred to by the wrong name for the UV-82HP.
-         */
-        tdrch: m.u8(),
+        rtone: m.u8(),
         ...m.bitmap({ displayab: 1, unknown7: 2, fmradio: 1, alarm: 1, unknown8: 1, reset: 1, menu: 1 }),
         ...m.bitmap({ unknown9: 6, singleptt: 1, vfomrlock: 1 }),
         workmode: m.u8(),
@@ -184,10 +184,10 @@ export class UV5RRadio extends Radio {
             set: (i, val) => memory[i].scan.set(val === "On" ? 1 : 0),
           },
           power: {
-            options: [1, 4],
-            name: (val) => (val < 4 ? "Low" : "Height"),
-            get: (i) => (memory[i].lowpower.get() ? 1 : 4),
-            set: (i, val) => memory[i].lowpower.set(val === 1 ? 1 : 0),
+            options: this.POWER_LEVELS.map((lv) => lv.watt),
+            name: (val) => this.POWER_LEVELS[val]?.name || "unspecified",
+            get: (i) => memory[i].lowpower.get(),
+            set: (i, val) => memory[i].lowpower.set(val),
           },
           bcl: {
             get: (i) => memory[i].bcl.get() === 1,
@@ -207,15 +207,50 @@ export class UV5RRadio extends Radio {
           },
         },
 
+        modify_field(common_ui.dw(settings.tdr), (f) => ({
+          ...f,
+          set: (...args) => {
+            f.set(...args);
+            this.dispatch_ui_change();
+          },
+        })),
+        settings.tdr.get() ? common_ui.dw_priority_ab(settings.tdrab) : common_ui.none(),
+        common_ui.fm(settings.fmradio),
         common_ui.sql(settings.squelch, { min: 0, max: 9 }),
         common_ui.sql_ste(settings.ste, { from: 100, to: 1000, step: 100 }),
+        common_ui.keypad_lock(settings.keylock),
+        modify_field(
+          common_ui.alarm_mode(settings.almod, {
+            options: ["Site - only speaker", "Tone - transmit", "Code - transmit"],
+          }),
+          (f) => ({
+            ...f,
+            get: () => {
+              const val = f.get() as number;
+              return val > 0x02 ? 0x01 : val;
+            },
+          })
+        ),
+        common_ui.scan_mode(settings.screv, { options: ["Time", "Carrier", "Search"] }),
         common_ui.pow_battery_save_ratio(settings.save),
         common_ui.beep(settings.beep),
+        common_ui.bcl(settings.bcl),
         common_ui.roger_beep_select(settings.roger, { options: ["Off", "Beep", "TO-1200"] }),
+        this.HAS_RTONE ? common_ui.rtone(settings.rtone, { frequencies: [1000, 1450, 1750, 2100] }) : common_ui.none(),
+        this.HAS_DUAL_PTT
+          ? {
+              type: "switcher",
+              id: "single_ptt",
+              name: "Single PTT",
+              tab: UITab.Control,
+              get: () => settings.singleptt.get(),
+              set: (val) => settings.singleptt.set(val ? 1 : 0),
+            }
+          : common_ui.none(),
         common_ui.pow_tot(settings.timeout, { from: 15, to: 600, step: 15 }),
         common_ui.voice_language(settings.voice, { languages: ["Off", "English", "Chinese"] }),
-        common_ui.bcl(settings.bcl),
-        common_ui.fm(settings.fmradio),
+        common_ui.backlight_timeout(settings.abr, { min: 0, max: 24 }),
+        common_ui.vox_sens(settings.vox, { max: 10 }),
 
         ...pttid.map(
           (id, i): UI.Field.Any => ({
@@ -240,7 +275,7 @@ export class UV5RRadio extends Radio {
   }
 
   protected async _read_ident() {
-    for (const indent of this._indents) {
+    for (const indent of this.INDENTS) {
       console.log("Try ident:", indent.toString("hex"));
 
       for (let i = 0; i < indent.length; i += 1) {
@@ -374,4 +409,27 @@ export class UV5RRadio extends Radio {
 
     onProgress(1);
   }
+}
+
+export class UV82Radio extends UV5RRadio {
+  static override Info: RadioInfo = {
+    vendor: "Baofeng",
+    model: "UV-82 (5 watt)",
+  };
+
+  protected readonly INDENTS: Buffer[] = [INDENT_UV82];
+  protected readonly HAS_RTONE = true;
+}
+
+export class UV82HPRadio extends UV82Radio {
+  static override Info: RadioInfo = {
+    vendor: "Baofeng",
+    model: "UV-82HP (8 watt)",
+  };
+
+  protected readonly POWER_LEVELS = [
+    { watt: 8, name: "Hight" },
+    { watt: 5, name: "Medium" },
+    { watt: 1, name: "Low" },
+  ];
 }
