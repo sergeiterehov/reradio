@@ -31,12 +31,12 @@ export class Demo_BF888Radio extends BF888Radio {
 }
 
 export const Library: (typeof Radio)[] = [
-  Demo_BF888Radio,
-  Demo_UV5RRadio,
   BF888Radio,
   BFC50Radio,
   UV5RRadio,
   UV82Radio,
   UV82HPRadio,
   RB618Radio,
+  Demo_BF888Radio,
+  Demo_UV5RRadio,
 ];
