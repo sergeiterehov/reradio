@@ -261,8 +261,8 @@ function ChannelForm(props: { field: UI.Field.Channels; index: number }) {
                   </Tooltip>
                 </Field.Label>
                 <SegmentGroup.Root
-                  value={String(value)}
-                  onValueChange={(e) => mode.set(index, e.value as UI.RadioMode)}
+                  value={mode.options[value]}
+                  onValueChange={(e) => mode.set(index, mode.options.indexOf(e.value as UI.RadioMode))}
                 >
                   <SegmentGroup.Indicator />
                   <SegmentGroup.Items items={mode.options} />
@@ -285,8 +285,8 @@ function ChannelForm(props: { field: UI.Field.Channels; index: number }) {
                 <NativeSelect.Root>
                   <NativeSelect.Field value={value} onChange={(e) => power.set(index, Number(e.currentTarget.value))}>
                     {power.options.map((opt, i_opt) => (
-                      <option key={i_opt} value={opt}>
-                        {power.name ? `${power.name(opt)} (${opt}W)` : `${opt} watt`}
+                      <option key={i_opt} value={i_opt}>
+                        {power.name ? `${power.name(i_opt)} (${opt}W)` : `${opt} watt`}
                       </option>
                     ))}
                   </NativeSelect.Field>
@@ -307,12 +307,9 @@ function ChannelForm(props: { field: UI.Field.Channels; index: number }) {
                   </Tooltip>
                 </Field.Label>
                 <NativeSelect.Root>
-                  <NativeSelect.Field
-                    value={value}
-                    onChange={(e) => scan.set(index, e.currentTarget.value as UI.ChannelScanMode)}
-                  >
+                  <NativeSelect.Field value={value} onChange={(e) => scan.set(index, Number(e.currentTarget.value))}>
                     {scan.options.map((opt, i_opt) => (
-                      <option key={i_opt} value={opt}>
+                      <option key={i_opt} value={i_opt}>
                         {opt}
                       </option>
                     ))}

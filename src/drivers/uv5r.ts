@@ -3,7 +3,7 @@ import { Radio, type RadioInfo } from "./radio";
 import type { UI } from "./ui";
 import { array_of, create_mem_mapper } from "./mem";
 import { common_ui, modify_field, UITab } from "./common_ui";
-import { DCS_CODES } from "./utils";
+import { DCS_CODES, download_buffer } from "./utils";
 
 const INDENT_291 = Buffer.from([0x50, 0xbb, 0xff, 0x20, 0x12, 0x07, 0x25]);
 const INDENT_5R = Buffer.from([0x50, 0xbb, 0xff, 0x01, 0x25, 0x98, 0x4d]);
@@ -20,8 +20,13 @@ export class UV5RRadio extends Radio {
   };
 
   protected readonly INDENTS = [INDENT_291, INDENT_5R];
-  protected readonly MEM_SIZE = 0x1800;
-  protected readonly BLOCK_SIZE = 0x40;
+  protected readonly MEM_SIZE = 0x2000;
+  protected readonly WRITE_BLOCK_SIZE = 0x10;
+  /** [start, end, block_size] */
+  protected readonly MEM_RANGES: [number, number, number][] = [
+    [0x0000, 0x1800, 0x40],
+    [0x1ec0, 0x1ef0, 0x40],
+  ];
   protected readonly POWER_LEVELS = [
     { watt: 5, name: "Hight" },
     { watt: 1, name: "Low" },
@@ -124,6 +129,12 @@ export class UV5RRadio extends Radio {
         name: m.str(7),
         unknown2: m.u8_array(9),
       })),
+
+      ...m.seek(0x1ee0).skip(0, {}),
+      poweron_msg: {
+        line1: m.str(7),
+        line2: m.str(7),
+      },
     };
   }
 
@@ -132,7 +143,7 @@ export class UV5RRadio extends Radio {
 
     if (!mem) return { fields: [] };
 
-    const { memory, names, pttid, settings } = mem;
+    const { memory, names, pttid, settings, poweron_msg } = mem;
 
     const dtmf_chars = "0123456789ABCD*#";
     const ptt_id_code_options: string[] = pttid.map((id) =>
@@ -172,16 +183,16 @@ export class UV5RRadio extends Radio {
             set: (i, val) => memory[i].txfreq.set(memory[i].rxfreq.get() + val / 10),
           },
           mode: {
-            options: ["FM", "NFM"],
-            get: (i) => (memory[i].wide.get() ? "FM" : "NFM"),
-            set: (i, val) => memory[i].wide.set(val === "FM" ? 1 : 0),
+            options: ["NFM", "FM"],
+            get: (i) => memory[i].wide.get(),
+            set: (i, val) => memory[i].wide.set(val),
           },
           squelch_rx: common_ui.channel_squelch_u16((i) => memory[i].rxtone, UV5R_DCS),
           squelch_tx: common_ui.channel_squelch_u16((i) => memory[i].txtone, UV5R_DCS),
           scan: {
             options: ["Off", "On"],
-            get: (i) => (memory[i].scan.get() ? "On" : "Off"),
-            set: (i, val) => memory[i].scan.set(val === "On" ? 1 : 0),
+            get: (i) => memory[i].scan.get(),
+            set: (i, val) => memory[i].scan.set(val),
           },
           power: {
             options: this.POWER_LEVELS.map((lv) => lv.watt),
@@ -251,6 +262,8 @@ export class UV5RRadio extends Radio {
         common_ui.voice_language(settings.voice, { languages: ["Off", "English", "Chinese"] }),
         common_ui.backlight_timeout(settings.abr, { min: 0, max: 24 }),
         common_ui.vox_sens(settings.vox, { max: 10 }),
+        common_ui.hello_msg_str_x(poweron_msg.line1, { line: 1 }),
+        common_ui.hello_msg_str_x(poweron_msg.line2, { line: 2 }),
 
         ...pttid.map(
           (id, i): UI.Field.Any => ({
@@ -362,25 +375,28 @@ export class UV5RRadio extends Radio {
 
     const ident = await this._read_ident();
 
-    const block0 = await this._read_block(0x1e80, this.BLOCK_SIZE, true);
-    const block1 = await this._read_block(0x1ec0, this.BLOCK_SIZE);
-    const block2 = await this._read_block(0x1fc0, this.BLOCK_SIZE);
+    const block0 = await this._read_block(0x1e80, 0x40, true);
+    const block1 = await this._read_block(0x1ec0, 0x40);
+    const block2 = await this._read_block(0x1fc0, 0x40);
 
     const version = block1.slice(48, 62);
     console.log("Firmware:", version.toString("ascii"));
 
-    const chunks: Buffer[] = [];
+    const img = Buffer.alloc(this.MEM_SIZE);
 
     onProgress(0.1);
 
-    for (let i = 0; i < this.MEM_SIZE; i += this.BLOCK_SIZE) {
-      const chunk = await this._read_block(i, this.BLOCK_SIZE);
-      chunks.push(chunk);
+    for (const [start, end, block_size] of this.MEM_RANGES) {
+      for (let i = start; i < end; i += block_size) {
+        const block = await this._read_block(i, block_size);
+        block.copy(img, i);
 
-      onProgress(0.1 + 0.8 * (i / this.MEM_SIZE));
+        onProgress(0.1 + 0.8 * (i / this.MEM_SIZE));
+      }
     }
 
-    const img = Buffer.concat(chunks);
+download_buffer(img);
+
     this.load(img);
 
     onProgress(1);
@@ -396,15 +412,15 @@ export class UV5RRadio extends Radio {
 
     const ident = await this._read_ident();
 
-    const block_size = 0x10;
+    for (const [start, end] of this.MEM_RANGES) {
+      for (let i = start; i < end; i += this.WRITE_BLOCK_SIZE) {
+        if (i >= 0x0cf0 && i <= 0x0d00) continue;
+        if (i >= 0x0df0 && i <= 0x0e00) continue;
 
-    for (let i = 0; i < this.MEM_SIZE; i += block_size) {
-      if (i >= 0x0cf0 && i <= 0x0d00) continue;
-      if (i >= 0x0df0 && i <= 0x0e00) continue;
+        await this._write_block(i, img.slice(i, i + this.WRITE_BLOCK_SIZE));
 
-      await this._write_block(i, img.slice(i, i + block_size));
-
-      onProgress(i / this.MEM_SIZE);
+        onProgress(0.1 + 0.8 * (i / this.MEM_SIZE));
+      }
     }
 
     onProgress(1);

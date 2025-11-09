@@ -200,7 +200,7 @@ export const create_mem_mapper = (data: Buffer, onchange?: () => void): MemMappe
           const q = 4 * (order % 2);
           const byte = (order / 2) >>> 0;
 
-          data.writeUInt8(_cur + byte, (data.readUInt8(_cur + byte) & ~(0x0f << q)) | ((value & 0xf) << q));
+          data.writeUInt8((data.readUInt8(_cur + byte) & ~(0x0f << q)) | ((value & 0xf) << q), _cur + byte);
           onchange?.();
         },
       };
@@ -223,7 +223,7 @@ export const create_mem_mapper = (data: Buffer, onchange?: () => void): MemMappe
           if (val.length !== size) throw new Error("String has wrong len");
 
           for (let i = 0; i < size; i += 1) {
-            data.writeUInt8(_cur + i, val.charCodeAt(i));
+            data.writeUInt8(val.charCodeAt(i), _cur + i);
           }
 
           onchange?.();

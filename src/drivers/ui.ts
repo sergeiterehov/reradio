@@ -43,8 +43,8 @@ export namespace UI {
       };
       mode?: {
         options: RadioMode[];
-        get: (i: number) => RadioMode;
-        set: (i: number, val: RadioMode) => void;
+        get: (i: number) => number;
+        set: (i: number, i_option: number) => void;
       };
       squelch_rx?: {
         options: SquelchMode[];
@@ -62,12 +62,12 @@ export namespace UI {
         options: number[];
         name?: (val: number) => string;
         get: (i: number) => number;
-        set: (i: number, val: number) => void;
+        set: (i: number, i_option: number) => void;
       };
       scan?: {
         options: ChannelScanMode[];
-        get: (i: number) => ChannelScanMode;
-        set: (i: number, val: ChannelScanMode) => void;
+        get: (i: number) => number;
+        set: (i: number, i_option: number) => void;
       };
       bcl?: {
         get: (i: number) => boolean;

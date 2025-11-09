@@ -372,6 +372,16 @@ export const common_ui = {
     set: (val) => ref.set(Number(val)),
   }),
 
+  hello_msg_str_x: (str_ref: M.Str, config: { line: number }): UI.Field.Text => ({
+    type: "text",
+    id: `poweron_msg_${config.line}`,
+    name: `Hello text, line ${config.line}`,
+    description: "Text displayed on the screen when the radio is turned on.",
+    tab: UITab.Interface,
+    get: () => str_ref.get(),
+    set: (val) => str_ref.set(String(val).substring(0, str_ref.raw.size).padEnd(str_ref.raw.size, " ")),
+  }),
+
   dw: (ref: _GetSetNumber): UI.Field.Switcher => ({
     type: "switcher",
     id: "dw",
