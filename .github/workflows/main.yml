@@ -15,6 +15,7 @@ jobs:
       - name: Generate .env with build info
         run: |
           echo "VITE_BUILD=$(git rev-parse --short HEAD)-$(date -u +'%Y%m%d-%H%M%S')" > .env
+          echo "VITE_YANDEX_METRIKA=${{ env.YANDEX_METRIKA }}" >> .env
 
       - name: Setup Node.js
         uses: actions/setup-node@v6

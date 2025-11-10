@@ -1,21 +1,19 @@
 const ID = import.meta.env.VITE_YANDEX_METRIKA;
 
-if (!("ym" in window)) {
-  const stack: unknown[] = [];
+const stack: unknown[] = [];
 
-  const _ym = (...args: unknown[]) => stack.push(args);
-  _ym.a = stack;
-  _ym.l = Number(new Date());
+const _ym = (...args: unknown[]) => stack.push(args);
+_ym.a = stack;
+_ym.l = Number(new Date());
 
-  Object.assign(window, { ym: _ym });
+Object.assign(window, { ym: _ym });
 
+if (ID) {
   const script = document.createElement("script");
   script.async = true;
   script.src = "https://mc.yandex.ru/metrika/tag.js";
   document.head.appendChild(script);
-}
 
-if (ID) {
   ym(ID, "init", { clickmap: true, accurateTrackBounce: true, trackLinks: true });
 }
 
