@@ -5,7 +5,7 @@
     "useDefineForClassFields": true,
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "module": "ESNext",
-    "types": ["vite/client", "@types/w3c-web-serial"],
+    "types": ["vite/client", "@types/w3c-web-serial", "@types/yandex-metrika-tag"],
     "skipLibCheck": true,
 
     "paths": {

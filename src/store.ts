@@ -1,6 +1,7 @@
 import { createStore } from "zustand";
 import type { Radio } from "./drivers/radio";
 import { Library } from "./drivers/library";
+import YaMetrika from "./YaMetrika";
 
 export type Store = {
   radio: Radio;
@@ -26,9 +27,13 @@ export const Store = createStore<Store>((set, get) => {
 
       if (!radio) return;
 
+      YaMetrika.richGoal(YaMetrika.Goal.TryReadFromRadio, { ...radio.info });
+
       set({ task: "Downloading" });
       try {
         await radio.connect();
+
+        YaMetrika.richGoal(YaMetrika.Goal.SuccessReadFromRadio, { ...radio.info });
         try {
           await radio.read(_handleProgress);
         } finally {
@@ -44,11 +49,15 @@ export const Store = createStore<Store>((set, get) => {
 
       if (!radio) return;
 
+      YaMetrika.richGoal(YaMetrika.Goal.TryWriteToRadio, { ...radio.info });
+
       set({ task: "Uploading" });
       try {
         await radio.connect();
         try {
           await radio.write(_handleProgress);
+
+          YaMetrika.richGoal(YaMetrika.Goal.SuccessWriteToRadio, { ...radio.info });
         } finally {
           await radio.disconnect();
         }

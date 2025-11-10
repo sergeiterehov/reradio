@@ -1,5 +1,6 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
+import "./YaMetrika.ts";
 import { Provider } from "@/components/ui/provider";
 import App from "./App.tsx";
 import { Buffer } from "buffer";
