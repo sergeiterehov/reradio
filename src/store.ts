@@ -33,9 +33,10 @@ export const Store = createStore<Store>((set, get) => {
       try {
         await radio.connect();
 
-        YaMetrika.richGoal(YaMetrika.Goal.SuccessReadFromRadio, { ...radio.info });
         try {
           await radio.read(_handleProgress);
+
+          YaMetrika.richGoal(YaMetrika.Goal.SuccessReadFromRadio, { ...radio.info });
         } finally {
           await radio.disconnect();
         }
