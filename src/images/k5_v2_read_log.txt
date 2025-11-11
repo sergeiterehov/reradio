@@ -1,0 +1,76 @@
+
+sending k5_hello ..
+tx crc_ok 1
+tx obfuscated [ 16] AB CD 08 00 02 69 10 E6 44 A8 5A 24 B9 A9 DC BA
+tx clear      [  8]             14 05 04 00 6A 39 57 64 - 9C98
+rx ..
+000000  15 05 24 00 31 2E 30 31 2E 30 37 00 00 00 00 63  ..$.1.01.07....c
+000010  7C 77 7B F2 00 00 00 00 64 9F 65 63 E7 94 10 15  |w{ò....dŸecç”..
+000020  77 E0 17 57 FE 13 7C 4F FF FF                    wà.Wþ.|Oÿÿ      
+
+  firmware version: '1.01.07'
+has custom AES key: no
+ is in lock screen: no
+         challenge: 64 9F 65 63
+
+read_config  offset 0000  len 128
+tx crc_ok 1
+tx obfuscated [ 20] AB CD 0C 00 0D 69 1C E6 2E 91 8D 40 4B 0C 82 24 56 EC DC BA
+tx clear      [ 12]             1B 05 08 00 00 00 80 00 6A 39 57 64 - EF45
+rx ..
+000000  1C 05 84 00 00 00 80 00 FC 69 97 02 40 42 0F 00  ..„...€.üi—.@B..
+000010  00 00 00 00 08 00 05 00 A4 CB 97 02 40 42 0F 00  ........¤Ë—.@B..
+000020  00 00 00 00 08 00 05 00 5C C5 9A 02 40 42 0F 00  ........\Åš.@B..
+000030  00 00 00 00 08 00 05 00 64 4A DD 00 40 42 0F 00  ........dJÝ.@B..
+000040  00 00 00 00 08 00 05 00 B4 0D DE 00 40 42 0F 00  ........´.Þ.@B..
+000050  00 00 00 00 08 00 05 00 54 94 DF 00 00 00 00 00  ........T”ß.....
+000060  0A 0A 11 00 08 00 04 00 84 2A 90 02 00 00 00 00  ........„*.....
+000070  0C 0C 11 00 08 00 04 00 24 B1 91 02 00 00 00 00  ........$±‘.....
+000080  0D 0D 11 00 08 00 04 00 FF FF                    ........ÿÿ      
+read_config  offset 0080  len 128
+tx crc_ok 1
+tx obfuscated [ 20] AB CD 0C 00 0D 69 1C E6 AE 91 8D 40 4B 0C 82 24 D7 11 DC BA
+tx clear      [ 12]             1B 05 08 00 80 00 80 00 6A 39 57 64 - 12C4
+rx ..
+000000  1C 05 84 00 80 00 80 00 C4 37 93 02 00 00 00 00  ..„.€.€.Ä7“.....
+000010  15 15 11 00 08 00 04 00 64 BE 94 02 00 00 00 00  ........d¾”.....
+000020  16 16 11 00 08 00 04 00 04 45 96 02 00 00 00 00  .........E–.....
+000030  18 18 11 00 08 00 04 00 A4 CB 97 02 00 00 00 00  ........¤Ë—.....
+000040  1B 1B 11 00 08 00 04 00 44 52 99 02 00 00 00 00  ........DR™.....
+000050  1E 1E 11 00 08 00 04 00 E4 D8 9A 02 00 00 00 00  ........äØš.....
+000060  22 22 11 00 08 00 04 00 84 5F 9C 02 00 00 00 00  ""......„_œ.....
+000070  25 25 11 00 08 00 04 00 24 E6 9D 02 00 00 00 00  %%......$æ.....
+000080  28 28 11 00 08 00 04 00 FF FF                    ((......ÿÿ      
+read_config  offset 0100  len 128
+tx crc_ok 1
+tx obfuscated [ 20] AB CD 0C 00 0D 69 1C E6 2E 90 8D 40 4B 0C 82 24 37 54 DC BA
+tx clear      [ 12]             1B 05 08 00 00 01 80 00 6A 39 57 64 - 5724
+rx ..
+000000  1C 05 84 00 00 01 80 00 C4 6C 9F 02 00 00 00 00  ..„...€.ÄlŸ.....
+000010  2C 2C 11 00 08 00 04 00 FF FF FF FF FF FF FF FF  ,,......ÿÿÿÿÿÿÿÿ
+000020  FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF  ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿ
+000030  FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF  ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿ
+000040  FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF  ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿ
+000050  FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF  ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿ
+000060  FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF  ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿ
+000070  FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF  ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿ
+000080  FF FF FF FF FF FF FF FF FF FF                    ÿÿÿÿÿÿÿÿÿÿ      
+read_config  offset 0180  len 128
+tx crc_ok 1
+tx obfuscated [ 20] AB CD 0C 00 0D 69 1C E6 AE 90 8D 40 4B 0C 82 24 B6 A9 DC BA
+tx clear      [ 12]             1B 05 08 00 80 01 80 00 6A 39 57 64 - AAA5
+rx ..
+000000  1C 05 84 00 80 01 80 00 FF FF FF FF FF FF FF FF  ..„.€.€.ÿÿÿÿÿÿÿÿ
+000010  FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF  ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿ
+000020  FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF  ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿ
+000030  FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF  ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿ
+000040  FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF  ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿ
+000050  FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF  ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿ
+000060  FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF  ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿ
+000070  FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF  ÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿÿ
+000080  FF FF FF FF FF FF FF FF FF FF                    ÿÿÿÿÿÿÿÿÿÿ      
+read_config  offset 0200  len 128
+tx crc_ok 1
+tx obfuscated [ 20] AB CD 0C 00 0D 69 1C E6 2E 93 8D 40 4B 0C 82 24 B5 8C DC BA
+tx clear      [ 12]             1B 05 08 00 00 02 80 00 6A 39 57 64 - 8FA6
+rx ..

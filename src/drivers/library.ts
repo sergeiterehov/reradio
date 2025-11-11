@@ -5,6 +5,7 @@ import type { Radio } from "./radio";
 import { BF888Radio } from "./bf888";
 import { BFC50Radio, RB618Radio } from "./radtel_t18";
 import { UV5RRadio, UV82HPRadio, UV82Radio } from "./uv5r";
+import { K5ProgRadio } from "./k5prog";
 
 export class Demo_UV5RRadio extends UV5RRadio {
   static Info = {
@@ -31,6 +32,7 @@ export class Demo_BF888Radio extends BF888Radio {
 }
 
 export const Library: (typeof Radio)[] = [
+  K5ProgRadio,
   BF888Radio,
   BFC50Radio,
   UV5RRadio,
