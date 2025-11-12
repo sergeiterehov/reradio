@@ -188,8 +188,8 @@ export class BF888Radio extends Radio {
     if (!sck.equals(CMD_ACK)) throw new Error("No ACK");
   }
 
-  override async read(onProgress: (k: number) => void) {
-    onProgress(0);
+  override async read() {
+    this.dispatch_progress(0);
 
     await this._serial_clear();
 
@@ -198,7 +198,7 @@ export class BF888Radio extends Radio {
     this.dispatch_ui_change();
 
     await this._enter_programming_mode();
-    onProgress(0.1);
+    this.dispatch_progress(0.1);
 
     const blocks: Buffer[] = [];
 
@@ -206,35 +206,35 @@ export class BF888Radio extends Radio {
       const block = await this._read_block(addr, BLOCK_SIZE);
       blocks.push(block);
 
-      onProgress(0.1 + 0.8 * (addr / MEM_SIZE));
+      this.dispatch_progress(0.1 + 0.8 * (addr / MEM_SIZE));
     }
 
     await this._exit_programming_mode();
-    onProgress(0.95);
+    this.dispatch_progress(0.95);
 
     const img = Buffer.concat(blocks);
     this.load(img);
 
-    onProgress(1);
+    this.dispatch_progress(1);
   }
 
-  override async write(onProgress: (k: number) => void) {
+  override async write() {
     if (!this._img) throw new Error("No data");
 
-    onProgress(0);
+    this.dispatch_progress(0);
 
     await this._serial_clear();
 
     await this._enter_programming_mode();
-    onProgress(0.1);
+    this.dispatch_progress(0.1);
 
     for (let addr = 0; addr < MEM_SIZE; addr += BLOCK_SIZE) {
       await this._write_block(addr, this._img.slice(addr, addr + BLOCK_SIZE));
-      onProgress(0.1 + 0.8 * (addr / MEM_SIZE));
+      this.dispatch_progress(0.1 + 0.8 * (addr / MEM_SIZE));
     }
 
     await this._exit_programming_mode();
 
-    onProgress(1);
+    this.dispatch_progress(1);
   }
 }

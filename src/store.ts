@@ -17,7 +17,8 @@ export type Store = {
 };
 
 export const Store = createStore<Store>((set, get) => {
-  const _handleProgress = (k: number) => set({ progress: k });
+  const _handleProgress = (k: number, step?: string) => set({ progress: k });
+  let _unsubscribe_progress: () => void;
 
   const _clearTask = () => set({ task: undefined, progress: undefined });
 
@@ -34,7 +35,7 @@ export const Store = createStore<Store>((set, get) => {
         await radio.connect();
 
         try {
-          await radio.read(_handleProgress);
+          await radio.read();
 
           YaMetrika.richGoal(YaMetrika.Goal.SuccessReadFromRadio, { ...radio.info });
         } finally {
@@ -56,7 +57,7 @@ export const Store = createStore<Store>((set, get) => {
       try {
         await radio.connect();
         try {
-          await radio.write(_handleProgress);
+          await radio.write();
 
           YaMetrika.richGoal(YaMetrika.Goal.SuccessWriteToRadio, { ...radio.info });
         } finally {
@@ -72,12 +73,19 @@ export const Store = createStore<Store>((set, get) => {
 
       if (task) return;
 
-      set({ radio: new RadioClass() });
+      const newRadio = new RadioClass();
+      _unsubscribe_progress();
+      _unsubscribe_progress = newRadio.subscribe_progress(_handleProgress);
+
+      set({ radio: newRadio });
     },
   };
 
+  const initRadio = new Library[0]();
+  _unsubscribe_progress = initRadio.subscribe_progress(_handleProgress);
+
   return {
-    radio: new Library[0](),
+    radio: initRadio,
     _actions,
   };
 });

@@ -364,8 +364,8 @@ export class UV5RRadio extends Radio {
     this.dispatch_ui_change();
   }
 
-  override async read(onProgress: (k: number) => void) {
-    onProgress(0);
+  override async read() {
+    this.dispatch_progress(0);
 
     this._img = undefined;
     this._mem = undefined;
@@ -384,26 +384,26 @@ export class UV5RRadio extends Radio {
 
     const img = Buffer.alloc(this.MEM_SIZE);
 
-    onProgress(0.1);
+    this.dispatch_progress(0.1);
 
     for (const [start, end, block_size] of this.MEM_RANGES) {
       for (let i = start; i < end; i += block_size) {
         const block = await this._read_block(i, block_size);
         block.copy(img, i);
 
-        onProgress(0.1 + 0.8 * (i / this.MEM_SIZE));
+        this.dispatch_progress(0.1 + 0.8 * (i / this.MEM_SIZE));
       }
     }
 
-download_buffer(img);
+    download_buffer(img);
 
     this.load(img);
 
-    onProgress(1);
+    this.dispatch_progress(1);
   }
 
-  override async write(onProgress: (k: number) => void) {
-    onProgress(0);
+  override async write() {
+    this.dispatch_progress(0);
 
     const img = this._img;
     if (!img) throw new Error("No data");
@@ -419,11 +419,11 @@ download_buffer(img);
 
         await this._write_block(i, img.slice(i, i + this.WRITE_BLOCK_SIZE));
 
-        onProgress(0.1 + 0.8 * (i / this.MEM_SIZE));
+        this.dispatch_progress(0.1 + 0.8 * (i / this.MEM_SIZE));
       }
     }
 
-    onProgress(1);
+    this.dispatch_progress(1);
   }
 }
 

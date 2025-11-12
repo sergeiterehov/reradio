@@ -678,8 +678,8 @@ export class UVK5Radio extends BaseUVK5Radio {
     this.dispatch_ui_change();
   }
 
-  override async read(onProgress: (k: number) => void) {
-    onProgress(0);
+  override async read() {
+    this.dispatch_progress(0);
 
     this._mem = undefined;
     this._img = undefined;
@@ -691,7 +691,7 @@ export class UVK5Radio extends BaseUVK5Radio {
 
     console.log(info);
 
-    onProgress(0.1);
+    this.dispatch_progress(0.1);
 
     const img = Buffer.alloc(CONFIG_MEM_SIZE);
 
@@ -700,21 +700,21 @@ export class UVK5Radio extends BaseUVK5Radio {
 
       block.copy(img, addr);
 
-      onProgress(0.1 + 0.8 * (addr / CONFIG_MEM_SIZE));
+      this.dispatch_progress(0.1 + 0.8 * (addr / CONFIG_MEM_SIZE));
     }
 
-    onProgress(0.9);
+    this.dispatch_progress(0.9);
 
     await this.load(img);
 
-    onProgress(1);
+    this.dispatch_progress(1);
   }
 
-  override async write(onProgress: (k: number) => void) {
+  override async write() {
     const img = this._img;
     if (!img) throw new Error("No image");
 
-    onProgress(0);
+    this.dispatch_progress(0);
 
     await this._serial_clear({ timeout: 1_000 });
 
@@ -722,20 +722,20 @@ export class UVK5Radio extends BaseUVK5Radio {
 
     console.log(info);
 
-    onProgress(0.1);
+    this.dispatch_progress(0.1);
 
     for (let addr = 0; addr < CONFIG_PROG_SIZE; addr += CONFIG_BLOCK_SIZE) {
       const block = img.slice(addr, addr + CONFIG_BLOCK_SIZE);
 
       await this._write_block(addr, block);
 
-      onProgress(0.1 + 0.8 * (addr / CONFIG_PROG_SIZE));
+      this.dispatch_progress(0.1 + 0.8 * (addr / CONFIG_PROG_SIZE));
     }
 
-    onProgress(0.9);
+    this.dispatch_progress(0.9);
 
     await this.load(img);
 
-    onProgress(1);
+    this.dispatch_progress(1);
   }
 }

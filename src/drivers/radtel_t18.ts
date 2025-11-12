@@ -249,8 +249,8 @@ export class T18Radio extends Radio {
     if (!sck.equals(CMD_ACK)) throw new Error("No ACK");
   }
 
-  async read(onProgress: (k: number) => void) {
-    onProgress(0);
+  async read() {
+    this.dispatch_progress(0);
 
     await this._serial_clear();
 
@@ -262,7 +262,7 @@ export class T18Radio extends Radio {
 
     await this._enterProgrammingMode();
 
-    onProgress(0.1);
+    this.dispatch_progress(0.1);
 
     const blocks: Buffer[] = [];
 
@@ -271,7 +271,7 @@ export class T18Radio extends Radio {
       blocks.push(block);
 
       // console.log(addr, block.toHex());
-      onProgress(0.1 + 0.8 * ((addr + _blockSize) / _memSize));
+      this.dispatch_progress(0.1 + 0.8 * ((addr + _blockSize) / _memSize));
     }
 
     await this._exitProgrammingMode();
@@ -279,7 +279,7 @@ export class T18Radio extends Radio {
     const data = Buffer.concat(blocks);
     await this.load(data);
 
-    onProgress(1);
+    this.dispatch_progress(1);
   }
 
   ui() {
@@ -292,8 +292,8 @@ export class T18Radio extends Radio {
     this.dispatch_ui_change();
   }
 
-  async write(onProgress: (k: number) => void) {
-    onProgress(0);
+  async write() {
+    this.dispatch_progress(0);
 
     await this._serial_clear();
 
@@ -303,7 +303,7 @@ export class T18Radio extends Radio {
 
     await this._enterProgrammingMode();
 
-    onProgress(0.1);
+    this.dispatch_progress(0.1);
 
     for (let addr = 0; addr < _memSize; addr += _blockSize) {
       const block = this._img.slice(addr, addr + _blockSize);
@@ -311,12 +311,12 @@ export class T18Radio extends Radio {
       await this._writeBlock(block, addr);
 
       // console.log(addr, block.toHex());
-      onProgress(0.1 + 0.8 * ((addr + _blockSize) / _memSize));
+      this.dispatch_progress(0.1 + 0.8 * ((addr + _blockSize) / _memSize));
     }
 
     await this._exitProgrammingMode();
 
-    onProgress(1);
+    this.dispatch_progress(1);
   }
 }
 

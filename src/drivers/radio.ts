@@ -4,6 +4,8 @@ import type { UI } from "./ui";
 const SERIAL_TIMEOUT_MS = 1_000;
 const SERIAL_LOG = true;
 
+type FnProgress = (k: number, step?: string) => void;
+
 export type RadioInfo = {
   vendor: string;
   model: string;
@@ -30,12 +32,19 @@ export class Radio {
   };
 
   private _callbacks = {
-    progress: new Set<(k: number) => void>(),
+    progress: new Set<FnProgress>(),
     ui: new Set<() => void>(),
     ui_change: new Set<() => void>(),
   };
 
   constructor() {}
+
+  readonly subscribe_progress = (cb: FnProgress) => {
+    this._callbacks.progress.add(cb);
+    return () => {
+      this._callbacks.progress.delete(cb);
+    };
+  };
 
   readonly subscribe_ui = (cb: () => void) => {
     this._callbacks.ui.add(cb);
@@ -51,6 +60,7 @@ export class Radio {
     };
   };
 
+  protected readonly dispatch_progress: FnProgress = (k, s) => this._callbacks.progress.forEach((cb) => cb(k, s));
   protected readonly dispatch_ui = () => this._callbacks.ui.forEach((cb) => cb());
   protected readonly dispatch_ui_change = () => this._callbacks.ui_change.forEach((cb) => cb());
 
@@ -185,11 +195,11 @@ export class Radio {
     await this._serial_read(0xffffff, { timeout }).catch(() => null);
   }
 
-  async read(onProgress: (k: number) => void) {
+  async read() {
     throw new Error("Not implemented");
   }
 
-  async write(onProgress: (k: number) => void) {
+  async write() {
     throw new Error("Not implemented");
   }
 
