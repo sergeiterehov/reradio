@@ -4,6 +4,7 @@ export namespace M {
   export type U8Ptr = { addr: number; get(i: number): number; set(i: number, val: number): void };
   export type U8 = { addr: number; get(): number; set(val: number): void };
   export type U16 = { addr: number; get(): number; set(val: number): void };
+  export type U32 = { addr: number; get(): number; set(val: number): void };
   export type U8array = {
     addr: number;
     size: number;
@@ -26,6 +27,7 @@ export type MemMapper = {
   u8_ptr: () => M.U8Ptr;
   u8: () => M.U8;
   u16: () => M.U16;
+  u32: () => M.U32;
   u8_array: (size: number) => M.U8array;
   bits: <T extends string>(...names: (T | null)[]) => { [K in T]: M.Bits };
   bitmap: <T extends string>(names: { [K in T]: number }) => { [K in T]: M.Bits };
@@ -92,6 +94,21 @@ export const create_mem_mapper = (data: Buffer, onchange?: () => void): MemMappe
       };
     },
 
+    u32: (): M.U32 => {
+      const _cur = cur;
+      cur += 4;
+      return {
+        addr: _cur,
+        get: () => {
+          return data.readUInt32LE(_cur);
+        },
+        set: (val) => {
+          data.writeUInt32LE(val, _cur);
+          onchange?.();
+        },
+      };
+    },
+
     u8_array: (size: number): M.U8array => {
       const _cur = cur;
       cur += size;
@@ -122,7 +139,7 @@ export const create_mem_mapper = (data: Buffer, onchange?: () => void): MemMappe
         const name = names[i];
         if (!name) continue;
 
-        (nameBits[name] ||= []).push(7 - i);
+        (nameBits[name] ||= []).push(i);
       }
 
       for (const name in nameBits) {
@@ -135,15 +152,15 @@ export const create_mem_mapper = (data: Buffer, onchange?: () => void): MemMappe
             const raw_val = raw.get();
             let val = 0;
             for (let i = 0; i < bits.length; i += 1) {
-              val |= ((raw_val >> bits[i]) & 1) << i;
+              val |= ((raw_val >> (7 - bits[i])) & 1) << (bits.length - 1 - i);
             }
             return val;
           },
           set: (value) => {
             let raw_val = raw.get();
             for (let i = 0; i < bits.length; i += 1) {
-              raw_val &= ~(1 << bits[i]);
-              raw_val |= ((value >> i) & 1) << bits[i];
+              raw_val &= ~(1 << (7 - bits[i]));
+              raw_val |= ((value >> (bits.length - 1 - i)) & 1) << (7 - bits[i]);
             }
             raw.set(raw_val);
           },

@@ -14,6 +14,7 @@ export const UITab = {
   Control: "Control",
   Exchange: "Exchange",
   DTMF: "DTMF",
+  Unlock: "Unlock",
 };
 
 export const modify_field = <F extends UI.Field.Any, R extends UI.Field.Any>(field: F, modifier: (field: F) => R): R =>
@@ -173,7 +174,7 @@ export const common_ui = {
     id: "alarm_mode",
     name: "Alarm mode",
     description: "Loud, repeating alert tone to get attention.",
-    tab: UITab.Control,
+    tab: UITab.Exchange,
     options: config.options,
     get: () => ref.get(),
     set: (val) => ref.set(Number(val)),
@@ -199,9 +200,19 @@ export const common_ui = {
   }),
   voice_language: (ref: _GetSetNumber, config: { languages: string[] }): UI.Field.Select => ({
     type: "select",
-    id: "lang",
+    id: "voice_lang",
     name: "Voice language",
     description: "Language used for voice prompts.",
+    tab: UITab.Interface,
+    options: config.languages,
+    get: () => ref.get(),
+    set: (val) => ref.set(Number(val)),
+  }),
+  language: (ref: _GetSetNumber, config: { languages: string[] }): UI.Field.Select => ({
+    type: "select",
+    id: "lang",
+    name: "Language",
+    description: "Sets the language used in the radio's display and menu system.",
     tab: UITab.Interface,
     options: config.languages,
     get: () => ref.get(),
@@ -316,6 +327,24 @@ export const common_ui = {
     get: () => ref.get(),
     set: (val) => ref.set(Number(val)),
   }),
+  key_side_short_x_fn: (ref: _GetSetNumber, config: { functions: string[]; key: string }): UI.Field.Select => ({
+    type: "select",
+    id: `key_fn_short_${config.key}`,
+    name: `On ${config.key} side key Short press`,
+    tab: UITab.Control,
+    options: config.functions,
+    get: () => ref.get(),
+    set: (val) => ref.set(Number(val)),
+  }),
+  key_side_long_x_fn: (ref: _GetSetNumber, config: { functions: string[]; key: string }): UI.Field.Select => ({
+    type: "select",
+    id: `key_fn_long_${config.key}`,
+    name: `On ${config.key} side key Long press`,
+    tab: UITab.Control,
+    options: config.functions,
+    get: () => ref.get(),
+    set: (val) => ref.set(Number(val)),
+  }),
   keypad_lock: (ref: _GetSetNumber): UI.Field.Switcher => ({
     type: "switcher",
     id: "keypad_lock",
@@ -325,6 +354,19 @@ export const common_ui = {
     tab: UITab.Control,
     get: () => ref.get(),
     set: (val) => ref.set(val ? 1 : 0),
+  }),
+
+  mic_gain: (ref: _GetSetNumber, config: { min: number; max: number }): UI.Field.Slider => ({
+    type: "slider",
+    id: "mic_gain",
+    name: "Mic gain",
+    description: "Adjusts the sensitivity of the microphone to control the strength of your transmitted audio signal.",
+    tab: UITab.Exchange,
+    min: config.min,
+    max: config.max,
+    label: (val) => String(val + 1),
+    get: () => ref.get(),
+    set: (val) => ref.set(Number(val)),
   }),
 
   roger_beep: (ref: _GetSetNumber): UI.Field.Switcher => ({
@@ -364,7 +406,7 @@ export const common_ui = {
     name: "Backlight Timeout",
     description:
       "Sets how long the display backlight remains on after the last user interaction before automatically turning off to save battery.",
-    tab: UITab.Interface,
+    tab: UITab.Power,
     min: config.min,
     max: config.max,
     label: (val) => (val ? `${val} sec` : "Off"),
@@ -372,14 +414,30 @@ export const common_ui = {
     set: (val) => ref.set(Number(val)),
   }),
 
-  hello_msg_str_x: (str_ref: M.Str, config: { line: number }): UI.Field.Text => ({
+  hello_msg_str_x: (str_ref: M.Str, config: { line: number; pad?: string }): UI.Field.Text => ({
     type: "text",
     id: `poweron_msg_${config.line}`,
     name: `Hello text, line ${config.line}`,
     description: "Text displayed on the screen when the radio is turned on.",
     tab: UITab.Interface,
-    get: () => str_ref.get(),
-    set: (val) => str_ref.set(String(val).substring(0, str_ref.raw.size).padEnd(str_ref.raw.size, " ")),
+    get: () => str_ref.get().replace(/[\s\x00\xFF]+$/, ""),
+    set: (val) =>
+      str_ref.set(
+        String(val)
+          .substring(0, str_ref.raw.size)
+          .padEnd(str_ref.raw.size, config.pad || " ")
+      ),
+  }),
+
+  hello_mode: (ref: _GetSetNumber, config: { options: string[] }): UI.Field.Select => ({
+    type: "select",
+    id: "hello_mode",
+    options: config.options,
+    name: "Hello display mode",
+    tab: UITab.Interface,
+    description: "Controls the type of information displayed on the screen when the radio is idle.",
+    get: () => ref.get(),
+    set: (val) => ref.set(Number(val)),
   }),
 
   dw: (ref: _GetSetNumber): UI.Field.Switcher => ({
@@ -402,6 +460,57 @@ export const common_ui = {
     tab: UITab.System,
     short: true,
     options: ["Off", "A", "B"],
+    get: () => ref.get(),
+    set: (val) => ref.set(Number(val)),
+  }),
+
+  unlock_tx350: (ref: _GetSetNumber): UI.Field.Switcher => ({
+    type: "switcher",
+    id: "tx350",
+    name: "350-400 MHz Transmit",
+    tab: UITab.Unlock,
+    description:
+      "The 350–400 MHz frequency band is allocated for various critical services—such as public safety, emergency response, military, and government communications—differently across countries.",
+    get: () => ref.get(),
+    set: (val) => ref.set(Number(val)),
+  }),
+  unlock_en350: (ref: _GetSetNumber): UI.Field.Switcher => ({
+    type: "switcher",
+    id: "en350",
+    name: "350-400 MHz Receiving (EN)",
+    tab: UITab.Unlock,
+    description:
+      "In some regions (e.g., parts of Europe or North America), consumer-grade radios are legally allowed to receive this band",
+    get: () => ref.get(),
+    set: (val) => ref.set(Number(val)),
+  }),
+  unlock_tx200: (ref: _GetSetNumber): UI.Field.Switcher => ({
+    type: "switcher",
+    id: "tx200",
+    name: "174-350 MHz Transmit",
+    tab: UITab.Unlock,
+    description:
+      "This band includes VHF high-band and parts of UHF, often used for professional, commercial, or public safety services. Transmitting here may be restricted or prohibited for amateur or consumer radios depending on regional regulations.",
+    get: () => ref.get(),
+    set: (val) => ref.set(Number(val)),
+  }),
+  unlock_tx500: (ref: _GetSetNumber): UI.Field.Switcher => ({
+    type: "switcher",
+    id: "tx500",
+    name: "500-600 MHz Transmit",
+    tab: UITab.Unlock,
+    description:
+      "This band is typically allocated for specialized services such as land mobile radio, public safety, or cellular networks, and is generally not authorized for amateur or consumer radio use in most countries. Transmitting in this range without proper licensing may violate national telecommunications regulations and interfere with critical communications.",
+    get: () => ref.get(),
+    set: (val) => ref.set(Number(val)),
+  }),
+  unlock_enscramble: (ref: _GetSetNumber): UI.Field.Switcher => ({
+    type: "switcher",
+    id: "enscramble",
+    name: "Enable scrambler",
+    tab: UITab.Unlock,
+    description:
+      "Enables built-in voice scrambling for basic privacy; may be disabled or locked in certain radio models or firmware versions due to regional regulations or manufacturer restrictions.",
     get: () => ref.get(),
     set: (val) => ref.set(Number(val)),
   }),

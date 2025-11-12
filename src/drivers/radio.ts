@@ -19,7 +19,7 @@ export class Radio {
     return (this.constructor as typeof Radio).Info;
   }
 
-  baudRate: number = 9600;
+  baudRate: number = 9_600;
 
   private _serial?: {
     port: SerialPort;
@@ -58,7 +58,7 @@ export class Radio {
     if (!navigator.serial) throw new Error("Web Serial API not available");
 
     const port = await navigator.serial.requestPort();
-    await port.open({ baudRate: 9600 });
+    await port.open({ baudRate: this.baudRate });
 
     if (!port.readable || !port.writable) {
       throw new Error("Radio port is not open");
@@ -103,7 +103,7 @@ export class Radio {
 
       if (done) break;
 
-      if (SERIAL_LOG) console.log(new Date().toISOString(), "AR:", value.length);
+      if (SERIAL_LOG) console.log(new Date().toISOString(), "RX:", value.length, Buffer.from(value).toString("hex"));
 
       serial.buffer.push(value);
     }
@@ -119,7 +119,7 @@ export class Radio {
       ),
     ]);
 
-    if (SERIAL_LOG) console.log(new Date().toISOString(), "W:", buf.length, buf.toString("hex"));
+    if (SERIAL_LOG) console.log(new Date().toISOString(), "TX:", buf.length, buf.toString("hex"));
   }
 
   protected async _serial_read(size: number, config: { timeout?: number } = {}) {
@@ -130,7 +130,11 @@ export class Radio {
     const chunks: Uint8Array[] = [];
     let len = 0;
 
+    const started_at = Date.now();
+
     while (len < size) {
+      const rest_timeout = Math.max(0, timeout - (Date.now() - started_at));
+
       if (!serial.buffer.length) {
         const prevOnRead = serial.onRead;
         try {
@@ -143,7 +147,9 @@ export class Radio {
                 resolve();
               };
             }),
-            new Promise((_, reject) => setTimeout(reject, timeout, new Error("Timeout while serial reading"))),
+            new Promise((_, reject) => {
+              setTimeout(reject, rest_timeout, new Error("Timeout while serial reading"));
+            }),
           ]);
         } finally {
           serial.onRead = prevOnRead;
@@ -170,13 +176,13 @@ export class Radio {
 
     const data = Buffer.concat(chunks);
 
-    if (SERIAL_LOG) console.log(new Date().toISOString(), "R:", data.length, data.toString("hex"));
+    if (SERIAL_LOG) console.log(new Date().toISOString(), "Read:", data.length, data.toString("hex"));
 
     return data;
   }
 
-  protected async _serial_clear() {
-    await this._serial_read(0xffffff, { timeout: 300 }).catch(() => null);
+  protected async _serial_clear({ timeout = 300 }: { timeout?: number } = {}) {
+    await this._serial_read(0xffffff, { timeout }).catch(() => null);
   }
 
   async read(onProgress: (k: number) => void) {

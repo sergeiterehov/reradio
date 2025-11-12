@@ -1,15 +1,29 @@
 import bf888_img from "../images/Baofeng_BF-888.img?hex";
 import uv5r_img from "../images/Baofeng_UV-5R.img?hex";
+import uvk5_img from "../images/Quansheng_UV-K5.img?hex";
 import { Buffer } from "buffer";
 import type { Radio } from "./radio";
 import { BF888Radio } from "./bf888";
 import { BFC50Radio, RB618Radio } from "./radtel_t18";
 import { UV5RRadio, UV82HPRadio, UV82Radio } from "./uv5r";
+import { UVK5Radio } from "./uvk5";
+
+export class Demo_UVK5Radio extends UVK5Radio {
+  static Info = {
+    ...UVK5Radio.Info,
+    vendor: `Demo - ${UVK5Radio.Info.vendor}`,
+  };
+
+  constructor() {
+    super();
+    this.load(Buffer.from(uvk5_img, "hex"));
+  }
+}
 
 export class Demo_UV5RRadio extends UV5RRadio {
   static Info = {
     ...UV5RRadio.Info,
-    model: `${UV5RRadio.Info.model} Demo`,
+    vendor: `Demo - ${UV5RRadio.Info.vendor}`,
   };
 
   constructor() {
@@ -21,7 +35,7 @@ export class Demo_UV5RRadio extends UV5RRadio {
 export class Demo_BF888Radio extends BF888Radio {
   static Info = {
     ...BF888Radio.Info,
-    model: `${BF888Radio.Info.model} Demo`,
+    vendor: `Demo - ${BF888Radio.Info.vendor}`,
   };
 
   constructor() {
@@ -36,7 +50,9 @@ export const Library: (typeof Radio)[] = [
   UV5RRadio,
   UV82Radio,
   UV82HPRadio,
+  UVK5Radio,
   RB618Radio,
   Demo_BF888Radio,
   Demo_UV5RRadio,
+  Demo_UVK5Radio,
 ];
