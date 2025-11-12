@@ -22,6 +22,7 @@ import { useRadioOn } from "../useRadioOn";
 import { TbHelp, TbTrash } from "react-icons/tb";
 import { Tooltip } from "../ui/tooltip";
 import { useState } from "react";
+import { RADIO_FREQUENCY_BANDS } from "@/bands";
 
 function SquelchForm(props: {
   config: NonNullable<UI.Field.Channels["squelch_rx"]>;
@@ -235,6 +236,49 @@ function ChannelForm(props: { field: UI.Field.Channels; index: number }) {
                     <NumberInput.Input />
                   </NumberInput.Root>
                 </InputGroup>
+                <Field.HelperText>
+                  {(() => {
+                    const band = RADIO_FREQUENCY_BANDS.find((b) => b.minHz <= value && value <= b.maxHz);
+
+                    if (!band) return "Unknown band";
+
+                    const channel = band.channels?.find((c) => c.frequencyHz === value);
+
+                    const ps: string[] = [];
+
+                    ps.push(`${band.name}.`);
+
+                    if (channel) {
+                      if (channel.channel !== undefined) {
+                        ps.push(`Channel ${channel.channel}.`);
+                      } else {
+                        ps.push(`Channel ${channel.frequencyHz / 1_000_000} MHz.`);
+                      }
+
+                      if (channel.description) {
+                        ps.push(channel.description);
+                      }
+                    } else if (band.channels?.length) {
+                      ps.push(`Not a channel, available ${band.channels.length}.`);
+                    }
+
+                    if (channel?.modulation?.length) {
+                      ps.push(`Modulation: ${channel.modulation.join(", ")}.`);
+                    } else if (band.modulation.length) {
+                      ps.push(`Modulation: ${band.modulation.join(", ")}.`);
+                    }
+
+                    if (band.description) {
+                      ps.push(band.description);
+                    }
+
+                    if (band.remarks) {
+                      ps.push(band.remarks);
+                    }
+
+                    return ps.join(" ");
+                  })()}
+                </Field.HelperText>
               </Field.Root>
             )}
           </RadioWatch>
