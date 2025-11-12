@@ -139,7 +139,7 @@ export const create_mem_mapper = (data: Buffer, onchange?: () => void): MemMappe
         const name = names[i];
         if (!name) continue;
 
-        (nameBits[name] ||= []).push(7 - i);
+        (nameBits[name] ||= []).push(i);
       }
 
       for (const name in nameBits) {
@@ -152,15 +152,15 @@ export const create_mem_mapper = (data: Buffer, onchange?: () => void): MemMappe
             const raw_val = raw.get();
             let val = 0;
             for (let i = 0; i < bits.length; i += 1) {
-              val |= ((raw_val >> bits[i]) & 1) << i;
+              val |= ((raw_val >> (7 - bits[i])) & 1) << (bits.length - 1 - i);
             }
             return val;
           },
           set: (value) => {
             let raw_val = raw.get();
             for (let i = 0; i < bits.length; i += 1) {
-              raw_val &= ~(1 << bits[i]);
-              raw_val |= ((value >> i) & 1) << bits[i];
+              raw_val &= ~(1 << (7 - bits[i]));
+              raw_val |= ((value >> (bits.length - 1 - i)) & 1) << (7 - bits[i]);
             }
             raw.set(raw_val);
           },

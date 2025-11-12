@@ -181,8 +181,8 @@ export class Radio {
     return data;
   }
 
-  protected async _serial_clear() {
-    await this._serial_read(0xffffff, { timeout: 300 }).catch(() => null);
+  protected async _serial_clear({ timeout = 300 }: { timeout?: number } = {}) {
+    await this._serial_read(0xffffff, { timeout }).catch(() => null);
   }
 
   async read(onProgress: (k: number) => void) {

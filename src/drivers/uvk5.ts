@@ -217,14 +217,14 @@ class BaseUVK5Radio extends Radio {
   }
 }
 
-const SHIFT_NONE = 0b00;
-const SHIFT_PLUS = 0b01;
-const SHIFT_MINUS = 0b10;
+const SHIFT_NONE = 0x0;
+const SHIFT_PLUS = 0x1;
+const SHIFT_MINUS = 0x2;
 
-const SUB_TONE_FLAG_NONE = 0b00;
-const SUB_TONE_FLAG_CTCSS = 0b01;
-const SUB_TONE_FLAG_DCS_N = 0b10;
-const SUB_TONE_FLAG_DCS_I = 0b11;
+const SUB_TONE_FLAG_NONE = 0x0;
+const SUB_TONE_FLAG_CTCSS = 0x1;
+const SUB_TONE_FLAG_DCS_N = 0x2;
+const SUB_TONE_FLAG_DCS_I = 0x3;
 
 const PTT_ID_ON_OPTIONS: UI.ChannelPTTIdOn[] = ["Off", "Begin", "End", "Begin & End"];
 
@@ -255,6 +255,16 @@ const KEY_ACTIONS_LIST = [
   "Alarm on/off",
   "FM radio on/off",
   "Transmit 1750 Hz",
+];
+
+const BANDS_NO_LIMITS = [
+  [18_000_000, 76_000_000],
+  [108_000_000, 137_000_000],
+  [137_000_000, 174_000_000],
+  [174_000_000, 350_000_000],
+  [350_000_000, 400_000_000],
+  [400_000_000, 470_000_000],
+  [470_000_000, 1_300_000_000],
 ];
 
 const trim_regexp = /[\x00\xff\x20]+$/;
@@ -456,15 +466,15 @@ export class UVK5Radio extends BaseUVK5Radio {
       codes: DCS_CODES,
       tones: CTCSS_TONES,
       get: (i) => {
-        const type = config.flag_ref(i).get();
+        const flag = config.flag_ref(i).get();
 
-        if (type === SUB_TONE_FLAG_NONE) return { mode: "Off" };
+        if (flag === SUB_TONE_FLAG_NONE) return { mode: "Off" };
 
         const code = config.code_ref(i).get();
 
-        if (type === SUB_TONE_FLAG_CTCSS) return { mode: "CTCSS", freq: CTCSS_TONES[code] };
+        if (flag === SUB_TONE_FLAG_CTCSS) return { mode: "CTCSS", freq: CTCSS_TONES[code] };
 
-        return { mode: "DCS", code: DCS_CODES[code], polarity: type === SUB_TONE_FLAG_DCS_N ? "N" : "I" };
+        return { mode: "DCS", code: DCS_CODES[code], polarity: flag === SUB_TONE_FLAG_DCS_N ? "N" : "I" };
       },
       set: (i, val) => {
         const flag = config.flag_ref(i);
@@ -515,8 +525,11 @@ export class UVK5Radio extends BaseUVK5Radio {
               ch.__raw.set(Array(ch.__raw.size).fill(0xff));
               if (i < channel_attributes.length) {
                 const name = channelname[i].name;
-                name.set("".padEnd(name.raw.size));
-                channel_attributes[i].is_free.set(1);
+                name.set("".padEnd(name.raw.size, "\x00"));
+
+                const attr = channel_attributes[i];
+                attr.band.set(7);
+                attr.is_free.set(1);
               }
             },
             init: (i) => {
@@ -524,13 +537,26 @@ export class UVK5Radio extends BaseUVK5Radio {
               ch.__raw.set(Array(ch.__raw.size).fill(0x00));
               ch.freq.set(400_000_00);
               if (i < channel_attributes.length) {
-                channel_attributes[i].is_free.set(0);
+                const attr = channel_attributes[i];
+                attr.band.set(5);
+                attr.is_free.set(0);
               }
             },
           },
           freq: {
             get: (i) => channels[i].freq.get() * 10,
-            set: (i, val) => channels[i].freq.set(val / 10),
+            set: (i, val) => {
+              channels[i].freq.set(val / 10);
+
+              if (i < channel_attributes.length) {
+                let band = BANDS_NO_LIMITS.findIndex(([a, b]) => a <= val && val < b);
+
+                // CHIRP: currently the hacked firmware sets band=1 below 50 MHz
+                if (val < 50_000_000) band = 1;
+
+                channel_attributes[i].band.set(band);
+              }
+            },
           },
           offset: {
             get: (i) => {
@@ -551,7 +577,7 @@ export class UVK5Radio extends BaseUVK5Radio {
             },
           },
           mode: {
-            options: ["NFM", "FM", "NAM", "AM"],
+            options: ["FM", "NFM", "AM", "NAM"],
             get: (i) => (channels[i].enable_am.get() ? 2 : 0) + (channels[i].bandwidth.get() ? 1 : 0),
             set: (i, val) => {
               channels[i].enable_am.set(val >= 2 ? 1 : 0);
@@ -659,7 +685,7 @@ export class UVK5Radio extends BaseUVK5Radio {
     this._img = undefined;
     this.dispatch_ui_change();
 
-    await this._serial_clear();
+    await this._serial_clear({ timeout: 1_000 });
 
     const info = await this._hello();
 
@@ -690,7 +716,7 @@ export class UVK5Radio extends BaseUVK5Radio {
 
     onProgress(0);
 
-    await this._serial_clear();
+    await this._serial_clear({ timeout: 1_000 });
 
     const info = await this._hello();
 
