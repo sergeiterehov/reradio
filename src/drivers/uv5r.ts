@@ -230,6 +230,7 @@ export class UV5RRadio extends Radio {
         common_ui.sql(settings.squelch, { min: 0, max: 9 }),
         common_ui.sql_ste(settings.ste, { from: 100, to: 1000, step: 100 }),
         common_ui.keypad_lock(settings.keylock),
+        common_ui.bcl(settings.bcl),
         modify_field(
           common_ui.alarm_mode(settings.almod, {
             options: ["Site - only speaker", "Tone - transmit", "Code - transmit"],
@@ -245,7 +246,6 @@ export class UV5RRadio extends Radio {
         common_ui.scan_mode(settings.screv, { options: ["Time", "Carrier", "Search"] }),
         common_ui.pow_battery_save_ratio(settings.save),
         common_ui.beep(settings.beep),
-        common_ui.bcl(settings.bcl),
         common_ui.roger_beep_select(settings.roger, { options: ["Off", "Beep", "TO-1200"] }),
         this.HAS_RTONE ? common_ui.rtone(settings.rtone, { frequencies: [1000, 1450, 1750, 2100] }) : common_ui.none(),
         this.HAS_DUAL_PTT

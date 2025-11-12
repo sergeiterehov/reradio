@@ -1,5 +1,5 @@
 export namespace UI {
-  export type RadioMode = "FM" | "NFM" | "WFM";
+  export type RadioMode = "FM" | "NFM" | "WFM" | "AM" | "NAM";
   export type SquelchMode = "Off" | "CTCSS" | "DCS";
   export type ChannelScanMode = "On" | "Off" | "Priority";
   export type ChannelPTTIdOn = "Off" | "Begin" | "End" | "Begin & End";
@@ -49,6 +49,7 @@ export namespace UI {
       squelch_rx?: {
         options: SquelchMode[];
         codes?: number[];
+        tones?: number[];
         get: (i: number) => Squelch;
         set: (i: number, val: Squelch) => void;
       };

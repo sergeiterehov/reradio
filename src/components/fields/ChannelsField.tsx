@@ -49,9 +49,9 @@ function SquelchForm(props: {
               if (mode === "Off") {
                 onChange({ mode });
               } else if (mode === "CTCSS") {
-                onChange({ mode, freq: 67.0 });
+                onChange({ mode, freq: config.tones?.[0] ?? 67.0 });
               } else if (mode === "DCS") {
-                onChange({ mode, code: 23, polarity: "N" });
+                onChange({ mode, code: config.codes?.[0] ?? 23, polarity: "N" });
               }
             }}
           >
@@ -66,17 +66,33 @@ function SquelchForm(props: {
       </Field.Root>
       {squelch.mode === "CTCSS" && (
         <InputGroup flex="1" endElement={"Hz"}>
-          <NumberInput.Root
-            asChild
-            size="sm"
-            value={String(squelch.freq)}
-            onValueChange={(e) => onChange({ ...squelch, freq: e.valueAsNumber })}
-            formatOptions={{
-              minimumFractionDigits: 1,
-            }}
-          >
-            <NumberInput.Input />
-          </NumberInput.Root>
+          {config.tones ? (
+            <NativeSelect.Root asChild height="var(--select-field-height)">
+              <NativeSelect.Field
+                value={squelch.freq}
+                onChange={(e) => {
+                  onChange({ ...squelch, freq: Number(e.currentTarget.value) });
+                }}
+              >
+                {config.tones.map((freq, i_freq) => (
+                  <option key={i_freq}>{freq}</option>
+                ))}
+              </NativeSelect.Field>
+              <NativeSelect.Indicator />
+            </NativeSelect.Root>
+          ) : (
+            <NumberInput.Root
+              asChild
+              size="sm"
+              value={String(squelch.freq)}
+              onValueChange={(e) => onChange({ ...squelch, freq: e.valueAsNumber })}
+              formatOptions={{
+                minimumFractionDigits: 1,
+              }}
+            >
+              <NumberInput.Input />
+            </NumberInput.Root>
+          )}
         </InputGroup>
       )}
       {squelch.mode === "DCS" && (
@@ -345,7 +361,7 @@ function ChannelForm(props: { field: UI.Field.Channels; index: number }) {
                     <NativeSelect.Indicator />
                   </NativeSelect.Root>
                 </Field.Root>
-                {value.on !== "Off" && (
+                {value.on !== "Off" && ptt_id.id_options.length !== 0 && (
                   <Field.Root>
                     <NativeSelect.Root size="sm">
                       <NativeSelect.Field
@@ -399,14 +415,23 @@ function ChannelCard(props: { field: UI.Field.Channels; index: number }) {
   const channel_value = useRadioOn(() => channel.get(index));
   const freq_value = useRadioOn(() => freq?.get(index));
   const offset_value = useRadioOn(() => offset?.get(index));
-  const mode_value = useRadioOn(() => mode?.get(index));
+  const mode_value = useRadioOn(() => (mode ? mode.options[mode.get(index)] : undefined));
   const squelch_rx_value = useRadioOn(() => squelch_rx?.get(index));
 
   if (empty_value) {
     return (
       <Popover.Root lazyMount unmountOnExit>
         <Popover.Trigger asChild>
-          <Button variant="subtle" p="3" fontFamily="monospace" width="200px" height="80px">
+          <Button
+            variant="subtle"
+            color="fg.subtle"
+            p="3"
+            fontFamily="monospace"
+            width="200px"
+            height="80px"
+            textOverflow="ellipsis"
+            overflow="hidden"
+          >
             {channel_value}
           </Button>
         </Popover.Trigger>
@@ -432,13 +457,17 @@ function ChannelCard(props: { field: UI.Field.Channels; index: number }) {
   return (
     <Drawer.Root lazyMount unmountOnExit>
       <Drawer.Trigger asChild>
-        <Button variant="outline" p="3" fontFamily="monospace" width="200px" height="80px">
-          <Stack>
+        <Button variant="outline" p="3" fontFamily="monospace" width="200px" height="80px" textAlign="start">
+          <Stack overflow="hidden" flexGrow="1">
             <HStack>
-              <Box>{channel_value}</Box>
-              <Box fontWeight="bolder">{freq_value ? freq_value / 1_000_000 : "-"}</Box>
+              <Box fontWeight="bolder" fontSize="lg">
+                {freq_value ? freq_value / 1_000_000 : "-"}
+              </Box>
               {mode_value ? <Box>{mode_value}</Box> : null}
-              {offset_value ? `${offset_value > 0 ? "+" : ""}${offset_value / 1_000_000}` : null}
+              {offset_value ? <Box>{`${offset_value > 0 ? "+" : ""}${offset_value / 1_000_000}`}</Box> : null}
+              <Box fontSize="2xs" textOverflow="ellipsis" overflow="hidden" flexGrow="1" textAlign="end">
+                {channel_value}
+              </Box>
             </HStack>
             <Box>
               {(() => {

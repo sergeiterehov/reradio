@@ -4,6 +4,7 @@ export namespace M {
   export type U8Ptr = { addr: number; get(i: number): number; set(i: number, val: number): void };
   export type U8 = { addr: number; get(): number; set(val: number): void };
   export type U16 = { addr: number; get(): number; set(val: number): void };
+  export type U32 = { addr: number; get(): number; set(val: number): void };
   export type U8array = {
     addr: number;
     size: number;
@@ -26,6 +27,7 @@ export type MemMapper = {
   u8_ptr: () => M.U8Ptr;
   u8: () => M.U8;
   u16: () => M.U16;
+  u32: () => M.U32;
   u8_array: (size: number) => M.U8array;
   bits: <T extends string>(...names: (T | null)[]) => { [K in T]: M.Bits };
   bitmap: <T extends string>(names: { [K in T]: number }) => { [K in T]: M.Bits };
@@ -87,6 +89,21 @@ export const create_mem_mapper = (data: Buffer, onchange?: () => void): MemMappe
         },
         set: (val) => {
           data.writeUInt16LE(val, _cur);
+          onchange?.();
+        },
+      };
+    },
+
+    u32: (): M.U32 => {
+      const _cur = cur;
+      cur += 4;
+      return {
+        addr: _cur,
+        get: () => {
+          return data.readUInt32LE(_cur);
+        },
+        set: (val) => {
+          data.writeUInt32LE(val, _cur);
           onchange?.();
         },
       };
