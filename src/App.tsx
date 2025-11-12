@@ -14,6 +14,7 @@ import type { UI } from "./drivers/ui";
 
 function App() {
   const radio = useStore(Store, (s) => s.radio);
+  const active_task = useStore(Store, (s) => s.task !== undefined);
 
   const [ui, setUI] = useState<UI.Root>();
   useEffect(() => {
@@ -60,12 +61,12 @@ function App() {
           <RadioSelector />
           <ButtonGroup variant="surface">
             <Tooltip content="Receive settings from the radio">
-              <IconButton colorPalette="blue" rounded="full" onClick={() => Actions.download()}>
+              <IconButton disabled={active_task} colorPalette="blue" rounded="full" onClick={() => Actions.download()}>
                 <TbDeviceMobileSearch />
               </IconButton>
             </Tooltip>
             <Tooltip content="Send to radio">
-              <IconButton colorPalette="green" rounded="full" onClick={() => Actions.upload()}>
+              <IconButton disabled={active_task} colorPalette="green" rounded="full" onClick={() => Actions.upload()}>
                 <TbDeviceMobileUp />
               </IconButton>
             </Tooltip>

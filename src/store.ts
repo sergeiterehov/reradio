@@ -23,9 +23,9 @@ export const Store = createStore<Store>((set, get) => {
 
   const _actions: Store["_actions"] = {
     download: async () => {
-      const { radio } = get();
+      const { radio, task } = get();
 
-      if (!radio) return;
+      if (task !== undefined) return;
 
       YaMetrika.richGoal(YaMetrika.Goal.TryReadFromRadio, { ...radio.info });
 
@@ -46,9 +46,9 @@ export const Store = createStore<Store>((set, get) => {
     },
 
     upload: async () => {
-      const { radio } = get();
+      const { radio, task } = get();
 
-      if (!radio) return;
+      if (task !== undefined) return;
 
       YaMetrika.richGoal(YaMetrika.Goal.TryWriteToRadio, { ...radio.info });
 
@@ -68,6 +68,10 @@ export const Store = createStore<Store>((set, get) => {
     },
 
     changeRadio: (RadioClass) => {
+      const { task } = get();
+
+      if (task) return;
+
       set({ radio: new RadioClass() });
     },
   };
