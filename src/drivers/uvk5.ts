@@ -612,7 +612,7 @@ export class UVK5Radio extends BaseUVK5Radio {
 
         common_ui.beep(mem.beep_control),
         common_ui.voice_language(mem.keypad_tone, { languages: ["Off", "Chinese", "English"] }),
-        common_ui.language(mem.keypad_tone, { languages: ["Chinese", "English"] }),
+        common_ui.language(mem.language, { languages: ["Chinese", "English"] }),
         modify_field(
           common_ui.hello_mode(mem.power_on_dispmode, { options: ["Blank", "Hello text", "Voltage"] }),
           (f) => ({
