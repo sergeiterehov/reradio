@@ -4,7 +4,7 @@ import uvk5_img from "../images/Quansheng_UV-K5.img?hex";
 import { Buffer } from "buffer";
 import type { Radio } from "./radio";
 import { BF888Radio } from "./bf888";
-import { BFC50Radio, RB618Radio } from "./radtel_t18";
+import { BFC50Radio, RB18Radio, RB618Radio, T18Radio } from "./radtel_t18";
 import { UV5RRadio, UV82HPRadio, UV82Radio } from "./uv5r";
 import { UVK5Radio } from "./uvk5";
 
@@ -51,6 +51,8 @@ export const Library: (typeof Radio)[] = [
   UV82Radio,
   UV82HPRadio,
   UVK5Radio,
+  T18Radio,
+  RB18Radio,
   RB618Radio,
   Demo_BF888Radio,
   Demo_UV5RRadio,
