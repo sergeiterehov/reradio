@@ -1,24 +1,27 @@
 import type { Buffer } from "buffer";
 
 export namespace M {
-  export type U8Ptr = { addr: number; get(i: number): number; set(i: number, val: number): void };
-  export type U8 = { addr: number; get(): number; set(val: number): void };
-  export type U16 = { addr: number; get(): number; set(val: number): void };
-  export type U32 = { addr: number; get(): number; set(val: number): void };
+  export type U8Ptr = { _m_type: "u8ptr"; addr: number; get(i: number): number; set(i: number, val: number): void };
+  export type U8 = { _m_type: "u8"; addr: number; get(): number; set(val: number): void };
+  export type U16 = { _m_type: "u16"; addr: number; get(): number; set(val: number): void };
+  export type U32 = { _m_type: "u32"; addr: number; get(): number; set(val: number): void };
   export type U8array = {
+    _m_type: "u8array";
     addr: number;
     size: number;
     get(): number[];
     set(val: number[]): void;
   };
-  export type Bits = { raw: U8; bits: number[]; get(): number; set(val: number): void };
+  export type Bits = { _m_type: "u8bits"; raw: U8; bits: number[]; get(): number; set(val: number): void };
   export type LBCD = {
+    _m_type: "lbcd";
     raw: U8array;
     get(): number;
     set(val: number): void;
     setDigit(order: number, val: number): void;
   };
-  export type Str = { raw: U8array; get(): string; set(val: string): void };
+  export type Str = { _m_type: "str"; raw: U8array; get(): string; set(val: string): void };
+  export type Struct<T extends object> = { _m_type: "struct"; __raw: U8array } & T;
 }
 
 export type MemMapper = {
@@ -29,11 +32,10 @@ export type MemMapper = {
   u16: () => M.U16;
   u32: () => M.U32;
   u8_array: (size: number) => M.U8array;
-  bits: <T extends string>(...names: (T | null)[]) => { [K in T]: M.Bits };
-  bitmap: <T extends string>(names: { [K in T]: number }) => { [K in T]: M.Bits };
+  bitmap: <T extends string>(names: { [K in T]: number }) => { [K in Exclude<T, "" | `_${string}`>]: M.Bits };
   lbcd: (size: number) => M.LBCD;
   str: (size: number) => M.Str;
-  struct: <T extends object>(fn: (mapper: MemMapper) => T) => T & { __raw: M.U8array };
+  struct: <T extends object>(fn: (mapper: MemMapper) => T) => M.Struct<T>;
 };
 
 export const create_mem_mapper = (data: Buffer, onchange?: () => void): MemMapper => {
@@ -53,6 +55,7 @@ export const create_mem_mapper = (data: Buffer, onchange?: () => void): MemMappe
     u8_ptr: (): M.U8Ptr => {
       const _cur = cur;
       return {
+        _m_type: "u8ptr",
         addr: _cur,
         get: (i) => {
           return data.readUInt8(_cur + i);
@@ -68,6 +71,7 @@ export const create_mem_mapper = (data: Buffer, onchange?: () => void): MemMappe
       const _cur = cur;
       cur += 1;
       return {
+        _m_type: "u8",
         addr: _cur,
         get: () => {
           return data.readUInt8(_cur);
@@ -83,6 +87,7 @@ export const create_mem_mapper = (data: Buffer, onchange?: () => void): MemMappe
       const _cur = cur;
       cur += 2;
       return {
+        _m_type: "u16",
         addr: _cur,
         get: () => {
           return data.readUInt16LE(_cur);
@@ -98,6 +103,7 @@ export const create_mem_mapper = (data: Buffer, onchange?: () => void): MemMappe
       const _cur = cur;
       cur += 4;
       return {
+        _m_type: "u32",
         addr: _cur,
         get: () => {
           return data.readUInt32LE(_cur);
@@ -113,6 +119,7 @@ export const create_mem_mapper = (data: Buffer, onchange?: () => void): MemMappe
       const _cur = cur;
       cur += size;
       return {
+        _m_type: "u8array",
         addr: _cur,
         size,
         get: () => {
@@ -129,23 +136,24 @@ export const create_mem_mapper = (data: Buffer, onchange?: () => void): MemMappe
       };
     },
 
-    bits: <T extends string>(...names: (T | null)[]): { [K in T]: M.Bits } => {
+    bitmap: <T extends string>(names: { [K in T]: number }): { [K in T]: M.Bits } => {
       const raw = mapper.u8();
 
       const res = {} as { [K in T]: M.Bits };
-      const nameBits = {} as { [K in T]: number[] };
+      let bitCursor = 0;
 
-      for (let i = 0; i < 8; i += 1) {
-        const name = names[i];
-        if (!name) continue;
+      for (const [name, size] of Object.entries<number>(names)) {
+        if (!name || name.startsWith("_")) continue;
 
-        (nameBits[name] ||= []).push(i);
-      }
+        const bits = Array<number>(size);
 
-      for (const name in nameBits) {
-        const bits = nameBits[name];
+        for (let i = 0; i < size; i += 1) {
+          bits.push(bitCursor);
+          bitCursor += 1;
+        }
 
-        res[name] = {
+        const ref: M.Bits = {
+          _m_type: "u8bits",
           raw,
           bits,
           get: () => {
@@ -165,18 +173,11 @@ export const create_mem_mapper = (data: Buffer, onchange?: () => void): MemMappe
             raw.set(raw_val);
           },
         };
+
+        res[name as T] = ref;
       }
 
       return res;
-    },
-    bitmap: <T extends string>(names: { [K in T]: number }): { [K in T]: M.Bits } => {
-      const args: string[] = [];
-
-      for (const [name, size] of Object.entries<number>(names)) {
-        args.push(...Array(size).fill(name));
-      }
-
-      return mapper.bits(...args) as { [K in T]: M.Bits };
     },
 
     lbcd: (size: number): M.LBCD => {
@@ -184,6 +185,7 @@ export const create_mem_mapper = (data: Buffer, onchange?: () => void): MemMappe
       const raw = mapper.u8_array(size);
 
       return {
+        _m_type: "lbcd",
         raw,
         get: () => {
           const digits: number[] = [];
@@ -228,6 +230,7 @@ export const create_mem_mapper = (data: Buffer, onchange?: () => void): MemMappe
       const raw = mapper.u8_array(size);
 
       return {
+        _m_type: "str",
         raw,
         get: () => {
           const chars: string[] = [];
@@ -253,7 +256,7 @@ export const create_mem_mapper = (data: Buffer, onchange?: () => void): MemMappe
       const props = fn(mapper);
       const end_cur = cur;
 
-      return { ...props, __raw: mapper.seek(begin_cur).u8_array(end_cur - begin_cur) };
+      return { ...props, _m_type: "struct", __raw: mapper.seek(begin_cur).u8_array(end_cur - begin_cur) };
     },
   };
 
@@ -292,7 +295,11 @@ export const to_js = <T>(value: T): ToJS<T> => {
       return get() as ToJS<T>;
     }
 
-    return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, to_js(v)])) as ToJS<T>;
+    return Object.fromEntries(
+      Object.entries(value)
+        .filter(([k]) => k !== "" && k.startsWith("_"))
+        .map(([k, v]) => [k, to_js(v)])
+    ) as ToJS<T>;
   }
 
   return undefined as ToJS<T>;
