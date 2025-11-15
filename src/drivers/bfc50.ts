@@ -4,6 +4,7 @@ import { common_ui } from "./common_ui";
 import { create_mem_mapper, array_of } from "./mem";
 import { BaseT18ProtocolRadio } from "./radtel_t18";
 import type { UI } from "./ui";
+import { t } from "i18next";
 
 export class BFC50Radio extends BaseT18ProtocolRadio {
   static Info: RadioInfo = {
@@ -95,12 +96,12 @@ export class BFC50Radio extends BaseT18ProtocolRadio {
           squelch_tx: common_ui.channel_squelch_lbcd((i) => memory[i].txtone),
           power: {
             options: [3, 5],
-            name: (val) => ["Low", "Height"][val] || "?",
+            name: (val) => [t("power_low"), t("power_high")][val] || "?",
             get: (i) => memory[i].highpower.get(),
             set: (i, val) => memory[i].highpower.set(val),
           },
           scan: {
-            options: ["On", "Off"],
+            options: [t("on"), t("off")],
             get: (i) => memory[i].skip.get(),
             set: (i, val) => memory[i].skip.set(val),
           },
@@ -113,7 +114,7 @@ export class BFC50Radio extends BaseT18ProtocolRadio {
         common_ui.alarm(mem.alarm),
         common_ui.pow_battery_save(mem.batterysaver),
         common_ui.voice_prompt(mem.voice),
-        common_ui.voice_language(mem.language, { languages: ["English", "Chinese"] }),
+        common_ui.voice_language(mem.language, { languages: [t("lang_en"), t("lang_ch")] }),
         common_ui.vox(mem.vox),
         common_ui.vox_level(mem.vox_level, { min: 0, max: 9 }),
         common_ui.scan(mem.scan),

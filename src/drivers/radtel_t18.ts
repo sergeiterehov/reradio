@@ -3,6 +3,7 @@ import { Radio, type RadioInfo } from "./radio";
 import { array_of, create_mem_mapper } from "./mem";
 import type { UI } from "./ui";
 import { common_ui } from "./common_ui";
+import { t } from "i18next";
 
 const CMD_ACK = Buffer.from([0x06]);
 
@@ -255,19 +256,19 @@ export class T18Radio extends BaseT18ProtocolRadio {
           squelch_tx: common_ui.channel_squelch_lbcd((i) => memory[i].txtone),
           power: {
             options: [1, 5],
-            name: (val) => ["Low", "Height"][val] || "?",
+            name: (val) => [t("power_low"), t("power_high")][val] || t("unspecified"),
             get: (i) => memory[i].highpower.get(),
             set: (i, val) => memory[i].highpower.set(val),
           },
           scan: {
-            options: ["On", "Off"],
+            options: [t("on"), t("off")],
             get: (i) => memory[i].skip.get(),
             set: (i, val) => memory[i].skip.set(val),
           },
         },
         common_ui.beep(mem.beep),
         common_ui.voice_prompt(mem.voice),
-        common_ui.voice_language(mem.language, { languages: ["English", "Chinese"] }),
+        common_ui.voice_language(mem.language, { languages: [t("lang_en"), t("lang_ch")] }),
         common_ui.vox(mem.vox),
         common_ui.vox_level(mem.vox_level, { min: 0, max: 9 }),
         common_ui.roger_beep(mem.rogerbeep),

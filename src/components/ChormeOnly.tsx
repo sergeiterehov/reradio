@@ -1,7 +1,10 @@
 import { Alert, Link } from "@chakra-ui/react";
+import { useTranslation } from "react-i18next";
 import { TbBrandChrome } from "react-icons/tb";
 
 export function ChromeOnly() {
+  const { t } = useTranslation();
+
   if (navigator.serial) return null;
 
   return (
@@ -10,10 +13,8 @@ export function ChromeOnly() {
         <TbBrandChrome />
       </Alert.Indicator>
       <Alert.Content color="fg">
-        <Alert.Title>Google Chrome Required</Alert.Title>
-        <Alert.Description>
-          This application uses the Web Serial API, which is currently only supported in Google Chrome.
-        </Alert.Description>
+        <Alert.Title>{t("chrome_required_title")}</Alert.Title>
+        <Alert.Description>{t("chrome_required_body")}</Alert.Description>
       </Alert.Content>
       <Link
         alignSelf="center"
@@ -22,7 +23,7 @@ export function ChromeOnly() {
         target="_blank"
         rel="noopener noreferrer"
       >
-        Download Google Chrome
+        {t("download_chrome")}
       </Link>
     </Alert.Root>
   );

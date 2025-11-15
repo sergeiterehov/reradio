@@ -3,13 +3,15 @@ import { Radio, type RadioInfo } from "./radio";
 import type { UI } from "./ui";
 import { array_of, create_mem_mapper } from "./mem";
 import { common_ui, modify_field, UITab } from "./common_ui";
-import { DCS_CODES, download_buffer } from "./utils";
+import { DCS_CODES } from "./utils";
+import { t } from "i18next";
 
 const INDENT_291 = Buffer.from([0x50, 0xbb, 0xff, 0x20, 0x12, 0x07, 0x25]);
+const INDENT_A58 = Buffer.from([0x50, 0xbb, 0xff, 0x20, 0x14, 0x04, 0x13]);
 const INDENT_5R = Buffer.from([0x50, 0xbb, 0xff, 0x01, 0x25, 0x98, 0x4d]);
 const INDENT_UV82 = Buffer.from([0x50, 0xbb, 0xff, 0x20, 0x13, 0x01, 0x05]);
 const UV5R_DCS = [...DCS_CODES, 645].sort((a, b) => a - b);
-const PTT_ID_ON_OPTIONS: UI.ChannelPTTIdOn[] = ["Off", "Begin", "End", "Begin & End"];
+const PTT_ID_ON_OPTIONS = [t("off"), t("begin"), t("end"), t("begin_n_end")];
 
 const ACK = Buffer.from([0x06]);
 
@@ -28,8 +30,8 @@ export class UV5RRadio extends Radio {
     [0x1ec0, 0x1ef0, 0x40],
   ];
   protected readonly POWER_LEVELS = [
-    { watt: 5, name: "Hight" },
-    { watt: 1, name: "Low" },
+    { watt: 5, name: t("power_high") },
+    { watt: 1, name: t("power_low") },
   ];
 
   protected readonly HAS_RTONE: boolean = false;
@@ -190,13 +192,13 @@ export class UV5RRadio extends Radio {
           squelch_rx: common_ui.channel_squelch_u16((i) => memory[i].rxtone, UV5R_DCS),
           squelch_tx: common_ui.channel_squelch_u16((i) => memory[i].txtone, UV5R_DCS),
           scan: {
-            options: ["Off", "On"],
+            options: [t("off"), t("on")],
             get: (i) => memory[i].scan.get(),
             set: (i, val) => memory[i].scan.set(val),
           },
           power: {
             options: this.POWER_LEVELS.map((lv) => lv.watt),
-            name: (val) => this.POWER_LEVELS[val]?.name || "unspecified",
+            name: (val) => this.POWER_LEVELS[val]?.name || t("unspecified"),
             get: (i) => memory[i].lowpower.get(),
             set: (i, val) => memory[i].lowpower.set(val),
           },
@@ -208,32 +210,32 @@ export class UV5RRadio extends Radio {
             on_options: PTT_ID_ON_OPTIONS,
             id_options: ptt_id_code_options,
             get: (i) => ({
-              on: PTT_ID_ON_OPTIONS[memory[i].pttid.get()],
-              id: ptt_id_code_options[memory[i].scode.get()],
+              on: memory[i].pttid.get(),
+              id: memory[i].scode.get(),
             }),
             set: (i, val) => {
-              memory[i].pttid.set(PTT_ID_ON_OPTIONS.indexOf(val.on));
-              memory[i].scode.set(ptt_id_code_options.indexOf(val.id));
+              memory[i].pttid.set(val.on);
+              memory[i].scode.set(val.id);
             },
           },
         },
 
-        modify_field(common_ui.dw(settings.tdr), (f) => ({
+        modify_field(common_ui.dual_watch(settings.tdr), (f) => ({
           ...f,
           set: (...args) => {
             f.set(...args);
             this.dispatch_ui_change();
           },
         })),
-        settings.tdr.get() ? common_ui.dw_priority_ab(settings.tdrab) : common_ui.none(),
+        settings.tdr.get() ? common_ui.dual_watch_priority_ab(settings.tdrab) : common_ui.none(),
         common_ui.fm(settings.fmradio),
         common_ui.sql(settings.squelch, { min: 0, max: 9 }),
         common_ui.sql_ste(settings.ste, { from: 100, to: 1000, step: 100 }),
-        common_ui.keypad_lock(settings.keylock),
+        common_ui.keypad_lock_auto(settings.keylock),
         common_ui.bcl(settings.bcl),
         modify_field(
           common_ui.alarm_mode(settings.almod, {
-            options: ["Site - only speaker", "Tone - transmit", "Code - transmit"],
+            options: [t("alarm_site"), t("alarm_tone"), t("alarm_code")],
           }),
           (f) => ({
             ...f,
@@ -243,10 +245,10 @@ export class UV5RRadio extends Radio {
             },
           })
         ),
-        common_ui.scan_mode(settings.screv, { options: ["Time", "Carrier", "Search"] }),
+        common_ui.scan_mode(settings.screv, { options: [t("scan_time"), t("scan_carrier"), t("scan_search")] }),
         common_ui.pow_battery_save_ratio(settings.save),
         common_ui.beep(settings.beep),
-        common_ui.roger_beep_select(settings.roger, { options: ["Off", "Beep", "TO-1200"] }),
+        common_ui.roger_beep_select(settings.roger, { options: [t("off"), t("beep"), "TO-1200"] }),
         this.HAS_RTONE ? common_ui.rtone(settings.rtone, { frequencies: [1000, 1450, 1750, 2100] }) : common_ui.none(),
         this.HAS_DUAL_PTT
           ? {
@@ -259,7 +261,7 @@ export class UV5RRadio extends Radio {
             }
           : common_ui.none(),
         common_ui.pow_tot(settings.timeout, { from: 15, to: 600, step: 15 }),
-        common_ui.voice_language(settings.voice, { languages: ["Off", "English", "Chinese"] }),
+        common_ui.voice_language(settings.voice, { languages: [t("off"), t("lang_en"), t("lang_ch")] }),
         common_ui.backlight_timeout(settings.abr, { min: 0, max: 24 }),
         common_ui.vox_sens(settings.vox, { max: 10 }),
         common_ui.hello_msg_str_x(poweron_msg.line1, { line: 1 }),
@@ -395,8 +397,6 @@ export class UV5RRadio extends Radio {
       }
     }
 
-    download_buffer(img);
-
     this.load(img);
 
     this.dispatch_progress(1);
@@ -444,8 +444,31 @@ export class UV82HPRadio extends UV82Radio {
   };
 
   protected readonly POWER_LEVELS = [
-    { watt: 8, name: "Hight" },
-    { watt: 5, name: "Medium" },
-    { watt: 1, name: "Low" },
+    { watt: 8, name: t("power_high") },
+    { watt: 5, name: t("power_mid") },
+    { watt: 1, name: t("power_low") },
+  ];
+}
+
+export class UV16ProRadio extends UV5RRadio {
+  static override Info: RadioInfo = {
+    vendor: "Baofeng",
+    model: "UV-16 Pro",
+  };
+
+  protected override readonly INDENTS: Buffer[] = [INDENT_291, INDENT_A58];
+  protected readonly HAS_RTONE = true;
+}
+
+export class UV16Pro8Radio extends UV16ProRadio {
+  static override Info: RadioInfo = {
+    vendor: "Baofeng",
+    model: "UV-16 Pro (8 watt)",
+  };
+
+  protected readonly POWER_LEVELS = [
+    { watt: 8, name: t("power_high") },
+    { watt: 5, name: t("power_mid") },
+    { watt: 1, name: t("power_low") },
   ];
 }

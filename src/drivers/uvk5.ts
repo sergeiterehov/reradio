@@ -4,6 +4,7 @@ import type { UI } from "./ui";
 import { array_of, create_mem_mapper, to_js, type M } from "./mem";
 import { common_ui, modify_field, UITab } from "./common_ui";
 import { CTCSS_TONES, DCS_CODES, download_buffer } from "./utils";
+import { t } from "i18next";
 
 const CRC16_TABLE = new Uint16Array([
   0x0000, 0x1021, 0x2042, 0x3063, 0x4084, 0x50a5, 0x60c6, 0x70e7, 0x8108, 0x9129, 0xa14a, 0xb16b, 0xc18c, 0xd1ad,
@@ -226,7 +227,7 @@ const SUB_TONE_FLAG_CTCSS = 0x1;
 const SUB_TONE_FLAG_DCS_N = 0x2;
 const SUB_TONE_FLAG_DCS_I = 0x3;
 
-const PTT_ID_ON_OPTIONS: UI.ChannelPTTIdOn[] = ["Off", "Begin", "End", "Begin & End"];
+const PTT_ID_ON_OPTIONS = [t("off"), t("begin"), t("end"), t("begin_n_end")];
 
 const VFO_CHANNEL_NAMES = [
   "F1(50M-76M)A",
@@ -246,15 +247,15 @@ const VFO_CHANNEL_NAMES = [
 ];
 
 const KEY_ACTIONS_LIST = [
-  "None",
-  "Flashlight on/off",
-  "Power select",
-  "Monitor",
-  "Scan on/off",
-  "VOX on/off",
-  "Alarm on/off",
-  "FM radio on/off",
-  "Transmit 1750 Hz",
+  t("off"),
+  t("fn_flashlight"),
+  t("fn_power_select"),
+  t("fn_monitor"),
+  t("fn_scan"),
+  t("fn_vox"),
+  t("fn_alarm"),
+  t("fn_fm"),
+  t("fn_1750"),
 ];
 
 const BANDS_NO_LIMITS = [
@@ -594,7 +595,7 @@ export class UVK5Radio extends BaseUVK5Radio {
           }),
           power: {
             options: [1.5, 3, 5],
-            name: (pow) => ["Low", "Medium", "Height"][pow] || "unknown",
+            name: (pow) => [t("power_low"), t("power_mid"), t("power_high")][pow] || t("unspecified"),
             get: (i) => channels[i].txpower.get(),
             set: (i, val) => channels[i].txpower.set(val),
           },
@@ -605,16 +606,18 @@ export class UVK5Radio extends BaseUVK5Radio {
           ptt_id: {
             on_options: PTT_ID_ON_OPTIONS,
             id_options: [],
-            get: (i) => ({ id: "", on: PTT_ID_ON_OPTIONS[channels[i].dtmf_pttid.get()] }),
-            set: (i, val) => channels[i].dtmf_pttid.set(PTT_ID_ON_OPTIONS.indexOf(val.on)),
+            get: (i) => ({ id: 0, on: channels[i].dtmf_pttid.get() }),
+            set: (i, val) => channels[i].dtmf_pttid.set(val.on),
           },
         },
 
         common_ui.beep(mem.beep_control),
-        common_ui.voice_language(mem.keypad_tone, { languages: ["Off", "Chinese", "English"] }),
-        common_ui.language(mem.language, { languages: ["Chinese", "English"] }),
+        common_ui.voice_language(mem.keypad_tone, { languages: [t("off"), t("lang_ch"), t("lang_en")] }),
+        common_ui.language(mem.language, { languages: [t("lang_ch"), t("lang_en")] }),
         modify_field(
-          common_ui.hello_mode(mem.power_on_dispmode, { options: ["Blank", "Hello text", "Voltage"] }),
+          common_ui.hello_mode(mem.power_on_dispmode, {
+            options: [t("hello_blank"), t("hello_text"), t("hello_voltage")],
+          }),
           (f) => ({
             ...f,
             set: (...args) => {
@@ -629,7 +632,7 @@ export class UVK5Radio extends BaseUVK5Radio {
               common_ui.hello_msg_str_x(mem.logo_line2, { line: 2, pad: "\x00" }),
             ]
           : []),
-        common_ui.keypad_lock(mem.auto_keypad_lock),
+        common_ui.keypad_lock_auto(mem.auto_keypad_lock),
         common_ui.key_side_short_x_fn(mem.key1_shortpress_action, { key: "1", functions: KEY_ACTIONS_LIST }),
         common_ui.key_side_long_x_fn(mem.key1_longpress_action, { key: "1", functions: KEY_ACTIONS_LIST }),
         common_ui.key_side_short_x_fn(mem.key2_shortpress_action, { key: "2", functions: KEY_ACTIONS_LIST }),
@@ -641,22 +644,22 @@ export class UVK5Radio extends BaseUVK5Radio {
         common_ui.pow_battery_save_ratio(mem.battery_save),
         common_ui.pow_tot(mem.max_talk_time, { from: 0, to: 600, step: 60 }),
         common_ui.backlight_timeout(mem.backlight_auto_mode, { min: 0, max: 5 }),
-        common_ui.dw_priority_ab(mem.dual_watch),
-        common_ui.alarm_mode(mem.alarm_mode, { options: ["Site - only speaker", "Tone - transmit"] }),
-        common_ui.roger_beep_select(mem.reminding_of_end_talk, { options: ["Off", "Roger", "MDC"] }),
+        common_ui.dual_watch_priority_ab(mem.dual_watch),
+        common_ui.alarm_mode(mem.alarm_mode, { options: [t("alarm_site"), t("alarm_tone")] }),
+        common_ui.roger_beep_select(mem.reminding_of_end_talk, { options: [t("off"), t("roger_beep_roger"), "MDC"] }),
 
         {
           type: "select",
           id: "flock",
-          name: "Frequency lock",
+          name: t("frequency_lock"),
           tab: UITab.Unlock,
           options: [
-            "Off",
-            "FCC: Restricts operation to U.S. FCC-approved bands and power levels.",
-            "CE: Applies European Union frequency and emission limits.",
-            "GB: Enforces United Kingdom-specific regulations.",
-            "430: Restricts transmission to specific sub-bands within the 70 cm amateur band (430–440 MHz)",
-            "438: Restricts transmission (438–440 MHZ)",
+            t("off"),
+            t("frequency_lock_fcc"),
+            t("frequency_lock_ce"),
+            t("frequency_lock_gb"),
+            t("frequency_lock_430"),
+            t("frequency_lock_438"),
           ],
           get: () => mem.lock.flock.get(),
           set: (val) => mem.lock.flock.set(Number(val)),
@@ -665,7 +668,7 @@ export class UVK5Radio extends BaseUVK5Radio {
         common_ui.unlock_en350(mem.lock.en350),
         common_ui.unlock_tx200(mem.lock.tx200),
         common_ui.unlock_tx500(mem.lock.tx500),
-        common_ui.unlock_enscramble(mem.lock.enscramble),
+        common_ui.unlock_scramble(mem.lock.enscramble),
       ],
     };
   }

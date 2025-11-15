@@ -3,6 +3,7 @@ import { Radio, type RadioInfo } from "./radio";
 import { array_of, create_mem_mapper } from "./mem";
 import type { UI } from "./ui";
 import { common_ui } from "./common_ui";
+import { t } from "i18next";
 
 const CMD_ACK = Buffer.from([0x06]);
 const PROGRAM_CMD = Buffer.from("PROGRAM", "ascii");
@@ -87,12 +88,12 @@ export class BF888Radio extends Radio {
           squelch_tx: common_ui.channel_squelch_lbcd((i) => memory[i].txtone),
           power: {
             options: [1, 5],
-            name: (val) => ["Low", "Height"][val] || "?",
+            name: (val) => [t("power_low"), t("power_high")][val] || "?",
             get: (i) => memory[i].highpower.get(),
             set: (i, val) => memory[i].highpower.set(val),
           },
           scan: {
-            options: ["On", "Off"],
+            options: [t("on"), t("off")],
             get: (i) => memory[i].skip.get(),
             set: (i, val) => memory[i].skip.set(val),
           },
@@ -101,9 +102,9 @@ export class BF888Radio extends Radio {
         common_ui.alarm(settings.alarm),
         common_ui.beep(settings2.beep),
         common_ui.voice_prompt(settings.voiceprompt),
-        common_ui.voice_language(settings.voicelanguage, { languages: ["English", "Chinese"] }),
+        common_ui.voice_language(settings.voicelanguage, { languages: [t("lang_en"), t("lang_ch")] }),
         common_ui.scan(settings.scan),
-        common_ui.scan_mode(settings2.scanmode, { options: ["Carrier", "Time"] }),
+        common_ui.scan_mode(settings2.scanmode, { options: [t("scan_carrier"), t("scan_time")] }),
         common_ui.vox(settings.vox),
         common_ui.vox_inhibit(settings.voxinhibitonrx),
         common_ui.vox_level(settings.voxlevel, { min: 0, max: 4 }),
@@ -113,7 +114,9 @@ export class BF888Radio extends Radio {
         common_ui.pow_tot(settings2.timeouttimer, { from: 30, to: 300, step: 30 }),
         common_ui.fm(settings.fmradio),
         common_ui.sql(settings2.squelchlevel, { min: 0, max: 9 }),
-        common_ui.key_side_fn(settings2.sidekeyfunction, { functions: ["Off", "Monitor", "Transmit Power", "Alarm"] }),
+        common_ui.key_side_fn(settings2.sidekeyfunction, {
+          functions: [t("off"), t("fn_monitor"), t("fn_transmit_power"), t("fn_alarm")],
+        }),
       ],
     };
   }

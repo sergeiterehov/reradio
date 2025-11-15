@@ -1,20 +1,22 @@
+import { t } from "i18next";
 import type { M } from "./mem";
 import type { UI } from "./ui";
-import { DCS_CODES, range } from "./utils";
+import { DCS_CODES } from "./utils";
 
 type _GetSetNumber = { get(): number; set(val: number): void };
 
 export const UITab = {
-  Channels: "Channels",
-  Interface: "Interface",
-  Scanning: "Scanning",
-  VOX: "Voice Activation",
-  Power: "Power Management",
-  System: "System Settings",
-  Control: "Control",
-  Exchange: "Exchange",
-  DTMF: "DTMF",
-  Unlock: "Unlock",
+  Misc: t("uitab_misc"),
+  Channels: t("uitab_channels"),
+  Interface: t("uitab_interface"),
+  Scanning: t("uitab_scanning"),
+  VOX: t("uitab_vox"),
+  Power: t("uitab_power"),
+  System: t("uitab_system"),
+  Control: t("uitab_control"),
+  Exchange: t("uitab_exchange"),
+  DTMF: t("uitab_dtmf"),
+  Unlock: t("uitab_unlock"),
 };
 
 export const modify_field = <F extends UI.Field.Any, R extends UI.Field.Any>(field: F, modifier: (field: F) => R): R =>
@@ -104,8 +106,8 @@ export const common_ui = {
   vox: (ref: _GetSetNumber): UI.Field.Switcher => ({
     type: "switcher",
     id: "vox",
-    name: "VOX",
-    description: "Voice-activated transmit: microphone turns on automatically when you speak (no PTT needed).",
+    name: t("vox"),
+    description: t("vox_tooltip"),
     tab: UITab.VOX,
     get: () => ref.get(),
     set: (val) => ref.set(val ? 1 : 0),
@@ -113,8 +115,8 @@ export const common_ui = {
   vox_inhibit: (ref: _GetSetNumber): UI.Field.Switcher => ({
     type: "switcher",
     id: "vox_inhibit",
-    name: "Inhibit VOX on receive",
-    description: "Disables VOX while receiving to prevent false activation from incoming audio.",
+    name: t("vox_inhibit"),
+    description: t("vox_inhibit_tooltip"),
     tab: UITab.VOX,
     get: () => ref.get(),
     set: (val) => ref.set(val ? 1 : 0),
@@ -122,8 +124,8 @@ export const common_ui = {
   vox_level: (ref: _GetSetNumber, config: { min: number; max: number }): UI.Field.Slider => ({
     type: "slider",
     id: "vox_level",
-    name: "VOX level",
-    description: "Voice activation sensitivity: lower values = easier to trigger transmit with your voice.",
+    name: t("vox_level"),
+    description: t("vox_level_tooltip"),
     tab: UITab.VOX,
     min: config.min,
     max: config.max,
@@ -134,15 +136,15 @@ export const common_ui = {
   vox_sens: (ref: _GetSetNumber, config: { max: number }): UI.Field.Slider => ({
     ...common_ui.vox_level(ref, { ...config, min: 0 }),
     id: "vox_sens",
-    name: "VOX sensitivity",
-    label: (val) => (val ? String(val) : "Off"),
+    name: t("vox_sens"),
+    label: (val) => (val ? String(val) : t("off")),
   }),
 
   scan: (ref: _GetSetNumber): UI.Field.Switcher => ({
     type: "switcher",
     id: "scan",
-    name: "Scan",
-    description: "Automatically checks channels for activity and stops on active ones.",
+    name: t("scan"),
+    description: t("scan_tooltip"),
     tab: UITab.Scanning,
     get: () => ref.get(),
     set: (val) => ref.set(val ? 1 : 0),
@@ -150,8 +152,8 @@ export const common_ui = {
   scan_mode: (ref: _GetSetNumber, config: { options: string[] }): UI.Field.Select => ({
     type: "select",
     id: "scan_mode",
-    name: "Scan mode",
-    description: "Defines the scanning method used when searching for active signals across channels or frequencies.",
+    name: t("scan_mode"),
+    description: t("scan_mode_tooltip"),
     tab: UITab.Scanning,
     options: config.options,
     short: true,
@@ -162,8 +164,8 @@ export const common_ui = {
   alarm: (ref: _GetSetNumber): UI.Field.Switcher => ({
     type: "switcher",
     id: "alarm",
-    name: "Alarm",
-    description: "Loud, repeating alert tone to get attention.",
+    name: t("alarm"),
+    description: t("alarm_tooltip"),
     tab: UITab.Control,
     get: () => ref.get(),
     set: (val) => ref.set(val ? 1 : 0),
@@ -172,8 +174,8 @@ export const common_ui = {
   alarm_mode: (ref: _GetSetNumber, config: { options: string[] }): UI.Field.Select => ({
     type: "select",
     id: "alarm_mode",
-    name: "Alarm mode",
-    description: "Loud, repeating alert tone to get attention.",
+    name: t("alarm_mode"),
+    description: t("alarm_tooltip"),
     tab: UITab.Exchange,
     options: config.options,
     get: () => ref.get(),
@@ -183,8 +185,8 @@ export const common_ui = {
   beep: (ref: _GetSetNumber): UI.Field.Switcher => ({
     type: "switcher",
     id: "beep",
-    name: "Beep",
-    description: "Short audible tone when pressing buttons.",
+    name: t("beep"),
+    description: t("beep_tooltip"),
     tab: UITab.Interface,
     get: () => ref.get(),
     set: (val) => ref.set(val ? 1 : 0),
@@ -192,8 +194,8 @@ export const common_ui = {
   voice_prompt: (ref: _GetSetNumber): UI.Field.Switcher => ({
     type: "switcher",
     id: "voice_prompt",
-    name: "Voice prompt",
-    description: "Plays spoken confirmation when changing channels or pressing buttons.",
+    name: t("voice_prompt"),
+    description: t("voice_prompt_tooltip"),
     tab: UITab.Interface,
     get: () => ref.get(),
     set: (val) => ref.set(val ? 1 : 0),
@@ -201,8 +203,8 @@ export const common_ui = {
   voice_language: (ref: _GetSetNumber, config: { languages: string[] }): UI.Field.Select => ({
     type: "select",
     id: "voice_lang",
-    name: "Voice language",
-    description: "Language used for voice prompts.",
+    name: t("voice_language"),
+    description: t("voice_language_tooltip"),
     tab: UITab.Interface,
     options: config.languages,
     get: () => ref.get(),
@@ -211,8 +213,8 @@ export const common_ui = {
   language: (ref: _GetSetNumber, config: { languages: string[] }): UI.Field.Select => ({
     type: "select",
     id: "lang",
-    name: "Language",
-    description: "Sets the language used in the radio's display and menu system.",
+    name: t("language"),
+    description: t("language_tooltip"),
     tab: UITab.Interface,
     options: config.languages,
     get: () => ref.get(),
@@ -222,8 +224,8 @@ export const common_ui = {
   pow_battery_save: (ref: _GetSetNumber): UI.Field.Switcher => ({
     type: "switcher",
     id: "bat_save",
-    name: "Battery saver",
-    description: "Reduces power consumption during standby by periodically turning off the receiver.",
+    name: t("bat_save"),
+    description: t("bat_save_tooltip"),
     tab: UITab.Power,
     get: () => ref.get(),
     set: (val) => ref.set(val ? 1 : 0),
@@ -231,19 +233,18 @@ export const common_ui = {
   pow_battery_save_ratio: (ref: _GetSetNumber): UI.Field.Select => ({
     type: "select",
     id: "bat_save_ratio",
-    name: "Battery saver",
-    description:
-      "Controls how aggressively the radio reduces power consumption during receive mode by cycling the receiver on and off, trading slight responsiveness for extended battery life.",
+    name: t("bat_save"),
+    description: t("bat_save_ratio_tooltip"),
     tab: UITab.Power,
-    options: ["Off", "1:1", "1:2", "1:3", "1:4"],
+    options: [t("off"), "1:1", "1:2", "1:3", "1:4"],
     get: () => ref.get(),
     set: (val) => ref.set(Number(val)),
   }),
   pow_low_no_tx: (ref: _GetSetNumber): UI.Field.Switcher => ({
     type: "switcher",
     id: "low_no_tx",
-    name: "Low voltage inhibit transmit",
-    description: "Blocks transmission when battery voltage is too low (protects battery).",
+    name: t("low_no_tx"),
+    description: t("low_no_tx_tooltip"),
     tab: UITab.Power,
     get: () => ref.get(),
     set: (val) => ref.set(val ? 1 : 0),
@@ -251,8 +252,8 @@ export const common_ui = {
   pow_high_no_tx: (ref: _GetSetNumber): UI.Field.Switcher => ({
     type: "switcher",
     id: "hight_no_tx",
-    name: "High voltage inhibit transmit",
-    description: "Blocks transmission if battery voltage is abnormally high (rarely used).",
+    name: t("high_no_tx"),
+    description: t("high_no_tx_tooltip"),
     tab: UITab.Power,
     get: () => ref.get(),
     set: (val) => ref.set(val ? 1 : 0),
@@ -260,8 +261,8 @@ export const common_ui = {
   pow_tot: (ref: _GetSetNumber, config: { from: number; to: number; step: number }): UI.Field.Slider => ({
     type: "slider",
     id: "tot",
-    name: "Timeout timer",
-    description: "Limits continuous transmit time to prevent overheating or PTT stuck.",
+    name: t("tot"),
+    description: t("tot_tooltip"),
     tab: UITab.Power,
     min: 0,
     max: (config.to - config.from) / config.step,
@@ -273,8 +274,8 @@ export const common_ui = {
   fm: (ref: _GetSetNumber): UI.Field.Switcher => ({
     type: "switcher",
     id: "fm",
-    name: "FM Radio",
-    description: "Enables listening to commercial FM broadcast radio.",
+    name: t("fm"),
+    description: t("fm_tooltip"),
     tab: UITab.System,
     get: () => ref.get(),
     set: (val) => ref.set(val ? 1 : 0),
@@ -283,11 +284,10 @@ export const common_ui = {
   rtone: (ref: _GetSetNumber, config: { frequencies: number[] }): UI.Field.Select => ({
     type: "select",
     id: "rtone",
-    name: "Repeater Tone",
+    name: t("rtone"),
+    description: t("rtone_tooltip"),
     tab: UITab.System,
-    description:
-      "Tone Burst Frequency. Sets the frequency of the short audio tone sent at the start of a transmission to activate certain older repeaters that require a specific tone burst for access.",
-    options: config.frequencies.map((f) => `${f} Hz`),
+    options: config.frequencies.map((f) => `${f} ${t("hz")}`),
     get: () => ref.get(),
     set: (val) => ref.set(Number(val)),
   }),
@@ -295,8 +295,8 @@ export const common_ui = {
   sql: (ref: _GetSetNumber, config: { min: number; max: number }): UI.Field.Slider => ({
     type: "slider",
     id: "sql",
-    name: "Squelch level",
-    description: "Noise suppression threshold: higher = quieter background, but weak signals may be blocked.",
+    name: t("sql"),
+    description: t("sql_tooltip"),
     tab: UITab.System,
     min: config.min,
     max: config.max,
@@ -307,9 +307,8 @@ export const common_ui = {
   sql_ste: (ref: _GetSetNumber, config: { from: number; to: number; step: number }): UI.Field.Slider => ({
     type: "slider",
     id: "sql_ste",
-    name: "Squelch Tail Eliminator",
-    description:
-      "Introduces a short delay before the transmitter fully turns off, ensuring the repeater properly recognizes the end of transmission and resets correctly.",
+    name: t("sql_ste"),
+    description: t("sql_ste_tooltip"),
     tab: UITab.System,
     min: 0,
     max: (config.to - config.from) / config.step,
@@ -320,8 +319,8 @@ export const common_ui = {
 
   key_side_fn: (ref: _GetSetNumber, config: { functions: string[] }): UI.Field.Select => ({
     type: "select",
-    id: "key_fn",
-    name: "Side key function",
+    id: "side_key_fn",
+    name: t("side_key_fn"),
     tab: UITab.Control,
     options: config.functions,
     get: () => ref.get(),
@@ -329,8 +328,8 @@ export const common_ui = {
   }),
   key_side_short_x_fn: (ref: _GetSetNumber, config: { functions: string[]; key: string }): UI.Field.Select => ({
     type: "select",
-    id: `key_fn_short_${config.key}`,
-    name: `On ${config.key} side key Short press`,
+    id: `key_side_short_${config.key}_fn`,
+    name: t("key_side_short_x_fn", { replace: { key: config.key } }),
     tab: UITab.Control,
     options: config.functions,
     get: () => ref.get(),
@@ -339,18 +338,17 @@ export const common_ui = {
   key_side_long_x_fn: (ref: _GetSetNumber, config: { functions: string[]; key: string }): UI.Field.Select => ({
     type: "select",
     id: `key_fn_long_${config.key}`,
-    name: `On ${config.key} side key Long press`,
+    name: t("key_side_long_x_fn", { replace: { key: config.key } }),
     tab: UITab.Control,
     options: config.functions,
     get: () => ref.get(),
     set: (val) => ref.set(Number(val)),
   }),
-  keypad_lock: (ref: _GetSetNumber): UI.Field.Switcher => ({
+  keypad_lock_auto: (ref: _GetSetNumber): UI.Field.Switcher => ({
     type: "switcher",
-    id: "keypad_lock",
-    name: "Keypad auto-lock",
-    description:
-      "Prevents accidental changes to settings or unintended transmissions by disabling the keypad except for essential functions like PTT or emergency keys.",
+    id: "keypad_lock_auto",
+    name: t("keypad_lock_auto"),
+    description: t("keypad_lock_auto_tooltip"),
     tab: UITab.Control,
     get: () => ref.get(),
     set: (val) => ref.set(val ? 1 : 0),
@@ -359,8 +357,8 @@ export const common_ui = {
   mic_gain: (ref: _GetSetNumber, config: { min: number; max: number }): UI.Field.Slider => ({
     type: "slider",
     id: "mic_gain",
-    name: "Mic gain",
-    description: "Adjusts the sensitivity of the microphone to control the strength of your transmitted audio signal.",
+    name: t("mic_gain"),
+    description: t("mic_gain_tooltip"),
     tab: UITab.Exchange,
     min: config.min,
     max: config.max,
@@ -371,9 +369,9 @@ export const common_ui = {
 
   roger_beep: (ref: _GetSetNumber): UI.Field.Switcher => ({
     type: "switcher",
-    id: "roger",
-    name: "Roger beep",
-    description: "A short audible tone sent at the end of a transmission to indicate the speaker has finished talking.",
+    id: "roger_beep",
+    name: t("roger_beep"),
+    description: t("roger_beep_tooltip"),
     tab: UITab.Exchange,
     get: () => ref.get(),
     set: (val) => ref.set(Number(val)),
@@ -381,9 +379,9 @@ export const common_ui = {
 
   roger_beep_select: (ref: _GetSetNumber, config: { options: string[] }): UI.Field.Select => ({
     type: "select",
-    id: "roger_list",
-    name: "Roger beep",
-    description: "A short audible tone sent at the end of a transmission to indicate the speaker has finished talking.",
+    id: "roger_beep_select",
+    name: t("roger_beep_select"),
+    description: t("roger_beep_select_tooltip"),
     tab: UITab.Exchange,
     options: config.options,
     get: () => ref.get(),
@@ -393,8 +391,8 @@ export const common_ui = {
   bcl: (ref: _GetSetNumber): UI.Field.Switcher => ({
     type: "switcher",
     id: "bcl",
-    name: "Busy channel lockout",
-    description: "Prevents transmission when the channel is already in use, helping to avoid interference.",
+    name: t("bcl"),
+    description: t("bcl_tooltip"),
     tab: UITab.Exchange,
     get: () => ref.get(),
     set: (val) => ref.set(Number(val)),
@@ -403,22 +401,21 @@ export const common_ui = {
   backlight_timeout: (ref: _GetSetNumber, config: { min: number; max: number }): UI.Field.Slider => ({
     type: "slider",
     id: "backlight_timeout",
-    name: "Backlight Timeout",
-    description:
-      "Sets how long the display backlight remains on after the last user interaction before automatically turning off to save battery.",
+    name: t("backlight_timeout"),
+    description: t("backlight_timeout_tooltip"),
     tab: UITab.Power,
     min: config.min,
     max: config.max,
-    label: (val) => (val ? `${val} sec` : "Off"),
+    label: (val) => (val ? t("seconds_value", { replace: { value: val } }) : t("off")),
     get: () => ref.get(),
     set: (val) => ref.set(Number(val)),
   }),
 
   hello_msg_str_x: (str_ref: M.Str, config: { line: number; pad?: string }): UI.Field.Text => ({
     type: "text",
-    id: `poweron_msg_${config.line}`,
-    name: `Hello text, line ${config.line}`,
-    description: "Text displayed on the screen when the radio is turned on.",
+    id: `hello_msg_str_${config.line}`,
+    name: t("hello_msg_str_x", { replace: { line: config.line } }),
+    description: config.line === 0 ? t("hello_msg_str_x_tooltip") : undefined,
     tab: UITab.Interface,
     get: () => str_ref.get().replace(/[\s\x00\xFF]+$/, ""),
     set: (val) =>
@@ -433,30 +430,28 @@ export const common_ui = {
     type: "select",
     id: "hello_mode",
     options: config.options,
-    name: "Hello display mode",
+    name: t("hello_mode"),
     tab: UITab.Interface,
-    description: "Controls the type of information displayed on the screen when the radio is idle.",
+    description: t("hello_mode_tooltip"),
     get: () => ref.get(),
     set: (val) => ref.set(Number(val)),
   }),
 
-  dw: (ref: _GetSetNumber): UI.Field.Switcher => ({
+  dual_watch: (ref: _GetSetNumber): UI.Field.Switcher => ({
     type: "switcher",
-    id: "dw",
-    name: "Dual Watch",
-    description:
-      "Enables monitoring of two channels simultaneously, automatically switching to the active one when a signal is detected.",
+    id: "dual_watch",
+    name: t("dual_watch"),
+    description: t("dual_watch_tooltip"),
     tab: UITab.System,
     get: () => ref.get(),
     set: (val) => ref.set(val ? 1 : 0),
   }),
 
-  dw_priority_ab: (ref: _GetSetNumber): UI.Field.Select => ({
+  dual_watch_priority_ab: (ref: _GetSetNumber): UI.Field.Select => ({
     type: "select",
-    id: "dw_priority_ab",
-    name: "Dual Watch Priority",
-    description:
-      "Specifies which receiver (A or B) remains active after a signal is received in dual-watch mode. When set to OFF, the receiver that last received a signal stays active; when set to A or B, the selected receiver always resumes after any transmission ends.",
+    id: "dual_watch_priority_ab",
+    name: t("dual_watch_priority_ab"),
+    description: t("dual_watch_priority_ab_tooltip"),
     tab: UITab.System,
     short: true,
     options: ["Off", "A", "B"],
@@ -466,51 +461,46 @@ export const common_ui = {
 
   unlock_tx350: (ref: _GetSetNumber): UI.Field.Switcher => ({
     type: "switcher",
-    id: "tx350",
-    name: "350-400 MHz Transmit",
+    id: "unlock_tx350",
+    name: t("unlock_tx350"),
     tab: UITab.Unlock,
-    description:
-      "The 350–400 MHz frequency band is allocated for various critical services—such as public safety, emergency response, military, and government communications—differently across countries.",
+    description: t("unlock_tx350_tooltip"),
     get: () => ref.get(),
     set: (val) => ref.set(Number(val)),
   }),
   unlock_en350: (ref: _GetSetNumber): UI.Field.Switcher => ({
     type: "switcher",
-    id: "en350",
-    name: "350-400 MHz Receiving (EN)",
+    id: "unlock_en350",
+    name: t("unlock_en350"),
     tab: UITab.Unlock,
-    description:
-      "In some regions (e.g., parts of Europe or North America), consumer-grade radios are legally allowed to receive this band",
+    description: t("unlock_en350_tooltip"),
     get: () => ref.get(),
     set: (val) => ref.set(Number(val)),
   }),
   unlock_tx200: (ref: _GetSetNumber): UI.Field.Switcher => ({
     type: "switcher",
-    id: "tx200",
-    name: "174-350 MHz Transmit",
+    id: "unlock_tx200",
+    name: t("unlock_tx200"),
     tab: UITab.Unlock,
-    description:
-      "This band includes VHF high-band and parts of UHF, often used for professional, commercial, or public safety services. Transmitting here may be restricted or prohibited for amateur or consumer radios depending on regional regulations.",
+    description: t("unlock_tx200_tooltip"),
     get: () => ref.get(),
     set: (val) => ref.set(Number(val)),
   }),
   unlock_tx500: (ref: _GetSetNumber): UI.Field.Switcher => ({
     type: "switcher",
-    id: "tx500",
-    name: "500-600 MHz Transmit",
+    id: "unlock_tx500",
+    name: t("unlock_tx500"),
     tab: UITab.Unlock,
-    description:
-      "This band is typically allocated for specialized services such as land mobile radio, public safety, or cellular networks, and is generally not authorized for amateur or consumer radio use in most countries. Transmitting in this range without proper licensing may violate national telecommunications regulations and interfere with critical communications.",
+    description: t("unlock_tx500_tooltip"),
     get: () => ref.get(),
     set: (val) => ref.set(Number(val)),
   }),
-  unlock_enscramble: (ref: _GetSetNumber): UI.Field.Switcher => ({
+  unlock_scramble: (ref: _GetSetNumber): UI.Field.Switcher => ({
     type: "switcher",
-    id: "enscramble",
-    name: "Enable scrambler",
+    id: "unlock_scramble",
+    name: t("unlock_scramble"),
     tab: UITab.Unlock,
-    description:
-      "Enables built-in voice scrambling for basic privacy; may be disabled or locked in certain radio models or firmware versions due to regional regulations or manufacturer restrictions.",
+    description: t("unlock_scramble_tooltip"),
     get: () => ref.get(),
     set: (val) => ref.set(Number(val)),
   }),

@@ -11,10 +11,13 @@ import { Toaster, toaster } from "./components/ui/toaster";
 import { TaskProgress } from "./components/TaskProgress";
 import { Tooltip } from "./components/ui/tooltip";
 import type { UI } from "./drivers/ui";
+import { useTranslation } from "react-i18next";
 
 function App() {
   const radio = useStore(Store, (s) => s.radio);
   const active_task = useStore(Store, (s) => s.task !== undefined);
+
+  const { t } = useTranslation();
 
   const [ui, setUI] = useState<UI.Root>();
   useEffect(() => {
@@ -29,20 +32,20 @@ function App() {
     window.addEventListener(
       "error",
       (e) => {
-        toaster.error({ title: "Unexpected error", description: String(e.error) });
+        toaster.error({ title: t("error_unexpected"), description: String(e.error) });
       },
       { signal: controller.signal }
     );
     window.addEventListener(
       "unhandledrejection",
       (e) => {
-        toaster.error({ title: "Unexpected error", description: String(e.reason) });
+        toaster.error({ title: t("error_unexpected"), description: String(e.reason) });
       },
       { signal: controller.signal }
     );
 
     return () => controller.abort();
-  }, []);
+  }, [t]);
 
   return (
     <Stack alignItems="center">
@@ -60,12 +63,12 @@ function App() {
           </HStack>
           <RadioSelector />
           <ButtonGroup variant="surface">
-            <Tooltip content="Receive settings from the radio">
+            <Tooltip content={t("download_from_radio")}>
               <IconButton disabled={active_task} colorPalette="blue" rounded="full" onClick={() => Actions.download()}>
                 <TbDeviceMobileSearch />
               </IconButton>
             </Tooltip>
-            <Tooltip content="Send to radio">
+            <Tooltip content={t("upload_to_radio")}>
               <IconButton disabled={active_task} colorPalette="green" rounded="full" onClick={() => Actions.upload()}>
                 <TbDeviceMobileUp />
               </IconButton>
@@ -90,7 +93,7 @@ function App() {
               <Tabs.List flexShrink="0">
                 {tabs.map((tab) => (
                   <Tabs.Trigger key={tab} value={String(tab)}>
-                    {tab ?? "Misc"}
+                    {tab ?? t("uitab_misc")}
                   </Tabs.Trigger>
                 ))}
               </Tabs.List>

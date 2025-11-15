@@ -23,6 +23,8 @@ import { TbHelp, TbTrash } from "react-icons/tb";
 import { Tooltip } from "../ui/tooltip";
 import { useState } from "react";
 import { RADIO_FREQUENCY_BANDS } from "@/bands";
+import { useTranslation } from "react-i18next";
+import { t } from "i18next";
 
 function SquelchForm(props: {
   config: NonNullable<UI.Field.Channels["squelch_rx"]>;
@@ -37,7 +39,7 @@ function SquelchForm(props: {
       <Field.Root>
         <Field.Label>
           {name}
-          <Tooltip content="Tone-based access control that mutes the speaker unless a specific sub-audible tone (CTCSS) or digital code (DCS) is detected, reducing unwanted noise from other users on the same frequency.">
+          <Tooltip content={t("squelch_tooltip")}>
             <TbHelp />
           </Tooltip>
         </Field.Label>
@@ -66,7 +68,7 @@ function SquelchForm(props: {
         </NativeSelect.Root>
       </Field.Root>
       {squelch.mode === "CTCSS" && (
-        <InputGroup flex="1" endElement={"Hz"}>
+        <InputGroup flex="1" endElement={t("hz")}>
           {config.tones ? (
             <NativeSelect.Root asChild height="var(--select-field-height)">
               <NativeSelect.Field
@@ -165,7 +167,7 @@ function SquelchTxRx(props: {
     return (
       <>
         <SquelchForm
-          name="Squelch TX/RX"
+          name={t("squelch_tx_rx")}
           config={rx!}
           squelch={rx_value}
           onChange={(s) => {
@@ -174,7 +176,7 @@ function SquelchTxRx(props: {
           }}
         />
         <Button variant="subtle" size="xs" onClick={() => setSync(false)}>
-          Split squelch
+          {t("split_squelch")}
         </Button>
       </>
     );
@@ -183,10 +185,10 @@ function SquelchTxRx(props: {
   return (
     <>
       {rx_value && (
-        <SquelchForm name="Squelch RX" config={rx!} squelch={rx_value} onChange={(s) => rx!.set(index, s)} />
+        <SquelchForm name={t("squelch_rx")} config={rx!} squelch={rx_value} onChange={(s) => rx!.set(index, s)} />
       )}
       {tx_value && (
-        <SquelchForm name="Squelch TX" config={tx!} squelch={tx_value} onChange={(s) => tx!.set(index, s)} />
+        <SquelchForm name={t("squelch_tx")} config={tx!} squelch={tx_value} onChange={(s) => tx!.set(index, s)} />
       )}
       {tx_value && rx_value ? (
         <Button
@@ -197,7 +199,7 @@ function SquelchTxRx(props: {
             setSync(true);
           }}
         >
-          Link squelch
+          {t("link_squelch")}
         </Button>
       ) : null}
     </>
@@ -208,6 +210,8 @@ function ChannelForm(props: { field: UI.Field.Channels; index: number }) {
   const { field, index } = props;
   const { freq, offset, mode, squelch_rx, squelch_tx, power, scan, bcl, ptt_id } = field;
 
+  const { t } = useTranslation();
+
   return (
     <Fieldset.Root>
       <Fieldset.Content>
@@ -216,12 +220,12 @@ function ChannelForm(props: { field: UI.Field.Channels; index: number }) {
             {(value) => (
               <Field.Root>
                 <Field.Label>
-                  Frequency
-                  <Tooltip content="The radio frequency used for receiving and transmitting signals.">
+                  {t("frequency")}
+                  <Tooltip content={t("frequency_tooltip")}>
                     <TbHelp />
                   </Tooltip>
                 </Field.Label>
-                <InputGroup flex="1" endElement={"MHz"}>
+                <InputGroup flex="1" endElement={t("mhz")}>
                   <NumberInput.Root
                     asChild
                     size="lg"
@@ -240,7 +244,7 @@ function ChannelForm(props: { field: UI.Field.Channels; index: number }) {
                   {(() => {
                     const band = RADIO_FREQUENCY_BANDS.find((b) => b.minHz <= value && value <= b.maxHz);
 
-                    if (!band) return "Unknown band";
+                    if (!band) return t("unknown_band");
 
                     const channel = band.channels?.find((c) => c.frequencyHz === value);
 
@@ -250,22 +254,22 @@ function ChannelForm(props: { field: UI.Field.Channels; index: number }) {
 
                     if (channel) {
                       if (channel.channel !== undefined) {
-                        ps.push(`Channel ${channel.channel}.`);
+                        ps.push(t("band_info_channel", { replace: { channel: channel.channel } }));
                       } else {
-                        ps.push(`Channel ${channel.frequencyHz / 1_000_000} MHz.`);
+                        ps.push(t("band_info_frequency", { replace: { freq: channel.frequencyHz / 1_000_000 } }));
                       }
 
                       if (channel.description) {
                         ps.push(channel.description);
                       }
                     } else if (band.channels?.length) {
-                      ps.push(`Not a channel, available ${band.channels.length}.`);
+                      ps.push(t("band_info_not_a_channel", { replace: { count: band.channels.length } }));
                     }
 
                     if (channel?.modulation?.length) {
-                      ps.push(`Modulation: ${channel.modulation.join(", ")}.`);
+                      ps.push(t("band_info_modulation_list", { replace: { mods: channel.modulation.join(", ") } }));
                     } else if (band.modulation.length) {
-                      ps.push(`Modulation: ${band.modulation.join(", ")}.`);
+                      ps.push(t("band_info_modulation_list", { replace: { mods: band.modulation.join(", ") } }));
                     }
 
                     if (band.description) {
@@ -288,12 +292,12 @@ function ChannelForm(props: { field: UI.Field.Channels; index: number }) {
             {(value) => (
               <Field.Root>
                 <Field.Label>
-                  Offset
-                  <Tooltip content="The difference between the transmit and receive frequencies, used to enable communication through repeaters or to avoid interference when operating simplex.">
+                  {t("offset")}
+                  <Tooltip content={t("offset_tooltip")}>
                     <TbHelp />
                   </Tooltip>
                 </Field.Label>
-                <InputGroup flex="1" endElement={"MHz"}>
+                <InputGroup flex="1" endElement={t("mhz")}>
                   <NumberInput.Root
                     asChild
                     width="full"
@@ -315,8 +319,8 @@ function ChannelForm(props: { field: UI.Field.Channels; index: number }) {
             {(value) => (
               <Field.Root>
                 <Field.Label>
-                  Mode
-                  <Tooltip content="The type of frequency modulation used for the signal, affecting bandwidth and audio quality. Common modes include FM (standard narrowband), NFM (narrower bandwidth), and WFM (wideband, typically for broadcast reception).">
+                  {t("modulation")}
+                  <Tooltip content={t("modulation_tooltip")}>
                     <TbHelp />
                   </Tooltip>
                 </Field.Label>
@@ -337,8 +341,8 @@ function ChannelForm(props: { field: UI.Field.Channels; index: number }) {
             {(value) => (
               <Field.Root>
                 <Field.Label>
-                  Power
-                  <Tooltip content="Transmit power level; use low power for short-range communication to save battery and reduce interference, high power for longer range when needed.">
+                  {t("power")}
+                  <Tooltip content={t("power_tooltip")}>
                     <TbHelp />
                   </Tooltip>
                 </Field.Label>
@@ -346,7 +350,9 @@ function ChannelForm(props: { field: UI.Field.Channels; index: number }) {
                   <NativeSelect.Field value={value} onChange={(e) => power.set(index, Number(e.currentTarget.value))}>
                     {power.options.map((opt, i_opt) => (
                       <option key={i_opt} value={i_opt}>
-                        {power.name ? `${power.name(i_opt)} (${opt}W)` : `${opt} watt`}
+                        {power.name
+                          ? t("power_option", { replace: { option: power.name(i_opt), value: opt } })
+                          : t("watt", { replace: { value: opt } })}
                       </option>
                     ))}
                   </NativeSelect.Field>
@@ -361,8 +367,8 @@ function ChannelForm(props: { field: UI.Field.Channels; index: number }) {
             {(value) => (
               <Field.Root>
                 <Field.Label>
-                  Scan behavior
-                  <Tooltip content="Controls whether and how the channel is included during scanning operations, allowing it to be skipped, scanned normally, or given higher attention.">
+                  {t("scan_behavior")}
+                  <Tooltip content={t("scan_behavior_tooltip")}>
                     <TbHelp />
                   </Tooltip>
                 </Field.Label>
@@ -386,18 +392,18 @@ function ChannelForm(props: { field: UI.Field.Channels; index: number }) {
               <Stack>
                 <Field.Root>
                   <Field.Label>
-                    Send PTT ID
-                    <Tooltip content="Sends a short identifying signal (such as a callsign or code) automatically when the PTT button is pressed, allowing other users to identify the transmitting station.">
+                    {t("send_ptt_id")}
+                    <Tooltip content={t("send_ptt_id_tooltip")}>
                       <TbHelp />
                     </Tooltip>
                   </Field.Label>
                   <NativeSelect.Root>
                     <NativeSelect.Field
                       value={value.on}
-                      onChange={(e) => ptt_id.set(index, { ...value, on: e.currentTarget.value as UI.ChannelPTTIdOn })}
+                      onChange={(e) => ptt_id.set(index, { ...value, on: Number(e.currentTarget.value) })}
                     >
                       {ptt_id.on_options.map((opt, i_opt) => (
-                        <option key={i_opt} value={opt}>
+                        <option key={i_opt} value={i_opt}>
                           {opt}
                         </option>
                       ))}
@@ -405,15 +411,15 @@ function ChannelForm(props: { field: UI.Field.Channels; index: number }) {
                     <NativeSelect.Indicator />
                   </NativeSelect.Root>
                 </Field.Root>
-                {value.on !== "Off" && ptt_id.id_options.length !== 0 && (
+                {value.on !== t("off") && ptt_id.id_options.length !== 0 && (
                   <Field.Root>
                     <NativeSelect.Root size="sm">
                       <NativeSelect.Field
                         value={value.id}
-                        onChange={(e) => ptt_id.set(index, { ...value, id: e.currentTarget.value as string })}
+                        onChange={(e) => ptt_id.set(index, { ...value, id: Number(e.currentTarget.value) })}
                       >
                         {ptt_id.id_options.map((opt, i_opt) => (
-                          <option key={i_opt} value={opt}>
+                          <option key={i_opt} value={i_opt}>
                             {opt}
                           </option>
                         ))}
@@ -435,8 +441,8 @@ function ChannelForm(props: { field: UI.Field.Channels; index: number }) {
                   <Switch.Control />
                   <Switch.Label>
                     <HStack>
-                      Busy channel lockout
-                      <Tooltip content="Prevents transmission when the channel is already in use, helping to avoid interference.">
+                      {t("busy_channel_lockout")}
+                      <Tooltip content={t("busy_channel_lockout_tooltip")}>
                         <TbHelp />
                       </Tooltip>
                     </HStack>
@@ -484,12 +490,9 @@ function ChannelCard(props: { field: UI.Field.Channels; index: number }) {
             <Popover.Content>
               <Popover.Arrow />
               <Popover.Body>
-                <Popover.Title fontWeight="medium">Channel is empty</Popover.Title>
-                <Text my="4">
-                  The channel slot contains no configured frequency or essential settings and is not usable for
-                  communication.
-                </Text>
-                <Button onClick={() => empty!.init(index)}>Initialize</Button>
+                <Popover.Title fontWeight="medium">{t("channel_empty_title")}</Popover.Title>
+                <Text my="4">{t("channel_empty_body")}</Text>
+                <Button onClick={() => empty!.init(index)}>{t("initialize")}</Button>
               </Popover.Body>
             </Popover.Content>
           </Popover.Positioner>
@@ -515,7 +518,7 @@ function ChannelCard(props: { field: UI.Field.Channels; index: number }) {
             </HStack>
             <Box>
               {(() => {
-                if (!squelch_rx_value || squelch_rx_value.mode === "Off") return "No squelch";
+                if (!squelch_rx_value || squelch_rx_value.mode === "Off") return t("no_squelch");
 
                 if (squelch_rx_value.mode === "CTCSS") return `CTCSS ${squelch_rx_value.freq}`;
                 if (squelch_rx_value.mode === "DCS")
@@ -536,7 +539,7 @@ function ChannelCard(props: { field: UI.Field.Channels; index: number }) {
                 <HStack>
                   <Text flexGrow="1">{channel_value}</Text>
                   {empty ? (
-                    <Tooltip content="Delete channel">
+                    <Tooltip content={t("delete_channel")}>
                       <IconButton variant="ghost" rounded="full" colorPalette="red" onClick={() => empty.delete(index)}>
                         <TbTrash />
                       </IconButton>
