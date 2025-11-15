@@ -145,7 +145,7 @@ export const create_mem_mapper = (data: Buffer, onchange?: () => void): MemMappe
       for (const [name, size] of Object.entries<number>(names)) {
         if (!name || name.startsWith("_")) continue;
 
-        const bits = Array<number>(size);
+        const bits: number[] = [];
 
         for (let i = 0; i < size; i += 1) {
           bits.push(bitCursor);
