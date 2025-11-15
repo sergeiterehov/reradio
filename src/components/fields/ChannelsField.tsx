@@ -411,7 +411,7 @@ function ChannelForm(props: { field: UI.Field.Channels; index: number }) {
                     <NativeSelect.Indicator />
                   </NativeSelect.Root>
                 </Field.Root>
-                {value.on !== t("off") && ptt_id.id_options.length !== 0 && (
+                {ptt_id.on_options[value.on] !== t("off") && ptt_id.id_options.length !== 0 && (
                   <Field.Root>
                     <NativeSelect.Root size="sm">
                       <NativeSelect.Field
