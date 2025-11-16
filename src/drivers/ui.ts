@@ -12,8 +12,6 @@ export namespace UI {
       type: T;
       id: string;
       name: string;
-      get: () => unknown;
-      set: (val: unknown) => void;
 
       tab?: string;
       description?: string;
@@ -80,14 +78,36 @@ export namespace UI {
       };
     };
 
-    export type Switcher = _Field<"switcher">;
-    export type Label = _Field<"label">;
-    export type Select = _Field<"select"> & { options: string[]; short?: boolean };
-    export type Slider = _Field<"slider"> & { min: number; max: number; label?: (val: number) => string };
-    export type Text = _Field<"text">;
-    export type Chars = _Field<"chars"> & { abc: string; pad: string; length: number; uppercase?: boolean };
+    export type Switcher = _Field<"switcher"> & { get: () => boolean; set: (val: boolean) => void };
+    export type Label = _Field<"label"> & { get: () => unknown };
+    export type Select = _Field<"select"> & {
+      options: string[];
+      short?: boolean;
+      get: () => number;
+      set: (val: number) => void;
+    };
+    export type Slider = _Field<"slider"> & {
+      min: number;
+      max: number;
+      label?: (val: number) => string;
+      get: () => number;
+      set: (val: number) => void;
+    };
+    export type Text = _Field<"text"> & { get: () => string; set: (val: string) => void };
+    export type Chars = _Field<"chars"> & {
+      abc: string;
+      pad: string;
+      length: number;
+      uppercase?: boolean;
+      get: () => number[];
+      set: (val: number[]) => void;
+    };
+    export type File = _Field<"file"> & {
+      get: () => globalThis.File | undefined;
+      set: (val: globalThis.File | undefined) => void;
+    };
 
-    export type Any = None | Channels | Switcher | Select | Label | Slider | Text | Chars;
+    export type Any = None | Channels | Switcher | Select | Label | Slider | Text | Chars | File;
   }
 
   export type Root = { fields: Field.Any[] };

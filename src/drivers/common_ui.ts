@@ -1,7 +1,7 @@
 import { t } from "i18next";
 import type { M } from "./mem";
 import type { UI } from "./ui";
-import { DCS_CODES } from "./utils";
+import { DCS_CODES, trim_string } from "./utils";
 
 type _GetSetNumber = { get(): number; set(val: number): void };
 
@@ -17,6 +17,7 @@ export const UITab = {
   Exchange: t("uitab_exchange"),
   DTMF: t("uitab_dtmf"),
   Unlock: t("uitab_unlock"),
+  Firmware: t("uitab_firmware"),
 };
 
 export const modify_field = <F extends UI.Field.Any, R extends UI.Field.Any>(field: F, modifier: (field: F) => R): R =>
@@ -27,8 +28,6 @@ export const common_ui = {
     type: "none",
     id: "none",
     name: "None",
-    get: () => null,
-    set: () => null,
   }),
 
   channels: (config: { size: number }): UI.Field.Channels => ({
@@ -38,8 +37,6 @@ export const common_ui = {
     tab: UITab.Channels,
     size: config.size,
     channel: { get: (i) => `CH${i + 1}` },
-    get: () => null,
-    set: () => null,
   }),
 
   channel_squelch_lbcd: (ref_by_channel: (i: number) => M.LBCD): UI.Field.Channels["squelch_rx"] => ({
@@ -109,7 +106,7 @@ export const common_ui = {
     name: t("vox"),
     description: t("vox_tooltip"),
     tab: UITab.VOX,
-    get: () => ref.get(),
+    get: () => Boolean(ref.get()),
     set: (val) => ref.set(val ? 1 : 0),
   }),
   vox_inhibit: (ref: _GetSetNumber): UI.Field.Switcher => ({
@@ -118,7 +115,7 @@ export const common_ui = {
     name: t("vox_inhibit"),
     description: t("vox_inhibit_tooltip"),
     tab: UITab.VOX,
-    get: () => ref.get(),
+    get: () => Boolean(ref.get()),
     set: (val) => ref.set(val ? 1 : 0),
   }),
   vox_level: (ref: _GetSetNumber, config: { min: number; max: number }): UI.Field.Slider => ({
@@ -146,7 +143,7 @@ export const common_ui = {
     name: t("scan"),
     description: t("scan_tooltip"),
     tab: UITab.Scanning,
-    get: () => ref.get(),
+    get: () => Boolean(ref.get()),
     set: (val) => ref.set(val ? 1 : 0),
   }),
   scan_mode: (ref: _GetSetNumber, config: { options: string[] }): UI.Field.Select => ({
@@ -167,7 +164,7 @@ export const common_ui = {
     name: t("alarm"),
     description: t("alarm_tooltip"),
     tab: UITab.Control,
-    get: () => ref.get(),
+    get: () => Boolean(ref.get()),
     set: (val) => ref.set(val ? 1 : 0),
   }),
 
@@ -188,7 +185,7 @@ export const common_ui = {
     name: t("beep"),
     description: t("beep_tooltip"),
     tab: UITab.Interface,
-    get: () => ref.get(),
+    get: () => Boolean(ref.get()),
     set: (val) => ref.set(val ? 1 : 0),
   }),
   voice_prompt: (ref: _GetSetNumber): UI.Field.Switcher => ({
@@ -197,7 +194,7 @@ export const common_ui = {
     name: t("voice_prompt"),
     description: t("voice_prompt_tooltip"),
     tab: UITab.Interface,
-    get: () => ref.get(),
+    get: () => Boolean(ref.get()),
     set: (val) => ref.set(val ? 1 : 0),
   }),
   voice_language: (ref: _GetSetNumber, config: { languages: string[] }): UI.Field.Select => ({
@@ -227,7 +224,7 @@ export const common_ui = {
     name: t("bat_save"),
     description: t("bat_save_tooltip"),
     tab: UITab.Power,
-    get: () => ref.get(),
+    get: () => Boolean(ref.get()),
     set: (val) => ref.set(val ? 1 : 0),
   }),
   pow_battery_save_ratio: (ref: _GetSetNumber): UI.Field.Select => ({
@@ -246,7 +243,7 @@ export const common_ui = {
     name: t("low_no_tx"),
     description: t("low_no_tx_tooltip"),
     tab: UITab.Power,
-    get: () => ref.get(),
+    get: () => Boolean(ref.get()),
     set: (val) => ref.set(val ? 1 : 0),
   }),
   pow_high_no_tx: (ref: _GetSetNumber): UI.Field.Switcher => ({
@@ -255,7 +252,7 @@ export const common_ui = {
     name: t("high_no_tx"),
     description: t("high_no_tx_tooltip"),
     tab: UITab.Power,
-    get: () => ref.get(),
+    get: () => Boolean(ref.get()),
     set: (val) => ref.set(val ? 1 : 0),
   }),
   pow_tot: (ref: _GetSetNumber, config: { from: number; to: number; step: number }): UI.Field.Slider => ({
@@ -277,7 +274,7 @@ export const common_ui = {
     name: t("fm"),
     description: t("fm_tooltip"),
     tab: UITab.System,
-    get: () => ref.get(),
+    get: () => Boolean(ref.get()),
     set: (val) => ref.set(val ? 1 : 0),
   }),
 
@@ -350,7 +347,7 @@ export const common_ui = {
     name: t("keypad_lock_auto"),
     description: t("keypad_lock_auto_tooltip"),
     tab: UITab.Control,
-    get: () => ref.get(),
+    get: () => Boolean(ref.get()),
     set: (val) => ref.set(val ? 1 : 0),
   }),
 
@@ -373,7 +370,7 @@ export const common_ui = {
     name: t("roger_beep"),
     description: t("roger_beep_tooltip"),
     tab: UITab.Exchange,
-    get: () => ref.get(),
+    get: () => Boolean(ref.get()),
     set: (val) => ref.set(Number(val)),
   }),
 
@@ -394,7 +391,7 @@ export const common_ui = {
     name: t("bcl"),
     description: t("bcl_tooltip"),
     tab: UITab.Exchange,
-    get: () => ref.get(),
+    get: () => Boolean(ref.get()),
     set: (val) => ref.set(Number(val)),
   }),
 
@@ -417,7 +414,7 @@ export const common_ui = {
     name: t("hello_msg_str_x", { replace: { line: config.line } }),
     description: config.line === 0 ? t("hello_msg_str_x_tooltip") : undefined,
     tab: UITab.Interface,
-    get: () => str_ref.get().replace(/[\s\x00\xFF]+$/, ""),
+    get: () => trim_string(str_ref.get()),
     set: (val) =>
       str_ref.set(
         String(val)
@@ -443,7 +440,7 @@ export const common_ui = {
     name: t("dual_watch"),
     description: t("dual_watch_tooltip"),
     tab: UITab.System,
-    get: () => ref.get(),
+    get: () => Boolean(ref.get()),
     set: (val) => ref.set(val ? 1 : 0),
   }),
 
@@ -465,7 +462,7 @@ export const common_ui = {
     name: t("unlock_tx350"),
     tab: UITab.Unlock,
     description: t("unlock_tx350_tooltip"),
-    get: () => ref.get(),
+    get: () => Boolean(ref.get()),
     set: (val) => ref.set(Number(val)),
   }),
   unlock_en350: (ref: _GetSetNumber): UI.Field.Switcher => ({
@@ -474,7 +471,7 @@ export const common_ui = {
     name: t("unlock_en350"),
     tab: UITab.Unlock,
     description: t("unlock_en350_tooltip"),
-    get: () => ref.get(),
+    get: () => Boolean(ref.get()),
     set: (val) => ref.set(Number(val)),
   }),
   unlock_tx200: (ref: _GetSetNumber): UI.Field.Switcher => ({
@@ -483,7 +480,7 @@ export const common_ui = {
     name: t("unlock_tx200"),
     tab: UITab.Unlock,
     description: t("unlock_tx200_tooltip"),
-    get: () => ref.get(),
+    get: () => Boolean(ref.get()),
     set: (val) => ref.set(Number(val)),
   }),
   unlock_tx500: (ref: _GetSetNumber): UI.Field.Switcher => ({
@@ -492,7 +489,7 @@ export const common_ui = {
     name: t("unlock_tx500"),
     tab: UITab.Unlock,
     description: t("unlock_tx500_tooltip"),
-    get: () => ref.get(),
+    get: () => Boolean(ref.get()),
     set: (val) => ref.set(Number(val)),
   }),
   unlock_scramble: (ref: _GetSetNumber): UI.Field.Switcher => ({
@@ -501,7 +498,7 @@ export const common_ui = {
     name: t("unlock_scramble"),
     tab: UITab.Unlock,
     description: t("unlock_scramble_tooltip"),
-    get: () => ref.get(),
+    get: () => Boolean(ref.get()),
     set: (val) => ref.set(Number(val)),
   }),
 };

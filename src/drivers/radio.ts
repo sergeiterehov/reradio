@@ -1,5 +1,6 @@
 import { Buffer } from "buffer";
 import type { UI } from "./ui";
+import { hex } from "./utils";
 
 const SERIAL_TIMEOUT_MS = 1_000;
 const SERIAL_LOG = true;
@@ -113,7 +114,7 @@ export class Radio {
 
       if (done) break;
 
-      if (SERIAL_LOG) console.log(new Date().toISOString(), "RX:", value.length, Buffer.from(value).toString("hex"));
+      if (SERIAL_LOG) console.log(new Date().toISOString(), "RX:", value.length, hex(Buffer.from(value)));
 
       serial.buffer.push(value);
     }
@@ -129,7 +130,7 @@ export class Radio {
       ),
     ]);
 
-    if (SERIAL_LOG) console.log(new Date().toISOString(), "TX:", buf.length, buf.toString("hex"));
+    if (SERIAL_LOG) console.log(new Date().toISOString(), "TX:", buf.length, hex(buf));
   }
 
   protected async _serial_read(size: number, config: { timeout?: number } = {}) {
@@ -186,7 +187,7 @@ export class Radio {
 
     const data = Buffer.concat(chunks);
 
-    if (SERIAL_LOG) console.log(new Date().toISOString(), "Read:", data.length, data.toString("hex"));
+    if (SERIAL_LOG) console.log(new Date().toISOString(), "Read:", data.length, hex(data));
 
     return data;
   }

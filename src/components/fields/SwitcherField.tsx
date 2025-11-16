@@ -8,7 +8,7 @@ export function SwitcherField(props: { field: UI.Field.Switcher }) {
 
   return (
     <Field.Root>
-      <Switch.Root checked={Boolean(value)} onCheckedChange={(e) => field.set(e.checked)}>
+      <Switch.Root checked={value} onCheckedChange={(e) => field.set(e.checked)}>
         <Switch.HiddenInput />
         <Switch.Control />
         <Switch.Label>{field.name}</Switch.Label>

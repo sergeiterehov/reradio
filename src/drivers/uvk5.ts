@@ -3,7 +3,7 @@ import { Radio, type RadioInfo } from "./radio";
 import type { UI } from "./ui";
 import { array_of, create_mem_mapper, to_js, type M } from "./mem";
 import { common_ui, modify_field, UITab } from "./common_ui";
-import { CTCSS_TONES, DCS_CODES, download_buffer } from "./utils";
+import { CTCSS_TONES, DCS_CODES, trim_string } from "./utils";
 import { t } from "i18next";
 
 const CRC16_TABLE = new Uint16Array([
@@ -45,6 +45,24 @@ const K5_XOR_ARRAY = [0x16, 0x6c, 0x14, 0xe6, 0x2e, 0x91, 0x0d, 0x40, 0x21, 0x35
 function xor_arr_mut(buffer: Buffer): Buffer {
   for (let i = 0; i < buffer.length; i++) {
     buffer[i] ^= K5_XOR_ARRAY[i % K5_XOR_ARRAY.length];
+  }
+
+  return buffer;
+}
+
+const FIRMWARE_XOR_ARRAY = [
+  0x47, 0x22, 0xc0, 0x52, 0x5d, 0x57, 0x48, 0x94, 0xb1, 0x60, 0x60, 0xdb, 0x6f, 0xe3, 0x4c, 0x7c, 0xd8, 0x4a, 0xd6,
+  0x8b, 0x30, 0xec, 0x25, 0xe0, 0x4c, 0xd9, 0x00, 0x7f, 0xbf, 0xe3, 0x54, 0x05, 0xe9, 0x3a, 0x97, 0x6b, 0xb0, 0x6e,
+  0x0c, 0xfb, 0xb1, 0x1a, 0xe2, 0xc9, 0xc1, 0x56, 0x47, 0xe9, 0xba, 0xf1, 0x42, 0xb6, 0x67, 0x5f, 0x0f, 0x96, 0xf7,
+  0xc9, 0x3c, 0x84, 0x1b, 0x26, 0xe1, 0x4e, 0x3b, 0x6f, 0x66, 0xe6, 0xa0, 0x6a, 0xb0, 0xbf, 0xc6, 0xa5, 0x70, 0x3a,
+  0xba, 0x18, 0x9e, 0x27, 0x1a, 0x53, 0x5b, 0x71, 0xb1, 0x94, 0x1e, 0x18, 0xf2, 0xd6, 0x81, 0x02, 0x22, 0xfd, 0x5a,
+  0x28, 0x91, 0xdb, 0xba, 0x5d, 0x64, 0xc6, 0xfe, 0x86, 0x83, 0x9c, 0x50, 0x1c, 0x73, 0x03, 0x11, 0xd6, 0xaf, 0x30,
+  0xf4, 0x2c, 0x77, 0xb2, 0x7d, 0xbb, 0x3f, 0x29, 0x28, 0x57, 0x22, 0xd6, 0x92, 0x8b,
+];
+
+function xor_firmware_arr_mut(buffer: Buffer): Buffer {
+  for (let i = 0; i < buffer.length; i++) {
+    buffer[i] ^= FIRMWARE_XOR_ARRAY[i % FIRMWARE_XOR_ARRAY.length];
   }
 
   return buffer;
@@ -267,8 +285,6 @@ const BANDS_NO_LIMITS = [
   [400_000_000, 470_000_000],
   [470_000_000, 1_300_000_000],
 ];
-
-const trim_regexp = /[\x00\xff\x20]+$/;
 
 export class UVK5Radio extends BaseUVK5Radio {
   protected _img?: Buffer;
@@ -509,7 +525,7 @@ export class UVK5Radio extends BaseUVK5Radio {
             get: (i) => {
               if (i >= channelname.length) return VFO_CHANNEL_NAMES[i - channelname.length];
 
-              return channelname.at(i)?.name.get().replace(trim_regexp, "") || `CH-${i + 1}`;
+              return trim_string(channelname.at(i)?.name.get() || "") || `CH-${i + 1}`;
             },
           },
           empty: {
@@ -618,10 +634,10 @@ export class UVK5Radio extends BaseUVK5Radio {
           common_ui.hello_mode(mem.power_on_dispmode, {
             options: [t("hello_blank"), t("hello_text"), t("hello_voltage")],
           }),
-          (f) => ({
+          (f): UI.Field.Select => ({
             ...f,
-            set: (...args) => {
-              f.set(...args);
+            set: (val) => {
+              f.set(val);
               this.dispatch_ui_change();
             },
           })
@@ -738,6 +754,301 @@ export class UVK5Radio extends BaseUVK5Radio {
     this.dispatch_progress(0.9);
 
     await this.load(img);
+
+    this.dispatch_progress(1);
+  }
+}
+
+const FLASH_SIZE = 0xf000;
+const FLASH_BLOCK_SIZE = 0x100;
+const MAX_FLASH_SIZE = 0x10000;
+
+const FIRMWARE_CMD = Buffer.from([0x30, 0x05]);
+const FLASH_CMD = Buffer.from([0x19, 0x05]);
+const REBOOT_CMD = Buffer.from([0xdd, 0x05]);
+
+const FLASH_ACK = Buffer.from([0x1a, 0x05]);
+
+export class UVK5ProgRadio extends BaseUVK5Radio {
+  static Info: RadioInfo = {
+    vendor: "Quansheng",
+    model: "UV-K5 Firmware Programmer",
+  };
+
+  private _file?: File;
+  private _firmware?: {
+    data: Buffer;
+    firmware_version: Buffer;
+  };
+  private _bootloader_version?: Buffer;
+
+  ui(): UI.Root {
+    return {
+      fields: [
+        {
+          type: "label",
+          id: "disclaimer",
+          name: t("warning"),
+          tab: UITab.Firmware,
+          get: () => t("k5_firmware_versions_disclaimer"),
+        },
+        this._bootloader_version
+          ? {
+              type: "label",
+              id: "bootloader_version",
+              name: t("bootloader_version"),
+              tab: UITab.Firmware,
+              get: () => {
+                if (!this._bootloader_version) return t("unspecified");
+
+                const version = trim_string(this._bootloader_version.toString("ascii"));
+
+                if (version.startsWith("2.")) return `${version} - UV-K5 Rev 1 (MT6250DA).`;
+                if (version.startsWith("1.")) return `${version} - UV-K5 Rev 2 (BK4000 + PA/LNA)`;
+                if (version.startsWith("3.")) return `${version} - UV-K5 Rev 2 (BK4000 + PA/LNA)`;
+
+                return version;
+              },
+            }
+          : common_ui.none(),
+        {
+          type: "file",
+          id: "new_firmware_file",
+          name: t("new_firmware_file"),
+          tab: UITab.Firmware,
+          get: () => this._file,
+          set: async (val) => {
+            if (!val) {
+              this._file = undefined;
+              this._firmware = undefined;
+              this.dispatch_ui_change();
+              return;
+            }
+
+            await this._handle_file(val);
+
+            this._file = val;
+            this.dispatch_ui();
+          },
+        },
+        this._firmware
+          ? {
+              type: "label",
+              id: "firmware_version",
+              name: t("firmware_version"),
+              tab: UITab.Firmware,
+              get: () => trim_string(this._firmware?.firmware_version.toString("ascii") || "") || t("unspecified"),
+            }
+          : common_ui.none(),
+      ],
+    };
+  }
+
+  private async _handle_file(file: File) {
+    let data = Buffer.from(await file.arrayBuffer());
+
+    if (data.length < 2_000) throw new Error("File appears to be to small to be a firmware file");
+
+    const firmware_version = Buffer.alloc(17);
+    let encrypted = true;
+
+    const crc1 = crc16(data.slice(0, -2));
+    const crc2 = data.readUInt16LE(data.length - 2);
+
+    const is_data_not_encrypted = () =>
+      data[2] == 0x00 && data[3] == 0x20 && data[6] == 0x00 && data[10] == 0x00 && data[14] == 0x00;
+
+    if (is_data_not_encrypted()) encrypted = false;
+
+    if (encrypted && crc1 == crc2) {
+      data = data.slice(0, -2);
+
+      xor_firmware_arr_mut(data);
+
+      if (is_data_not_encrypted()) encrypted = false;
+
+      if (!encrypted) console.log("Firmware de-obfuscated");
+
+      const p_version = 0x2000;
+      const p_rest = p_version + 16;
+
+      if (!encrypted && data.length >= p_rest) {
+        data.copy(firmware_version, 0, p_version, p_rest);
+
+        console.log(`Firmware version: ${firmware_version.toString("ascii")}`);
+
+        data = Buffer.concat([data.slice(0, p_version), data.slice(p_rest)]);
+      }
+    }
+
+    if (encrypted) throw new Error("File doesn't appear to be valid for uploading");
+
+    if (data.length > MAX_FLASH_SIZE) throw new Error("File is to large to be a firmware file");
+
+    if (data.length > FLASH_SIZE) throw new Error("File runs into bootloader area ");
+
+    this._firmware = {
+      data,
+      firmware_version,
+    };
+
+    this.dispatch_ui_change();
+  }
+
+  private async _send_firmware_message(version: Buffer) {
+    const buf = Buffer.alloc(4 + 16 + 1);
+    FIRMWARE_CMD.copy(buf, 0);
+    buf.writeUInt16LE(version.length, 2);
+    version.copy(buf, 4);
+
+    await this._serial_clear();
+
+    await this._send_buf(buf);
+
+    const started_at = Date.now();
+    const timeout_at = started_at + 3_000;
+    while (true) {
+      if (Date.now() > timeout_at) throw new Error("Firmware version response timeout");
+
+      const res = await this._recv_buf().catch(() => null);
+      if (!res) continue;
+
+      const mode = res.slice(0, 2);
+
+      if (!FIRMWARE_UPDATE_MODE.equals(mode)) continue;
+      if (res.length !== 22 && res.length !== 38) continue;
+
+      break;
+    }
+  }
+
+  private async _write_flash(addr: number, img: Buffer) {
+    const max_block_addr = img.length & 0xff ? (img.length & 0xff00) + FLASH_BLOCK_SIZE : img.length;
+    const chunk_size = Math.min(FLASH_BLOCK_SIZE, img.length - addr);
+
+    const buf = Buffer.alloc(4 + 12 + FLASH_BLOCK_SIZE);
+    FLASH_CMD.copy(buf, 0);
+    buf.writeUInt16LE(12 + FLASH_BLOCK_SIZE, 2);
+    Buffer.from([0x8a, 0x8d, 0x9f, 0x1d]).copy(buf, 4);
+    buf.writeUInt16BE(addr, 8);
+    buf.writeUInt16BE(max_block_addr, 10);
+    buf.writeUInt16BE(chunk_size, 12);
+    img.copy(buf, 16, addr, addr + chunk_size);
+
+    await this._send_buf(buf);
+
+    const started_at = Date.now();
+    const timeout_at = started_at + 3_000;
+    while (true) {
+      if (Date.now() > timeout_at) throw new Error(`Flashing rejected 0x${addr.toString(16)}`);
+
+      const res = await this._recv_buf();
+
+      if (res.length < 12) continue;
+      if (!FLASH_ACK.equals(res.slice(0, FLASH_ACK.length)) || res[2] != 8 || res[3] != 0) continue;
+      if (!res.slice(4, 10).equals(buf.slice(4, 10))) continue;
+
+      break;
+    }
+  }
+
+  private async _read_bootloader_version() {
+    const version = Buffer.alloc(17);
+
+    const started_at = Date.now();
+    const timeout_at = started_at + 3_000;
+    while (true) {
+      if (Date.now() > timeout_at) throw new Error("Radio is not in firmware updating mode");
+
+      const chunk = await this._recv_buf().catch(() => null);
+      if (!chunk) continue;
+
+      const mode = chunk.slice(0, 2);
+      if (!FIRMWARE_UPDATE_MODE.equals(mode)) continue;
+
+      console.log("Firmware updating mode: OK");
+
+      if (chunk.length >= 36) {
+        chunk.copy(version, 0, 20, 20 + 16);
+
+        console.log(`Bootloader version: ${version.toString("ascii")}`);
+      } else {
+        console.log(`Bootloader version: unknown (short message)`);
+      }
+
+      break;
+    }
+
+    return version;
+  }
+
+  private async _reboot() {
+    const cmd = Buffer.alloc(4);
+    REBOOT_CMD.copy(cmd, 0);
+
+    await this._send_buf(cmd);
+  }
+
+  override async read() {
+    this.dispatch_progress(0);
+
+    await this._serial_clear();
+
+    this.dispatch_progress(0.3);
+
+    const bootloader_version = await this._read_bootloader_version();
+
+    this._bootloader_version = bootloader_version;
+    this.dispatch_ui_change();
+
+    this.dispatch_progress(1);
+  }
+
+  override async write() {
+    this.dispatch_progress(0);
+
+    const firmware = this._firmware;
+    if (!firmware) throw new Error("Firmware not selected");
+
+    const { data, firmware_version } = firmware;
+
+    if (data.length > FLASH_SIZE) throw new Error("Firmware size is too large");
+
+    this.dispatch_progress(0.03);
+
+    await this._serial_clear();
+
+    const bootloader_version = await this._read_bootloader_version();
+
+    const bootloader_ver_str = trim_string(bootloader_version.toString("ascii"));
+    let firmware_ver_str = trim_string(firmware_version.toString("ascii"));
+
+    if (firmware_ver_str.length >= 2 && bootloader_ver_str.length >= 2) {
+      if (firmware_ver_str[0] >= "0" && firmware_ver_str[0] <= "9") {
+        if (firmware_ver_str[1] === "." && bootloader_ver_str[1] === ".") {
+          if (firmware_ver_str[0] !== bootloader_ver_str[0]) {
+            firmware_ver_str = "*" + firmware_ver_str.substring(1);
+          }
+        }
+      }
+    } else {
+      firmware_ver_str = "*";
+    }
+
+    this.dispatch_progress(0.07);
+
+    await this._send_firmware_message(Buffer.from(firmware_ver_str, "ascii"));
+
+    this.dispatch_progress(0.1);
+
+    await this._serial_clear();
+
+    for (let i = 0; i < data.length; i += FLASH_BLOCK_SIZE) {
+      await this._write_flash(i, data);
+      this.dispatch_progress(0.1 + 0.85 * (i / data.length));
+    }
+
+    await this._reboot();
 
     this.dispatch_progress(1);
   }

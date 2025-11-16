@@ -220,13 +220,16 @@ export class UV5RRadio extends Radio {
           },
         },
 
-        modify_field(common_ui.dual_watch(settings.tdr), (f) => ({
-          ...f,
-          set: (...args) => {
-            f.set(...args);
-            this.dispatch_ui_change();
-          },
-        })),
+        modify_field(
+          common_ui.dual_watch(settings.tdr),
+          (f): UI.Field.Switcher => ({
+            ...f,
+            set: (...args) => {
+              f.set(...args);
+              this.dispatch_ui_change();
+            },
+          })
+        ),
         settings.tdr.get() ? common_ui.dual_watch_priority_ab(settings.tdrab) : common_ui.none(),
         common_ui.fm(settings.fmradio),
         common_ui.sql(settings.squelch, { min: 0, max: 9 }),
@@ -256,7 +259,7 @@ export class UV5RRadio extends Radio {
               id: "single_ptt",
               name: "Single PTT",
               tab: UITab.Control,
-              get: () => settings.singleptt.get(),
+              get: () => Boolean(settings.singleptt.get()),
               set: (val) => settings.singleptt.set(val ? 1 : 0),
             }
           : common_ui.none(),
@@ -268,7 +271,7 @@ export class UV5RRadio extends Radio {
         common_ui.hello_msg_str_x(poweron_msg.line2, { line: 2 }),
 
         ...pttid.map(
-          (id, i): UI.Field.Any => ({
+          (id, i): UI.Field.Chars => ({
             type: "chars",
             id: `ptt_id_${i}`,
             name: `PTT ID ${i + 1}`,

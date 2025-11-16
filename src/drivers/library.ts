@@ -6,7 +6,7 @@ import type { Radio } from "./radio";
 import { BF888Radio } from "./bf888";
 import { RB18Radio, RB618Radio, T18Radio } from "./radtel_t18";
 import { UV16Pro8Radio, UV16ProRadio, UV5RRadio, UV82HPRadio, UV82Radio } from "./uv5r";
-import { UVK5Radio } from "./uvk5";
+import { UVK5ProgRadio, UVK5Radio } from "./uvk5";
 import { BFC50Radio } from "./bfc50";
 
 export class Demo_UVK5Radio extends UVK5Radio {
@@ -54,6 +54,7 @@ export const Library: (typeof Radio)[] = [
   UV16ProRadio,
   UV16Pro8Radio,
   UVK5Radio,
+  UVK5ProgRadio,
   T18Radio,
   RB18Radio,
   RB618Radio,

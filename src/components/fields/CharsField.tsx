@@ -5,14 +5,14 @@ import { useCallback, useEffect, useState } from "react";
 
 export function CharsField(props: { field: UI.Field.Chars }) {
   const { field } = props;
-  const value = useRadioOn(field.get) as number[];
+  const value = useRadioOn(field.get);
 
   const padChar = field.pad[0];
   const padIndex = Math.max(0, field.abc.indexOf(padChar));
 
   const getText = useCallback((val: number[]) => val.map((c) => field.abc[c]).join(""), [field.abc]);
 
-  const [text, setText] = useState(getText(field.get() as number[]));
+  const [text, setText] = useState(getText(field.get()));
   useEffect(() => setText(getText(value)), [value, getText]);
 
   return (
@@ -40,7 +40,7 @@ export function CharsField(props: { field: UI.Field.Chars }) {
           try {
             field.set(bytes);
           } finally {
-            setText(getText(field.get() as number[]));
+            setText(getText(field.get()));
           }
         }}
       />

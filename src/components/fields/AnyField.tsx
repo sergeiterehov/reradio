@@ -6,6 +6,7 @@ import { LabelField } from "./LabelField";
 import { SliderField } from "./SliderField";
 import { TextField } from "./TextField";
 import { CharsField } from "./CharsField";
+import { FileField } from "./FileField";
 
 export function AnyField(props: { field: UI.Field.Any }) {
   const { field } = props;
@@ -17,6 +18,7 @@ export function AnyField(props: { field: UI.Field.Any }) {
   if (field.type === "slider") return <SliderField field={field} />;
   if (field.type === "text") return <TextField field={field} />;
   if (field.type === "chars") return <CharsField field={field} />;
+  if (field.type === "file") return <FileField field={field} />;
 
   return null;
 }

@@ -560,7 +560,6 @@ function ChannelCard(props: { field: UI.Field.Channels; index: number }) {
 
 export function ChannelsField(props: { field: UI.Field.Channels }) {
   const { field } = props;
-  useRadioOn(field.get);
 
   return (
     <HStack wrap="wrap">
