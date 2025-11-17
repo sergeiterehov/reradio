@@ -55,7 +55,7 @@ export class BFC50Radio extends BaseT18ProtocolRadio {
       ...m.bitmap({ _: 7, hivoltnotx: 1 }),
 
       ...m.seek(0x0640).skip(0, {}),
-      ...m.bitmap({ channel: 4, _: 1, batterysaver: 1, beep: 1 }),
+      ...m.bitmap({ _1: 1, channel: 4, _2: 1, batterysaver: 1, beep: 1 }),
       squelchlevel: m.u8(),
       ...m.bitmap({ _: 7, alarm: 1 }),
       ...m.skip(1, {}),

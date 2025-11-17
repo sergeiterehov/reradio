@@ -143,14 +143,15 @@ export const create_mem_mapper = (data: Buffer, onchange?: () => void): MemMappe
       let bitCursor = 0;
 
       for (const [name, size] of Object.entries<number>(names)) {
-        if (!name || name.startsWith("_")) continue;
-
         const bits: number[] = [];
 
         for (let i = 0; i < size; i += 1) {
           bits.push(bitCursor);
           bitCursor += 1;
         }
+
+        // Важно! делать это после увеличения bitCursor
+        if (!name || name.startsWith("_")) continue;
 
         const ref: M.Bits = {
           _m_type: "u8bits",
