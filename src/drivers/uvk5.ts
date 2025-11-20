@@ -1,9 +1,9 @@
 import { Buffer } from "buffer";
 import { Radio, type RadioInfo } from "./radio";
 import type { UI } from "./ui";
-import { array_of, create_mem_mapper, to_js, type M } from "./mem";
+import { array_of, create_mem_mapper, type M } from "./mem";
 import { common_ui, modify_field, UITab } from "./common_ui";
-import { CTCSS_TONES, DCS_CODES, trim_string } from "./utils";
+import { CTCSS_TONES, DCS_CODES, hex, trim_string } from "./utils";
 import { t } from "i18next";
 
 const CRC16_TABLE = new Uint16Array([
@@ -118,6 +118,8 @@ class BaseUVK5Radio extends Radio {
 
     FOOTER.copy(res, p_footer);
 
+    console.log("K5 WRITE:", hex(buf));
+
     await this._serial_write(res);
   }
 
@@ -157,6 +159,8 @@ class BaseUVK5Radio extends Radio {
 
       if (crc2 !== crc) throw new Error("CRC is incorrect");
     }
+
+    console.log("K5 READ:", hex(data_crc));
 
     return data_crc;
   }
@@ -932,7 +936,7 @@ export class UVK5ProgRadio extends BaseUVK5Radio {
     Buffer.from([0x8a, 0x8d, 0x9f, 0x1d]).copy(buf, 4);
     buf.writeUInt16BE(addr, 8);
     buf.writeUInt16BE(max_block_addr, 10);
-    buf.writeUInt16BE(chunk_size, 12);
+    buf.writeUInt16LE(chunk_size, 12);
     img.copy(buf, 16, addr, addr + chunk_size);
 
     await this._send_buf(buf);
@@ -945,7 +949,7 @@ export class UVK5ProgRadio extends BaseUVK5Radio {
       const res = await this._recv_buf();
 
       if (res.length < 12) continue;
-      if (!FLASH_ACK.equals(res.slice(0, FLASH_ACK.length)) || res[2] != 8 || res[3] != 0) continue;
+      if (!FLASH_ACK.equals(res.slice(0, FLASH_ACK.length)) || res[2] != 0x08 || res[3] != 0x00) continue;
       if (!res.slice(4, 10).equals(buf.slice(4, 10))) continue;
 
       break;
@@ -963,7 +967,7 @@ export class UVK5ProgRadio extends BaseUVK5Radio {
       const chunk = await this._recv_buf().catch(() => null);
       if (!chunk) continue;
 
-      const mode = chunk.slice(0, 2);
+      const mode = chunk.slice(0, FIRMWARE_UPDATE_MODE.length);
       if (!FIRMWARE_UPDATE_MODE.equals(mode)) continue;
 
       console.log("Firmware updating mode: OK");
@@ -1036,6 +1040,8 @@ export class UVK5ProgRadio extends BaseUVK5Radio {
     }
 
     this.dispatch_progress(0.07);
+
+    await this._serial_clear();
 
     await this._send_firmware_message(Buffer.from(firmware_ver_str, "ascii"));
 
