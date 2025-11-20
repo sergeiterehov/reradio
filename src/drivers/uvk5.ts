@@ -900,12 +900,10 @@ export class UVK5ProgRadio extends BaseUVK5Radio {
   }
 
   private async _send_firmware_message(version: Buffer) {
-    const buf = Buffer.alloc(4 + 16 + 1);
+    const buf = Buffer.alloc(4 + 16);
     FIRMWARE_CMD.copy(buf, 0);
-    buf.writeUInt16LE(version.length, 2);
+    buf.writeUInt16LE(16, 2);
     version.copy(buf, 4);
-
-    await this._serial_clear();
 
     await this._send_buf(buf);
 
@@ -942,15 +940,17 @@ export class UVK5ProgRadio extends BaseUVK5Radio {
     await this._send_buf(buf);
 
     const started_at = Date.now();
-    const timeout_at = started_at + 3_000;
+    const timeout_at = started_at + 5_000;
     while (true) {
       if (Date.now() > timeout_at) throw new Error(`Flashing rejected 0x${addr.toString(16)}`);
 
-      const res = await this._recv_buf();
+      const res = await this._recv_buf().catch(() => null);
 
+      if (!res) continue;
       if (res.length < 12) continue;
       if (!FLASH_ACK.equals(res.slice(0, FLASH_ACK.length)) || res[2] != 0x08 || res[3] != 0x00) continue;
-      if (!res.slice(4, 10).equals(buf.slice(4, 10))) continue;
+
+      if (!res.slice(4, 10).equals(buf.slice(4, 10))) throw new Error("Flashing failed! Probably device is bricked.");
 
       break;
     }
@@ -1041,13 +1041,9 @@ export class UVK5ProgRadio extends BaseUVK5Radio {
 
     this.dispatch_progress(0.07);
 
-    await this._serial_clear();
-
     await this._send_firmware_message(Buffer.from(firmware_ver_str, "ascii"));
 
     this.dispatch_progress(0.1);
-
-    await this._serial_clear();
 
     for (let i = 0; i < data.length; i += FLASH_BLOCK_SIZE) {
       await this._write_flash(i, data);
