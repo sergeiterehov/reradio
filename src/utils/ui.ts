@@ -1,6 +1,8 @@
 export namespace UI {
   export type RadioMode = "FM" | "NFM" | "WFM" | "AM" | "NAM";
   export type SquelchMode = "Off" | "CTCSS" | "DCS";
+  export type ScanMode = "On" | "Off";
+  export type PttIdOn = "Off" | "Begin" | "End" | "BeginAndEnd";
 
   export type Squelch =
     | { mode: "Off" }
@@ -21,7 +23,7 @@ export namespace UI {
 
     export type Channels = _Field<"channels"> & {
       size: number;
-      channel: { get: (i: number) => string };
+      channel: { get: (i: number) => string; set?: (i: number, val: string) => void };
       empty?: {
         get: (i: number) => boolean;
         init: (i: number) => void;
@@ -62,7 +64,7 @@ export namespace UI {
         set: (i: number, i_option: number) => void;
       };
       scan?: {
-        options: string[];
+        options: ScanMode[];
         get: (i: number) => number;
         set: (i: number, i_option: number) => void;
       };
@@ -71,7 +73,7 @@ export namespace UI {
         set: (i: number, val: boolean) => void;
       };
       ptt_id?: {
-        on_options: string[];
+        on_options: PttIdOn[];
         id_options: string[];
         get: (i: number) => { on: number; id: number };
         set: (i: number, val: { on: number; id: number }) => void;

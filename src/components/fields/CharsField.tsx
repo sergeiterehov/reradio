@@ -1,4 +1,4 @@
-import type { UI } from "@/drivers/ui";
+import type { UI } from "@/utils/ui";
 import { Field, Input } from "@chakra-ui/react";
 import { useRadioOn } from "../useRadioOn";
 import { useCallback, useEffect, useState } from "react";

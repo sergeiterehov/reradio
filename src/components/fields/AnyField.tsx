@@ -1,4 +1,4 @@
-import type { UI } from "@/drivers/ui";
+import type { UI } from "@/utils/ui";
 import { ChannelsField } from "./ChannelsField";
 import { SelectField } from "./SelectField";
 import { SwitcherField } from "./SwitcherField";

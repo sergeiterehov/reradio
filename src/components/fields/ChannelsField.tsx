@@ -1,4 +1,4 @@
-import type { UI } from "@/drivers/ui";
+import type { UI } from "@/utils/ui";
 import {
   Drawer,
   Button,
@@ -16,15 +16,17 @@ import {
   IconButton,
   Popover,
   Switch,
+  Menu,
 } from "@chakra-ui/react";
 import { RadioWatch } from "../RadioWatch";
 import { useRadioOn } from "../useRadioOn";
-import { TbHelp, TbTrash } from "react-icons/tb";
+import { TbCopy, TbHelp, TbMenu2, TbSquareRoundedPlus2, TbTransitionBottom, TbTrash } from "react-icons/tb";
 import { Tooltip } from "../ui/tooltip";
 import { useState } from "react";
 import { RADIO_FREQUENCY_BANDS } from "@/bands";
 import { useTranslation } from "react-i18next";
 import { t } from "i18next";
+import { clipboardReplaceChannel, clipboardWriteChannels } from "@/utils/serialize";
 
 function SquelchForm(props: {
   config: NonNullable<UI.Field.Channels["squelch_rx"]>;
@@ -376,7 +378,12 @@ function ChannelForm(props: { field: UI.Field.Channels; index: number }) {
                   <NativeSelect.Field value={value} onChange={(e) => scan.set(index, Number(e.currentTarget.value))}>
                     {scan.options.map((opt, i_opt) => (
                       <option key={i_opt} value={i_opt}>
-                        {opt}
+                        {(() => {
+                          if (opt === "On") return t("scan");
+                          if (opt === "Off") return t("skip");
+
+                          return opt;
+                        })()}
                       </option>
                     ))}
                   </NativeSelect.Field>
@@ -404,14 +411,21 @@ function ChannelForm(props: { field: UI.Field.Channels; index: number }) {
                     >
                       {ptt_id.on_options.map((opt, i_opt) => (
                         <option key={i_opt} value={i_opt}>
-                          {opt}
+                          {(() => {
+                            if (opt === "Off") return t("off");
+                            if (opt === "Begin") return t("begin");
+                            if (opt === "End") return t("end");
+                            if (opt === "BeginAndEnd") return t("begin_n_end");
+
+                            return opt;
+                          })()}
                         </option>
                       ))}
                     </NativeSelect.Field>
                     <NativeSelect.Indicator />
                   </NativeSelect.Root>
                 </Field.Root>
-                {ptt_id.on_options[value.on] !== t("off") && ptt_id.id_options.length !== 0 && (
+                {ptt_id.on_options[value.on] !== "Off" && ptt_id.id_options.length !== 0 && (
                   <Field.Root>
                     <NativeSelect.Root size="sm">
                       <NativeSelect.Field
@@ -453,7 +467,42 @@ function ChannelForm(props: { field: UI.Field.Channels; index: number }) {
           </RadioWatch>
         )}
       </Fieldset.Content>
+      <Box height={100} />
     </Fieldset.Root>
+  );
+}
+
+function ChannelMenuItems(props: { field: UI.Field.Channels; index: number }) {
+  const { field, index } = props;
+
+  const { empty } = field;
+
+  return (
+    <>
+      {/* <Menu.Item value="select">
+        <TbSquareRoundedPlus2 />
+        {t("multiselect")}
+      </Menu.Item> */}
+      <Menu.Item value="copy" onClick={() => clipboardWriteChannels([index], field)}>
+        <TbCopy />
+        {t("copy_clipboard")}
+      </Menu.Item>
+      <Menu.Item value="replace" onClick={() => clipboardReplaceChannel(index, field)}>
+        <TbTransitionBottom />
+        {t("replace_clipboard")}
+      </Menu.Item>
+      {empty && (
+        <Menu.Item
+          value="delete"
+          color="fg.error"
+          _hover={{ bg: "bg.error", color: "fg.error" }}
+          onClick={() => empty.delete(index)}
+        >
+          <TbTrash />
+          {t("delete_channel")}
+        </Menu.Item>
+      )}
+    </>
   );
 }
 
@@ -503,50 +552,62 @@ function ChannelCard(props: { field: UI.Field.Channels; index: number }) {
 
   return (
     <Drawer.Root lazyMount unmountOnExit>
-      <Drawer.Trigger asChild>
-        <Button variant="outline" p="3" fontFamily="monospace" width="200px" height="80px" textAlign="start">
-          <Stack overflow="hidden" flexGrow="1">
-            <HStack>
-              <Box fontWeight="bolder" fontSize="lg">
-                {freq_value ? freq_value / 1_000_000 : "-"}
-              </Box>
-              {mode_value ? <Box>{mode_value}</Box> : null}
-              {offset_value ? <Box>{`${offset_value > 0 ? "+" : ""}${offset_value / 1_000_000}`}</Box> : null}
-              <Box fontSize="2xs" textOverflow="ellipsis" overflow="hidden" flexGrow="1" textAlign="end">
-                {channel_value}
-              </Box>
-            </HStack>
-            <Box>
-              {(() => {
-                if (!squelch_rx_value || squelch_rx_value.mode === "Off") return t("no_squelch");
+      <Menu.Root unmountOnExit lazyMount>
+        <Menu.ContextTrigger>
+          <Drawer.Trigger asChild>
+            <Button variant="outline" p="3" fontFamily="monospace" width="200px" height="80px" textAlign="start">
+              <Stack overflow="hidden" flexGrow="1">
+                <HStack>
+                  <Box fontWeight="bolder" fontSize="lg">
+                    {freq_value ? freq_value / 1_000_000 : "-"}
+                  </Box>
+                  {mode_value ? <Box>{mode_value}</Box> : null}
+                  {offset_value ? <Box>{`${offset_value > 0 ? "+" : ""}${offset_value / 1_000_000}`}</Box> : null}
+                  <Box fontSize="2xs" textOverflow="ellipsis" overflow="hidden" flexGrow="1" textAlign="end">
+                    {channel_value}
+                  </Box>
+                </HStack>
+                <Box>
+                  {(() => {
+                    if (!squelch_rx_value || squelch_rx_value.mode === "Off") return t("no_squelch");
 
-                if (squelch_rx_value.mode === "CTCSS") return `CTCSS ${squelch_rx_value.freq}`;
-                if (squelch_rx_value.mode === "DCS")
-                  return `DCS D${squelch_rx_value.code.toString().padStart(3, "0")}${squelch_rx_value.polarity}`;
+                    if (squelch_rx_value.mode === "CTCSS") return `CTCSS ${squelch_rx_value.freq}`;
+                    if (squelch_rx_value.mode === "DCS")
+                      return `DCS D${squelch_rx_value.code.toString().padStart(3, "0")}${squelch_rx_value.polarity}`;
 
-                return "?";
-              })()}
-            </Box>
-          </Stack>
-        </Button>
-      </Drawer.Trigger>
+                    return "?";
+                  })()}
+                </Box>
+              </Stack>
+            </Button>
+          </Drawer.Trigger>
+        </Menu.ContextTrigger>
+        <Menu.Positioner>
+          <Menu.Content>
+            <ChannelMenuItems index={index} field={field} />
+          </Menu.Content>
+        </Menu.Positioner>
+      </Menu.Root>
       <Portal>
         <Drawer.Backdrop />
         <Drawer.Positioner>
           <Drawer.Content>
             <Drawer.Header>
-              <Drawer.Title>
-                <HStack>
-                  <Text flexGrow="1">{channel_value}</Text>
-                  {empty ? (
-                    <Tooltip content={t("delete_channel")}>
-                      <IconButton variant="ghost" rounded="full" colorPalette="red" onClick={() => empty.delete(index)}>
-                        <TbTrash />
-                      </IconButton>
-                    </Tooltip>
-                  ) : null}
-                </HStack>
-              </Drawer.Title>
+              <HStack flexGrow="1">
+                <Drawer.Title flexGrow="1">{channel_value}</Drawer.Title>
+                <Menu.Root unmountOnExit lazyMount>
+                  <Menu.Trigger asChild>
+                    <IconButton rounded="full" variant="ghost">
+                      <TbMenu2 />
+                    </IconButton>
+                  </Menu.Trigger>
+                  <Menu.Positioner>
+                    <Menu.Content>
+                      <ChannelMenuItems index={index} field={field} />
+                    </Menu.Content>
+                  </Menu.Positioner>
+                </Menu.Root>
+              </HStack>
             </Drawer.Header>
             <Drawer.Body>
               <ChannelForm {...props} />

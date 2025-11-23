@@ -1,9 +1,9 @@
 import { Buffer } from "buffer";
 import { Radio, type RadioInfo } from "./radio";
-import type { UI } from "./ui";
-import { array_of, create_mem_mapper, type M } from "./mem";
-import { common_ui, modify_field, UITab } from "./common_ui";
-import { CTCSS_TONES, DCS_CODES, hex, trim_string } from "./utils";
+import type { UI } from "@/utils/ui";
+import { array_of, create_mem_mapper, type M } from "@/utils/mem";
+import { common_ui, modify_field, UITab } from "@/utils/common_ui";
+import { CTCSS_TONES, DCS_CODES, hex, trim_string } from "@/utils/radio";
 import { t } from "i18next";
 
 const CRC16_TABLE = new Uint16Array([
@@ -249,7 +249,7 @@ const SUB_TONE_FLAG_CTCSS = 0x1;
 const SUB_TONE_FLAG_DCS_N = 0x2;
 const SUB_TONE_FLAG_DCS_I = 0x3;
 
-const PTT_ID_ON_OPTIONS = [t("off"), t("begin"), t("end"), t("begin_n_end")];
+const PTT_ID_ON_OPTIONS: UI.PttIdOn[] = ["Off", "Begin", "End", "BeginAndEnd"];
 
 const VFO_CHANNEL_NAMES = [
   "F1(50M-76M)A",

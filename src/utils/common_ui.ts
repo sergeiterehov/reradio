@@ -1,7 +1,7 @@
 import { t } from "i18next";
 import type { M } from "./mem";
 import type { UI } from "./ui";
-import { DCS_CODES, trim_string } from "./utils";
+import { DCS_CODES, trim_string } from "./radio";
 
 type _GetSetNumber = { get(): number; set(val: number): void };
 

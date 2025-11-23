@@ -1,9 +1,9 @@
 import { Buffer } from "buffer";
 import type { RadioInfo } from "./radio";
-import { common_ui } from "./common_ui";
-import { create_mem_mapper, array_of } from "./mem";
+import { common_ui } from "@/utils/common_ui";
+import { create_mem_mapper, array_of } from "@/utils/mem";
 import { BaseT18ProtocolRadio } from "./radtel_t18";
-import type { UI } from "./ui";
+import type { UI } from "@/utils/ui";
 import { t } from "i18next";
 
 export class BFC50Radio extends BaseT18ProtocolRadio {
@@ -101,7 +101,7 @@ export class BFC50Radio extends BaseT18ProtocolRadio {
             set: (i, val) => memory[i].highpower.set(val),
           },
           scan: {
-            options: [t("on"), t("off")],
+            options: ["On", "Off"],
             get: (i) => memory[i].skip.get(),
             set: (i, val) => memory[i].skip.set(val),
           },

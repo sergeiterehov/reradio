@@ -1,4 +1,4 @@
-import type { UI } from "@/drivers/ui";
+import type { UI } from "@/utils/ui";
 import { Field } from "@chakra-ui/react";
 import { useRadioOn } from "../useRadioOn";
 

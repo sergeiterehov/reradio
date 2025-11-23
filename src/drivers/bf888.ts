@@ -1,8 +1,8 @@
 import { Buffer } from "buffer";
 import { Radio, type RadioInfo } from "./radio";
-import { array_of, create_mem_mapper } from "./mem";
-import type { UI } from "./ui";
-import { common_ui } from "./common_ui";
+import { array_of, create_mem_mapper } from "@/utils/mem";
+import type { UI } from "@/utils/ui";
+import { common_ui } from "@/utils/common_ui";
 import { t } from "i18next";
 
 const CMD_ACK = Buffer.from([0x06]);
@@ -93,7 +93,7 @@ export class BF888Radio extends Radio {
             set: (i, val) => memory[i].highpower.set(val),
           },
           scan: {
-            options: [t("on"), t("off")],
+            options: ["On", "Off"],
             get: (i) => memory[i].skip.get(),
             set: (i, val) => memory[i].skip.set(val),
           },

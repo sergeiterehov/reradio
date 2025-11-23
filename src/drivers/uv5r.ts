@@ -1,9 +1,9 @@
 import { Buffer } from "buffer";
 import { Radio, type RadioInfo } from "./radio";
-import type { UI } from "./ui";
-import { array_of, create_mem_mapper } from "./mem";
-import { common_ui, modify_field, UITab } from "./common_ui";
-import { DCS_CODES } from "./utils";
+import type { UI } from "@/utils/ui";
+import { array_of, create_mem_mapper } from "@/utils/mem";
+import { common_ui, modify_field, UITab } from "@/utils/common_ui";
+import { DCS_CODES } from "@/utils/radio";
 import { t } from "i18next";
 
 const INDENT_291 = Buffer.from([0x50, 0xbb, 0xff, 0x20, 0x12, 0x07, 0x25]);
@@ -11,7 +11,7 @@ const INDENT_A58 = Buffer.from([0x50, 0xbb, 0xff, 0x20, 0x14, 0x04, 0x13]);
 const INDENT_5R = Buffer.from([0x50, 0xbb, 0xff, 0x01, 0x25, 0x98, 0x4d]);
 const INDENT_UV82 = Buffer.from([0x50, 0xbb, 0xff, 0x20, 0x13, 0x01, 0x05]);
 const UV5R_DCS = [...DCS_CODES, 645].sort((a, b) => a - b);
-const PTT_ID_ON_OPTIONS = [t("off"), t("begin"), t("end"), t("begin_n_end")];
+const PTT_ID_ON_OPTIONS: UI.PttIdOn[] = ["Off", "Begin", "End", "BeginAndEnd"];
 
 const ACK = Buffer.from([0x06]);
 
@@ -192,7 +192,7 @@ export class UV5RRadio extends Radio {
           squelch_rx: common_ui.channel_squelch_u16((i) => memory[i].rxtone, UV5R_DCS),
           squelch_tx: common_ui.channel_squelch_u16((i) => memory[i].txtone, UV5R_DCS),
           scan: {
-            options: [t("off"), t("on")],
+            options: ["Off", "On"],
             get: (i) => memory[i].scan.get(),
             set: (i, val) => memory[i].scan.set(val),
           },

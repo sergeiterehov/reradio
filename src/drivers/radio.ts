@@ -1,6 +1,6 @@
 import { Buffer } from "buffer";
-import type { UI } from "./ui";
-import { hex } from "./utils";
+import type { UI } from "@/utils/ui";
+import { hex } from "@/utils/radio";
 
 const SERIAL_TIMEOUT_MS = 1_000;
 const SERIAL_LOG = true;
