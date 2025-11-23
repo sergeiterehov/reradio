@@ -10,7 +10,7 @@ import { useEffect, useState } from "react";
 import { Toaster, toaster } from "./components/ui/toaster";
 import { TaskProgress } from "./components/TaskProgress";
 import { Tooltip } from "./components/ui/tooltip";
-import type { UI } from "./drivers/ui";
+import type { UI } from "@/utils/ui";
 import { useTranslation } from "react-i18next";
 
 function App() {
