@@ -20,13 +20,23 @@ import {
 } from "@chakra-ui/react";
 import { RadioWatch } from "../RadioWatch";
 import { useRadioOn } from "../useRadioOn";
-import { TbCopy, TbHelp, TbMenu2, TbSquareRoundedPlus2, TbTransitionBottom, TbTrash } from "react-icons/tb";
+import {
+  TbArrowBarToLeft,
+  TbArrowBigRightLines,
+  TbCopy,
+  TbHelp,
+  TbMenu2,
+  TbSquareRoundedPlus2,
+  TbTransitionBottom,
+  TbTrash,
+} from "react-icons/tb";
 import { Tooltip } from "../ui/tooltip";
 import { useState } from "react";
 import { RADIO_FREQUENCY_BANDS } from "@/bands";
 import { useTranslation } from "react-i18next";
 import { t } from "i18next";
 import { clipboardReplaceChannel, clipboardWriteChannels } from "@/utils/serialize";
+import { Actions } from "@/store";
 
 function SquelchForm(props: {
   config: NonNullable<UI.Field.Channels["squelch_rx"]>;
@@ -477,21 +487,54 @@ function ChannelMenuItems(props: { field: UI.Field.Channels; index: number }) {
 
   const { empty } = field;
 
+  const empty_value = useRadioOn(() => empty?.get(index));
+
+  /*
+  TODO: множественный выбор
+
+  В режиме выделения все операции применяются ко всем выделенным объектам.
+
+  При входе в режим выделения, нажатие на канал, выделяет его.
+  Посмотреть детали канала можно через контекстное меню.
+
+  При выделении появляются новые пункты меню:
+  - Открыть
+  - Отменить выделение
+  - Выделить до сюда
+
+  Должно работать выделение с нажатым shift.
+  От последнего выделенного до текущего выделение снимается/устанавливается (по последнему).
+
+  Удаленные каналы тоже можно заменять.
+  Удаленные каналы пропускаются при копировании.
+  Удаленные каналы инициализируются при замене.
+  */
+
   return (
     <>
-      {/* <Menu.Item value="select">
+      {/* <Menu.Item value="select" disabled={empty_value}>
         <TbSquareRoundedPlus2 />
         {t("multiselect")}
       </Menu.Item> */}
-      <Menu.Item value="copy" onClick={() => clipboardWriteChannels([index], field)}>
+      <Menu.Item value="move_right" onClick={() => Actions.moveChannelsRight(index, field)}>
+        <TbArrowBigRightLines />
+        {t("move_channels_right")}
+      </Menu.Item>
+      <Menu.Item value="copy" disabled={empty_value} onClick={() => clipboardWriteChannels(field, [index])}>
         <TbCopy />
         {t("copy_clipboard")}
       </Menu.Item>
-      <Menu.Item value="replace" onClick={() => clipboardReplaceChannel(index, field)}>
+      <Menu.Item value="replace" onClick={() => clipboardReplaceChannel(field, index, 1)}>
         <TbTransitionBottom />
         {t("replace_clipboard")}
       </Menu.Item>
-      {empty && (
+      {empty && empty_value && (
+        <Menu.Item value="ripple_delete" onClick={() => Actions.rippleDelete(index, field)}>
+          <TbArrowBarToLeft />
+          {t("ripple_delete")}
+        </Menu.Item>
+      )}
+      {empty && !empty_value && (
         <Menu.Item
           value="delete"
           color="fg.error"
@@ -520,20 +563,29 @@ function ChannelCard(props: { field: UI.Field.Channels; index: number }) {
   if (empty_value) {
     return (
       <Popover.Root lazyMount unmountOnExit>
-        <Popover.Trigger asChild>
-          <Button
-            variant="subtle"
-            color="fg.subtle"
-            p="3"
-            fontFamily="monospace"
-            width="200px"
-            height="80px"
-            textOverflow="ellipsis"
-            overflow="hidden"
-          >
-            {channel_value}
-          </Button>
-        </Popover.Trigger>
+        <Menu.Root unmountOnExit lazyMount>
+          <Menu.ContextTrigger>
+            <Popover.Trigger>
+              <Button
+                variant="subtle"
+                color="fg.subtle"
+                p="3"
+                fontFamily="monospace"
+                width="200px"
+                height="80px"
+                textOverflow="ellipsis"
+                overflow="hidden"
+              >
+                {channel_value}
+              </Button>
+            </Popover.Trigger>
+          </Menu.ContextTrigger>
+          <Menu.Positioner>
+            <Menu.Content>
+              <ChannelMenuItems index={index} field={field} />
+            </Menu.Content>
+          </Menu.Positioner>
+        </Menu.Root>
         <Portal>
           <Popover.Positioner>
             <Popover.Content>

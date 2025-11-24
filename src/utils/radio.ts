@@ -1,4 +1,5 @@
 import type { Buffer } from "buffer";
+import type { UI } from "./ui";
 
 export const DCS_CODES = [
   23, 25, 26, 31, 32, 36, 43, 47, 51, 53, 54, 65, 71, 72, 73, 74, 114, 115, 116, 122, 125, 131, 132, 134, 143, 145, 152,
@@ -40,4 +41,24 @@ export function download_buffer(img: Buffer) {
 
   URL.revokeObjectURL(url);
   document.body.removeChild(a);
+}
+
+export function moveChannel(channels: UI.Field.Channels, from: number, to: number) {
+  if (channels.empty?.get(from) && !channels.empty.get(to)) {
+    channels.empty.delete(to);
+    return;
+  }
+
+  if (channels.empty?.get(to)) channels.empty.init(to);
+
+  channels.channel.set?.(to, channels.channel.get(from));
+  channels.bcl?.set(to, channels.bcl.get(from));
+  channels.freq?.set(to, channels.freq.get(from));
+  channels.mode?.set(to, channels.mode.get(from));
+  channels.offset?.set(to, channels.offset.get(from));
+  channels.power?.set(to, channels.power.get(from));
+  channels.ptt_id?.set(to, channels.ptt_id.get(from));
+  channels.scan?.set(to, channels.scan.get(from));
+  channels.squelch_rx?.set(to, channels.squelch_rx.get(from));
+  channels.squelch_tx?.set(to, channels.squelch_tx.get(from));
 }

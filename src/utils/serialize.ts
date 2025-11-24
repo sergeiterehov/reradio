@@ -91,6 +91,8 @@ function serializeChannel(index: number, channels: UI.Field.Channels): Serialize
 }
 
 function replaceChannel(data: SerializedChannel, index: number, channels: UI.Field.Channels) {
+  if (channels.empty?.get(index)) channels.empty.init(index);
+
   if (data.channel !== undefined && channels.channel.set) channels.channel.set(index, data.channel);
   if (data.freq !== undefined && channels.freq) channels.freq.set(index, data.freq);
   if (data.mode !== undefined && channels.mode) {
@@ -139,14 +141,14 @@ function replaceChannel(data: SerializedChannel, index: number, channels: UI.Fie
   }
 }
 
-export async function clipboardWriteChannels(indexes: number[], channels: UI.Field.Channels) {
+export async function clipboardWriteChannels(channels: UI.Field.Channels, indexes: number[]) {
   const channel_structs = indexes.map((index) => serializeChannel(index, channels));
   const struct = { channels: channel_structs };
 
   await navigator.clipboard.writeText(JSON.stringify(struct));
 }
 
-export async function clipboardReplaceChannel(index: number, channels: UI.Field.Channels) {
+export async function clipboardReplaceChannel(channels: UI.Field.Channels, index: number, limit: number) {
   const text = await navigator.clipboard.readText();
   if (!text) return;
 
@@ -154,7 +156,8 @@ export async function clipboardReplaceChannel(index: number, channels: UI.Field.
   const struct = await zChannelsClipboard.parseAsync(rawStruct).catch(() => undefined);
   if (!struct) return;
 
-  for (const data of struct.channels) {
-    replaceChannel(data, index, channels);
+  for (let i = 0; i < struct.channels.length && i < limit; i += 1) {
+    const data = struct.channels[i];
+    replaceChannel(data, index + i, channels);
   }
 }

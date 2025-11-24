@@ -2,6 +2,8 @@ import { createStore } from "zustand";
 import type { Radio } from "./drivers/radio";
 import { Library } from "./drivers/library";
 import YaMetrika from "./YaMetrika";
+import type { UI } from "./utils/ui";
+import { moveChannel } from "./utils/radio";
 
 export type Store = {
   radio: Radio;
@@ -13,6 +15,9 @@ export type Store = {
     upload: () => void;
 
     changeRadio: (RadioClass: typeof Radio) => void;
+
+    moveChannelsRight: (index: number, channels: UI.Field.Channels) => void;
+    rippleDelete: (index: number, channels: UI.Field.Channels) => void;
   };
 };
 
@@ -78,6 +83,59 @@ export const Store = createStore<Store>((set, get) => {
       _unsubscribe_progress = newRadio.subscribe_progress(_handleProgress);
 
       set({ radio: newRadio });
+    },
+
+    moveChannelsRight: (index, channels) => {
+      let from = index;
+      let to = channels.size - 1;
+
+      if (channels.empty) {
+        for (let i = from; i < channels.size; i += 1) {
+          if (!channels.empty.get(i)) {
+            from = i;
+            break;
+          }
+        }
+
+        for (let i = from; i < channels.size; i += 1) {
+          if (channels.empty.get(i)) {
+            to = i;
+            break;
+          }
+        }
+      }
+
+      for (let i = to; i > from; i -= 1) {
+        moveChannel(channels, i - 1, i);
+      }
+
+      channels.empty?.delete(from);
+    },
+
+    rippleDelete: (index, channels) => {
+      if (!channels.empty) return;
+
+      if (!channels.empty.get(index)) return;
+
+      let from = index;
+      for (; from < channels.size && channels.empty.get(from); from += 1);
+
+      if (from === channels.size) return;
+
+      let to = from + 1;
+      for (; to < channels.size && !channels.empty.get(to); to += 1);
+      to -= 1;
+
+      let target = index - 1;
+      for (; target >= 0 && channels.empty.get(target); target -= 1);
+      target += 1;
+
+      for (let i = from; i <= to; i += 1) {
+        moveChannel(channels, i, target);
+        target += 1;
+      }
+
+      for (let i = target; i <= to; i += 1) channels.empty.delete(i);
     },
   };
 
