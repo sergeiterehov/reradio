@@ -142,13 +142,13 @@ function replaceChannel(data: SerializedChannel, index: number, channels: UI.Fie
 }
 
 export async function clipboardWriteChannels(channels: UI.Field.Channels, indexes: number[]) {
-  const channel_structs = indexes.map((index) => serializeChannel(index, channels));
+  const channel_structs = indexes.map((index) => serializeChannel(index, channels)).filter(Boolean);
   const struct = { channels: channel_structs };
 
   await navigator.clipboard.writeText(JSON.stringify(struct));
 }
 
-export async function clipboardReplaceChannel(channels: UI.Field.Channels, index: number, limit: number) {
+export async function clipboardReplaceChannel(channels: UI.Field.Channels, indexes: number[]) {
   const text = await navigator.clipboard.readText();
   if (!text) return;
 
@@ -156,8 +156,8 @@ export async function clipboardReplaceChannel(channels: UI.Field.Channels, index
   const struct = await zChannelsClipboard.parseAsync(rawStruct).catch(() => undefined);
   if (!struct) return;
 
-  for (let i = 0; i < struct.channels.length && i < limit; i += 1) {
+  for (let i = 0; i < struct.channels.length && i < indexes.length; i += 1) {
     const data = struct.channels[i];
-    replaceChannel(data, index + i, channels);
+    replaceChannel(data, indexes[i], channels);
   }
 }

@@ -23,10 +23,13 @@ import { useRadioOn } from "../useRadioOn";
 import {
   TbArrowBarToLeft,
   TbArrowBigRightLines,
+  TbArrowNarrowRightDashed,
+  TbCancel,
   TbCopy,
+  TbCopyPlus,
   TbHelp,
+  TbLayoutSidebarRightExpand,
   TbMenu2,
-  TbSquareRoundedPlus2,
   TbTransitionBottom,
   TbTrash,
 } from "react-icons/tb";
@@ -35,8 +38,8 @@ import { useState } from "react";
 import { RADIO_FREQUENCY_BANDS } from "@/bands";
 import { useTranslation } from "react-i18next";
 import { t } from "i18next";
-import { clipboardReplaceChannel, clipboardWriteChannels } from "@/utils/serialize";
-import { Actions } from "@/store";
+import { Actions, Store } from "@/store";
+import { useStore } from "zustand";
 
 function SquelchForm(props: {
   config: NonNullable<UI.Field.Channels["squelch_rx"]>;
@@ -482,49 +485,56 @@ function ChannelForm(props: { field: UI.Field.Channels; index: number }) {
   );
 }
 
-function ChannelMenuItems(props: { field: UI.Field.Channels; index: number }) {
-  const { field, index } = props;
-
+function ChannelMenuItems(props: { field: UI.Field.Channels; index: number; onOpen?: () => void }) {
+  const { field, index, onOpen } = props;
   const { empty } = field;
+
+  const selectionMode = useStore(Store, (s) => Boolean(s.selectedChannels.get(field.id)?.size));
 
   const empty_value = useRadioOn(() => empty?.get(index));
 
-  /*
-  TODO: множественный выбор
-
-  В режиме выделения все операции применяются ко всем выделенным объектам.
-
-  При входе в режим выделения, нажатие на канал, выделяет его.
-  Посмотреть детали канала можно через контекстное меню.
-
-  При выделении появляются новые пункты меню:
-  - Открыть
-  - Отменить выделение
-  - Выделить до сюда
-
-  Должно работать выделение с нажатым shift.
-  От последнего выделенного до текущего выделение снимается/устанавливается (по последнему).
-
-  Удаленные каналы тоже можно заменять.
-  Удаленные каналы пропускаются при копировании.
-  Удаленные каналы инициализируются при замене.
-  */
-
   return (
     <>
-      {/* <Menu.Item value="select" disabled={empty_value}>
-        <TbSquareRoundedPlus2 />
-        {t("multiselect")}
-      </Menu.Item> */}
+      {onOpen && (
+        <Menu.Item value="open" disabled={empty_value} onClick={() => onOpen()}>
+          <TbLayoutSidebarRightExpand />
+          {t("open")}
+        </Menu.Item>
+      )}
+      {selectionMode ? (
+        <Menu.Item value="deselect_all" disabled={empty_value} onClick={() => Actions.clearChannelSelection(field)}>
+          <TbCancel />
+          {t("clear_selection")}
+        </Menu.Item>
+      ) : (
+        <Menu.Item
+          value="select"
+          disabled={empty_value}
+          onClick={() => Actions.setChannelSelection(index, true, field)}
+        >
+          <TbCopyPlus />
+          {t("multiselect")}
+        </Menu.Item>
+      )}
+      {selectionMode && (
+        <Menu.Item
+          value="select_to_here"
+          disabled={empty_value}
+          onClick={() => Actions.toggleChannelSelectionTo(index, field)}
+        >
+          <TbArrowNarrowRightDashed />
+          {t("select_to_here")}
+        </Menu.Item>
+      )}
       <Menu.Item value="move_right" onClick={() => Actions.moveChannelsRight(index, field)}>
         <TbArrowBigRightLines />
         {t("move_channels_right")}
       </Menu.Item>
-      <Menu.Item value="copy" disabled={empty_value} onClick={() => clipboardWriteChannels(field, [index])}>
+      <Menu.Item value="copy" disabled={empty_value} onClick={() => Actions.copyToClipboard(index, field)}>
         <TbCopy />
         {t("copy_clipboard")}
       </Menu.Item>
-      <Menu.Item value="replace" onClick={() => clipboardReplaceChannel(field, index, 1)}>
+      <Menu.Item value="replace" onClick={() => Actions.replaceFromClipboard(index, field)}>
         <TbTransitionBottom />
         {t("replace_clipboard")}
       </Menu.Item>
@@ -552,6 +562,9 @@ function ChannelMenuItems(props: { field: UI.Field.Channels; index: number }) {
 function ChannelCard(props: { field: UI.Field.Channels; index: number }) {
   const { field, index } = props;
   const { empty, freq, offset, mode, channel, squelch_rx } = field;
+
+  const selectionMode = useStore(Store, (s) => Boolean(s.selectedChannels.get(field.id)?.size));
+  const selected = useStore(Store, (s) => s.selectedChannels.get(field.id)?.has(index));
 
   const empty_value = useRadioOn(() => empty?.get(index));
   const channel_value = useRadioOn(() => channel.get(index));
@@ -606,37 +619,64 @@ function ChannelCard(props: { field: UI.Field.Channels; index: number }) {
     <Drawer.Root lazyMount unmountOnExit>
       <Menu.Root unmountOnExit lazyMount>
         <Menu.ContextTrigger>
-          <Drawer.Trigger asChild>
-            <Button variant="outline" p="3" fontFamily="monospace" width="200px" height="80px" textAlign="start">
-              <Stack overflow="hidden" flexGrow="1">
-                <HStack>
-                  <Box fontWeight="bolder" fontSize="lg">
-                    {freq_value ? freq_value / 1_000_000 : "-"}
-                  </Box>
-                  {mode_value ? <Box>{mode_value}</Box> : null}
-                  {offset_value ? <Box>{`${offset_value > 0 ? "+" : ""}${offset_value / 1_000_000}`}</Box> : null}
-                  <Box fontSize="2xs" textOverflow="ellipsis" overflow="hidden" flexGrow="1" textAlign="end">
-                    {channel_value}
-                  </Box>
-                </HStack>
-                <Box>
-                  {(() => {
-                    if (!squelch_rx_value || squelch_rx_value.mode === "Off") return t("no_squelch");
+          <Drawer.Context>
+            {(drawerCtx) => (
+              <Button
+                variant={selected ? "solid" : "outline"}
+                p="3"
+                aria-expanded={drawerCtx.open}
+                fontFamily="monospace"
+                width="200px"
+                height="80px"
+                textAlign="start"
+                onClick={(e) => {
+                  if (selectionMode) {
+                    if (e.shiftKey) {
+                      Actions.toggleChannelSelectionTo(index, field);
+                    } else {
+                      Actions.toggleChannelSelection(index, field);
+                    }
+                  } else {
+                    if (e.shiftKey) {
+                      Actions.setChannelSelection(index, true, field);
+                    } else {
+                      drawerCtx.setOpen(true);
+                    }
+                  }
+                }}
+              >
+                <Stack overflow="hidden" flexGrow="1">
+                  <HStack>
+                    <Box fontWeight="bolder" fontSize="lg">
+                      {freq_value ? freq_value / 1_000_000 : "-"}
+                    </Box>
+                    {mode_value ? <Box>{mode_value}</Box> : null}
+                    {offset_value ? <Box>{`${offset_value > 0 ? "+" : ""}${offset_value / 1_000_000}`}</Box> : null}
+                    <Box fontSize="2xs" textOverflow="ellipsis" overflow="hidden" flexGrow="1" textAlign="end">
+                      {channel_value}
+                    </Box>
+                  </HStack>
+                  <Box>
+                    {(() => {
+                      if (!squelch_rx_value || squelch_rx_value.mode === "Off") return t("no_squelch");
 
-                    if (squelch_rx_value.mode === "CTCSS") return `CTCSS ${squelch_rx_value.freq}`;
-                    if (squelch_rx_value.mode === "DCS")
-                      return `DCS D${squelch_rx_value.code.toString().padStart(3, "0")}${squelch_rx_value.polarity}`;
+                      if (squelch_rx_value.mode === "CTCSS") return `CTCSS ${squelch_rx_value.freq}`;
+                      if (squelch_rx_value.mode === "DCS")
+                        return `DCS D${squelch_rx_value.code.toString().padStart(3, "0")}${squelch_rx_value.polarity}`;
 
-                    return "?";
-                  })()}
-                </Box>
-              </Stack>
-            </Button>
-          </Drawer.Trigger>
+                      return "?";
+                    })()}
+                  </Box>
+                </Stack>
+              </Button>
+            )}
+          </Drawer.Context>
         </Menu.ContextTrigger>
         <Menu.Positioner>
           <Menu.Content>
-            <ChannelMenuItems index={index} field={field} />
+            <Drawer.Context>
+              {(drawerCtx) => <ChannelMenuItems index={index} field={field} onOpen={() => drawerCtx.setOpen(true)} />}
+            </Drawer.Context>
           </Menu.Content>
         </Menu.Positioner>
       </Menu.Root>
