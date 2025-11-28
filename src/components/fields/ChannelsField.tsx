@@ -340,6 +340,7 @@ function ChannelForm(props: { field: UI.Field.Channels; index: number }) {
                   </Tooltip>
                 </Field.Label>
                 <SegmentGroup.Root
+                  size={mode.options.length > 4 ? "xs" : undefined}
                   value={mode.options[value]}
                   onValueChange={(e) => mode.set(index, mode.options.indexOf(e.value as UI.RadioMode))}
                 >
