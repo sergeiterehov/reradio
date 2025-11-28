@@ -66,10 +66,7 @@ export class Radio {
   protected readonly dispatch_ui_change = () => this._callbacks.ui_change.forEach((cb) => cb());
 
   async connect() {
-    if (!navigator.serial) throw new Error("Web Serial API not available");
-
-    const port = await navigator.serial.requestPort();
-    await port.open({ baudRate: this.baudRate });
+    const port = await this._request_serial_port();
 
     if (!port.readable || !port.writable) {
       throw new Error("Radio port is not open");
@@ -118,6 +115,15 @@ export class Radio {
 
       serial.buffer.push(value);
     }
+  }
+
+  protected async _request_serial_port() {
+    if (!navigator.serial) throw new Error("Web Serial API not available");
+
+    const port = await navigator.serial.requestPort();
+    await port.open({ baudRate: this.baudRate });
+
+    return port;
   }
 
   protected async _serial_write(buf: Buffer) {

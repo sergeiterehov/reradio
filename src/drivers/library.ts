@@ -1,6 +1,7 @@
 import bf888_img from "../images/Baofeng_BF-888.img?hex";
 import uv5r_img from "../images/Baofeng_UV-5R.img?hex";
 import uvk5_img from "../images/Quansheng_UV-K5.img?hex";
+import tk11_img from "../images/Quansheng_TK11.img?hex";
 import { Buffer } from "buffer";
 import type { Radio } from "./radio";
 import { BF888Radio } from "./bf888";
@@ -8,6 +9,7 @@ import { RB18Radio, RB618Radio, T18Radio } from "./radtel_t18";
 import { UV16Pro8Radio, UV16ProRadio, UV5RRadio, UV82HPRadio, UV82Radio } from "./uv5r";
 import { UVK5ProgRadio, UVK5Radio } from "./uvk5";
 import { BFC50Radio } from "./bfc50";
+import { TK11Radio } from "./tk11";
 
 export class Demo_UVK5Radio extends UVK5Radio {
   static Info = {
@@ -45,7 +47,20 @@ export class Demo_BF888Radio extends BF888Radio {
   }
 }
 
+export class Demo_TK11Radio extends TK11Radio {
+  static Info = {
+    ...TK11Radio.Info,
+    vendor: `Demo - ${TK11Radio.Info.vendor}`,
+  };
+
+  constructor() {
+    super();
+    this.load(Buffer.from(tk11_img, "hex"));
+  }
+}
+
 export const Library: (typeof Radio)[] = [
+  Demo_TK11Radio,
   BF888Radio,
   BFC50Radio,
   UV5RRadio,
@@ -55,6 +70,7 @@ export const Library: (typeof Radio)[] = [
   UV16Pro8Radio,
   UVK5Radio,
   UVK5ProgRadio,
+  TK11Radio,
   T18Radio,
   RB18Radio,
   RB618Radio,
