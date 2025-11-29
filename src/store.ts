@@ -17,6 +17,7 @@ export type Store = {
 
   /** <channel_field_id, index[]> */
   selectedChannels: Map<string, Set<number>>;
+  openedChannel?: { field_id: string; index: number };
 
   _actions: {
     download: () => void;
@@ -28,6 +29,9 @@ export type Store = {
     toggleChannelSelection: (index: number, channels: UI.Field.Channels) => void;
     clearChannelSelection: (channels?: UI.Field.Channels) => void;
     toggleChannelSelectionTo: (index: number, channels: UI.Field.Channels) => void;
+
+    openChannel: (field: UI.Field.Channels, index: number) => void;
+    closeChannel: () => void;
 
     moveChannelsRight: (index: number, channels: UI.Field.Channels) => void;
     rippleDelete: (index: number, channels: UI.Field.Channels) => void;
@@ -168,6 +172,14 @@ export const Store = createStore<Store>()(
             for (let i = from; i <= index; i += 1) indexes.add(i);
           }
         });
+      },
+
+      openChannel: (field, index) => {
+        set({ openedChannel: { field_id: field.id, index } });
+      },
+
+      closeChannel: () => {
+        set({ openedChannel: undefined });
       },
 
       moveChannelsRight: (index, channels) => {

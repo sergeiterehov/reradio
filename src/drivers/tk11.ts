@@ -72,7 +72,7 @@ export class TK11Radio extends QuanshengBaseRadio {
           rx_qt_type: m.u8(),
           tx_qt_type: m.u8(),
           freq_dir: m.u8(),
-          band: m.u8(),
+          ...m.bitmap({ msw: 4, band: 4 }),
           step: m.u8(),
           encrypt: m.u8(),
           power: m.u8(),
@@ -204,7 +204,7 @@ export class TK11Radio extends QuanshengBaseRadio {
         tone5_kill: m.u8_array(8),
         tone5_wakeup: m.u8_array(8),
         unknown_6: m.u8_array(16),
-        device_name: m.u8_array(16),
+        device_name: m.str(16),
       },
 
       ...m.seek(0x15000).skip(0, {}),
@@ -306,10 +306,12 @@ export class TK11Radio extends QuanshengBaseRadio {
 
     return {
       fields: [
-        { type: "label", id: "wip", name: "Status", tab: UITab.Channels, get: () => "Work in progress." }, // TODO: remove
         {
           ...common_ui.channels({ size: mem.channels.length }),
-          channel: { get: (i) => trim_string(mem.channels[i].name.get()) },
+          channel: {
+            get: (i) => trim_string(mem.channels[i].name.get()),
+            set: (i, val) => mem.channels[i].name.set(val.substring(0, 16).padEnd(16, "\x00")),
+          },
           empty: {
             get: (i) => mem.channels_usage[i].flag.get() === 0xff || mem.channels[i].rx_freq.get() === 0,
             delete: (i) => mem.channels_usage[i].flag.set(0xff),
@@ -342,29 +344,28 @@ export class TK11Radio extends QuanshengBaseRadio {
             },
           },
           mode: {
+            // mode = 0 (12.5K), 0 (25K), 1, 2, ...
             options: ["NFM", "FM", "AM", "LSB", "USB", "CW"],
             get: (i) => {
               const ch = mem.channels[i];
               const mode = ch.mode.get();
               const band = ch.band.get();
 
-              if (mode === MODE_FM) {
-                if ((band & 0x0f) === 0) {
-                  return 1;
-                } else if ((band & 0x0f) === 1) {
-                  return 0;
-                }
-              } else {
-                return mode + 1;
-              }
+              // band = 0 (FM 25K), 1 (FM 12.5K)
+              if (mode === MODE_FM) return band === 1 ? 0 : 1;
+
+              return mode + 1;
             },
             set: (i, val) => {
               const ch = mem.channels[i];
-              const is_mode_nfm = val == 0;
 
-              ch.mode.set(is_mode_nfm ? MODE_FM : val - 1);
-              // 0 = 25K, 1 = 12.5K
-              ch.band.set((ch.band.get() & 0xf0) | (is_mode_nfm ? 1 : 0));
+              if (val === 0) {
+                ch.mode.set(MODE_FM);
+                ch.band.set(1);
+              } else {
+                ch.mode.set(val - 1);
+                ch.band.set(0);
+              }
             },
           },
           squelch_rx: get_squelch_ui((i) => ({
@@ -392,6 +393,55 @@ export class TK11Radio extends QuanshengBaseRadio {
             set: (i, val) => mem.channels[i].busy.set(val ? 1 : 0),
           },
         } as UI.Field.Channels,
+
+        common_ui.beep(mem.general.beep),
+        common_ui.voice_prompt(mem.general.key_tone_flag),
+        common_ui.hello_mode(mem.general.power_on_screen_mode, {
+          options: ["Fullscreen", t("hello_text"), t("hello_voltage"), t("hello_picture"), t("hello_blank")],
+        }),
+        common_ui.device_name(mem.general2.device_name, { pad: "\x00" }),
+        common_ui.hello_msg_str_x(mem.general.logo_string1, { line: 0, pad: "\x00" }),
+        common_ui.hello_msg_str_x(mem.general.logo_string2, { line: 1, pad: "\x00" }),
+
+        common_ui.keypad_lock_auto(mem.general.auto_lock),
+
+        common_ui.pow_battery_save_ratio(mem.general.power_save),
+        common_ui.backlight_timeout(mem.general.backlight, {
+          min: 0,
+          max: 11,
+          seconds: [0, 1, 2, 3, 4, 5, 10, 15, 20, 25, 30, 999],
+          names: { [11]: t("always_on") },
+        }),
+        common_ui.backlight_brightness(mem.general.brightness, { min: 8, max: 200 }),
+        common_ui.pow_tot(mem.general.tx_tot, { from: 0, to: 10 * 60, step: 60 }),
+
+        common_ui.vox_sens(
+          {
+            get: () => (mem.general.vox_sw.get() ? mem.general.vox_lvl.get() : 0),
+            set: (val) => {
+              mem.general.vox_sw.set(val > 0 ? 1 : 0);
+              mem.general.vox_lvl.set(val);
+            },
+          },
+          { max: 9 }
+        ),
+
+        common_ui.scan_mode(mem.general.scan_mode, { options: [t("scan_time"), t("scan_carrier"), t("scan_search")] }),
+
+        common_ui.alarm_mode(mem.general.alarm_mode, { options: [t("alarm_site"), t("alarm_tone")] }),
+        common_ui.cw_pitch_freq(mem.general.cw_pitch_freq, { min: 400, max: 1500, step: 10 }),
+        common_ui.denoise_level(
+          {
+            get: () => (mem.general.denoise_sw.get() ? mem.general.denoise_lvl.get() : 0),
+            set: (val) => {
+              mem.general.denoise_sw.set(val > 0 ? 1 : 0);
+              mem.general.denoise_lvl.set(val);
+            },
+          },
+          { min: 0, max: 6 }
+        ),
+
+        common_ui.dual_watch(mem.general.dual_watch),
       ],
     };
   }

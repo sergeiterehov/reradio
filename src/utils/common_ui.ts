@@ -137,6 +137,19 @@ export const common_ui = {
     label: (val) => (val ? String(val) : t("off")),
   }),
 
+  denoise_level: (ref: _GetSetNumber, config: { min: number; max: number }): UI.Field.Slider => ({
+    type: "slider",
+    id: "denoise_level",
+    name: t("denoise_level"),
+    description: t("denoise_level_tooltip"),
+    tab: UITab.Exchange,
+    min: config.min,
+    max: config.max,
+    label: (val) => (val === 0 ? t("off") : String(val + 1)),
+    get: () => ref.get(),
+    set: (val) => ref.set(Number(val)),
+  }),
+
   scan: (ref: _GetSetNumber): UI.Field.Switcher => ({
     type: "switcher",
     id: "scan",
@@ -175,6 +188,19 @@ export const common_ui = {
     description: t("alarm_tooltip"),
     tab: UITab.Exchange,
     options: config.options,
+    get: () => ref.get(),
+    set: (val) => ref.set(Number(val)),
+  }),
+
+  cw_pitch_freq: (ref: _GetSetNumber, config: { min: number; max: number; step: number }): UI.Field.Slider => ({
+    type: "slider",
+    id: "cw_pitch_freq",
+    name: t("cw_pitch_freq"),
+    description: t("cw_pitch_freq_tooltip"),
+    tab: UITab.Exchange,
+    min: config.min,
+    max: config.max,
+    label: (val) => `${val} ${t("hz")}`,
     get: () => ref.get(),
     set: (val) => ref.set(Number(val)),
   }),
@@ -395,7 +421,10 @@ export const common_ui = {
     set: (val) => ref.set(Number(val)),
   }),
 
-  backlight_timeout: (ref: _GetSetNumber, config: { min: number; max: number }): UI.Field.Slider => ({
+  backlight_timeout: (
+    ref: _GetSetNumber,
+    config: { min: number; max: number; seconds?: number[]; names?: Record<number, string> }
+  ): UI.Field.Slider => ({
     type: "slider",
     id: "backlight_timeout",
     name: t("backlight_timeout"),
@@ -403,15 +432,48 @@ export const common_ui = {
     tab: UITab.Power,
     min: config.min,
     max: config.max,
-    label: (val) => (val ? t("seconds_value", { replace: { value: val } }) : t("off")),
+    label: (rawVal) => {
+      if (config.names && rawVal in config.names) return config.names[rawVal];
+
+      const val = config.seconds?.[rawVal] ?? rawVal;
+      return val ? t("seconds_value", { replace: { value: val } }) : t("off");
+    },
     get: () => ref.get(),
     set: (val) => ref.set(Number(val)),
+  }),
+
+  backlight_brightness: (ref: _GetSetNumber, config: { min: number; max: number }): UI.Field.Slider => ({
+    type: "slider",
+    id: "backlight_brightness",
+    name: t("backlight_brightness"),
+    description: t("backlight_brightness_tooltip"),
+    tab: UITab.Power,
+    min: config.min,
+    max: config.max,
+    label: (val) => `${((100 * (val - config.min)) / (config.max - config.min)).toFixed(0)}%`,
+    get: () => ref.get(),
+    set: (val) => ref.set(Number(val)),
+  }),
+
+  device_name: (ref: M.Str, config: { pad?: string }): UI.Field.Text => ({
+    type: "text",
+    id: "device_name",
+    name: t("device_name"),
+    description: t("device_name_tooltip"),
+    tab: UITab.Interface,
+    get: () => trim_string(ref.get()),
+    set: (val) =>
+      ref.set(
+        String(val)
+          .substring(0, ref.raw.size)
+          .padEnd(ref.raw.size, config.pad || " ")
+      ),
   }),
 
   hello_msg_str_x: (str_ref: M.Str, config: { line: number; pad?: string }): UI.Field.Text => ({
     type: "text",
     id: `hello_msg_str_${config.line}`,
-    name: t("hello_msg_str_x", { replace: { line: config.line } }),
+    name: t("hello_msg_str_x", { replace: { line: config.line + 1 } }),
     description: config.line === 0 ? t("hello_msg_str_x_tooltip") : undefined,
     tab: UITab.Interface,
     get: () => trim_string(str_ref.get()),
