@@ -25,6 +25,16 @@ function App() {
     return radio.subscribe_ui_change(() => setUI(radio.ui()));
   }, [radio]);
 
+  const [activeTab, setActiveTab] = useState<string>("");
+  useEffect(() => {
+    setActiveTab((prev) => {
+      if (!ui) return prev;
+
+      const tabs = [...new Set(ui.fields.map((f) => f.tab))];
+      return tabs.at(0) ?? prev;
+    });
+  }, [ui]);
+
   // Вывод не отловленных ошибок
   useEffect(() => {
     const controller = new AbortController();
@@ -89,7 +99,15 @@ function App() {
           const tabs = [...new Set(fields.map((f) => f.tab))];
 
           return (
-            <Tabs.Root lazyMount unmountOnExit variant="subtle" defaultValue={tabs[0]} orientation="vertical" px="3">
+            <Tabs.Root
+              lazyMount
+              unmountOnExit
+              variant="subtle"
+              value={activeTab}
+              onValueChange={(e) => setActiveTab(e.value)}
+              orientation="vertical"
+              px="3"
+            >
               <Tabs.List flexShrink="0">
                 {tabs.map((tab) => (
                   <Tabs.Trigger key={tab} value={String(tab)}>
@@ -99,8 +117,10 @@ function App() {
               </Tabs.List>
 
               {tabs.map((tab) => {
+                if (tab !== activeTab) return null;
+
                 return (
-                  <Tabs.Content key={tab} value={String(tab)}>
+                  <Tabs.Content key={tab} value={String(tab)} flexGrow="1">
                     <Fieldset.Root>
                       <Fieldset.Content>
                         {fields

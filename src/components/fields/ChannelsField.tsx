@@ -42,6 +42,8 @@ import { useTranslation } from "react-i18next";
 import { t } from "i18next";
 import { Actions, Store } from "@/store";
 import { useStore } from "zustand";
+import { MeasureBox } from "../ui/MeasureBox";
+import { useWindowScroll } from "react-use";
 
 const cardSize = { width: 200, height: 80 };
 
@@ -764,13 +766,47 @@ function ChannelCard(props: { field: UI.Field.Channels; index: number }) {
 export function ChannelsField(props: { field: UI.Field.Channels }) {
   const { field } = props;
 
+  const scroll = useWindowScroll();
+
   return (
-    <HStack wrap="wrap">
-      {Array(field.size)
-        .fill(0)
-        .map((_, i) => (
-          <ChannelCard key={i} field={field} index={i} />
-        ))}
-    </HStack>
+    <MeasureBox display="flex" width="full">
+      {({ width }) => {
+        const gap = 8;
+        const overscroll = 100;
+
+        const cardsPerRow = Math.max(1, Math.floor((width + gap) / (cardSize.width + gap)));
+        const height = Math.ceil(field.size / cardsPerRow) * (cardSize.height + gap) - gap;
+
+        return (
+          <Box position="relative" height={height}>
+            {Array(field.size)
+              .fill(0)
+              .map((_, i) => {
+                const row = Math.floor(i / cardsPerRow);
+                const top = row * (cardSize.height + gap);
+                const bottom = top + cardSize.height;
+
+                if (bottom < scroll.y - overscroll) return null;
+                if (top > scroll.y + window.innerHeight + overscroll) return null;
+
+                return (
+                  <div
+                    key={i}
+                    style={{
+                      position: "absolute",
+                      width: cardSize.width,
+                      height: cardSize.height,
+                      top: Math.floor(i / cardsPerRow) * (cardSize.height + gap),
+                      left: (i % cardsPerRow) * (cardSize.width + gap),
+                    }}
+                  >
+                    <ChannelCard field={field} index={i} />
+                  </div>
+                );
+              })}
+          </Box>
+        );
+      }}
+    </MeasureBox>
   );
 }
