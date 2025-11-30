@@ -40,6 +40,18 @@ const TONE_IDCS = 3;
 const POWER_LEVELS = [1, 5, 10];
 const POWER_LEVEL_NAMES = [t("power_low"), t("power_mid"), t("power_high")];
 
+const KEY_FUNCTIONS = [
+  t("off"),
+  t("fn_flashlight"),
+  t("fn_power_select"),
+  t("fn_monitor"),
+  t("fn_scan"),
+  t("fn_vox"),
+  t("fn_alarm"),
+  t("fn_fm"),
+  t("fn_1750"),
+];
+
 export class TK11Radio extends QuanshengBaseRadio {
   static Info: RadioInfo = {
     vendor: "Quansheng",
@@ -52,7 +64,12 @@ export class TK11Radio extends QuanshengBaseRadio {
   protected readonly _READ_CMD: Buffer = Buffer.from([0xfb, 0x01]);
   protected readonly _READ_ACK: Buffer = Buffer.from([0xfc, 0x01]);
 
+  protected readonly _WRITE_CMD: Buffer = Buffer.from([0xfd, 0x01]);
+  protected readonly _WRITE_ACK: Buffer = Buffer.from([0xfe, 0x01]);
+
   protected readonly _SESSION_ID: Buffer = Buffer.from([0x40, 0x67, 0x5a, 0x5a]);
+
+  protected readonly _ADDRESS_OFFSET = 0x080000;
 
   protected _img?: Buffer;
   protected _mem?: ReturnType<typeof this._parse>;
@@ -396,6 +413,9 @@ export class TK11Radio extends QuanshengBaseRadio {
 
         common_ui.beep(mem.general.beep),
         common_ui.voice_prompt(mem.general.key_tone_flag),
+        common_ui.channel_display_mode(mem.general.channel_display_mode, {
+          options: [t("frequency"), "ID", t("name")],
+        }),
         common_ui.hello_mode(mem.general.power_on_screen_mode, {
           options: ["Fullscreen", t("hello_text"), t("hello_voltage"), t("hello_picture"), t("hello_blank")],
         }),
@@ -404,6 +424,10 @@ export class TK11Radio extends QuanshengBaseRadio {
         common_ui.hello_msg_str_x(mem.general.logo_string2, { line: 1, pad: "\x00" }),
 
         common_ui.keypad_lock_auto(mem.general.auto_lock),
+        common_ui.key_side_short_x_fn(mem.general.key_short1, { key: "1", functions: KEY_FUNCTIONS }),
+        common_ui.key_side_long_x_fn(mem.general.key_long1, { key: "1", functions: KEY_FUNCTIONS }),
+        common_ui.key_side_short_x_fn(mem.general.key_short2, { key: "2", functions: KEY_FUNCTIONS }),
+        common_ui.key_side_long_x_fn(mem.general.key_long2, { key: "2", functions: KEY_FUNCTIONS }),
 
         common_ui.pow_battery_save_ratio(mem.general.power_save),
         common_ui.backlight_timeout(mem.general.backlight, {
@@ -428,7 +452,13 @@ export class TK11Radio extends QuanshengBaseRadio {
 
         common_ui.scan_mode(mem.general.scan_mode, { options: [t("scan_time"), t("scan_carrier"), t("scan_search")] }),
 
+        common_ui.roger_beep_select(mem.general.roger_tone, {
+          options: [t("off"), t("roger_beep"), t("roger_beep_mdc"), "User 1", "User 2", "User 3", "User 4", "User 5"],
+        }),
         common_ui.alarm_mode(mem.general.alarm_mode, { options: [t("alarm_site"), t("alarm_tone")] }),
+        common_ui.rtone(mem.general.repeater_tail, {
+          frequencies: [0, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000],
+        }),
         common_ui.cw_pitch_freq(mem.general.cw_pitch_freq, { min: 400, max: 1500, step: 10 }),
         common_ui.denoise_level(
           {
@@ -440,6 +470,9 @@ export class TK11Radio extends QuanshengBaseRadio {
           },
           { min: 0, max: 6 }
         ),
+        common_ui.mic_gain(mem.general.mic, { min: 0, max: 4 }),
+        common_ui.channel_x_volume_options(mem.general.chn_A_volume, { x: "A", percents: [0, 33, 66, 100] }),
+        common_ui.channel_x_volume_options(mem.general.chn_B_volume, { x: "B", percents: [0, 33, 66, 100] }),
 
         common_ui.dual_watch(mem.general.dual_watch),
       ],
@@ -450,7 +483,7 @@ export class TK11Radio extends QuanshengBaseRadio {
     const cmd = Buffer.alloc(2 + 2 + 2 + 2 + 2 + 2 + 4);
     this._READ_CMD.copy(cmd, 0);
     cmd.writeUInt16LE(12, 2);
-    cmd.writeUInt32LE(0x080000 + addr, 4);
+    cmd.writeUInt32LE(this._ADDRESS_OFFSET + addr, 4);
     cmd.writeUInt16LE(size, 8);
     cmd.writeUInt16LE(0, 10);
     this._SESSION_ID.copy(cmd, 12);
@@ -466,6 +499,26 @@ export class TK11Radio extends QuanshengBaseRadio {
     const data = res.slice(12, 12 + size);
 
     return data;
+  }
+
+  protected async _write_block(addr: number, data: Buffer) {
+    const cmd = Buffer.alloc(2 + 2 + 4 + 2 + 1 + 1 + 4 + data.length);
+    this._WRITE_CMD.copy(cmd, 0);
+    cmd.writeUInt16LE(12, 2);
+    cmd.writeUInt32LE(this._ADDRESS_OFFSET + addr, 4);
+    cmd.writeUInt16LE(data.length, 8);
+    cmd.writeUInt8(0, 10);
+    cmd.writeUInt8(0, 11);
+    this._SESSION_ID.copy(cmd, 12);
+    data.copy(cmd, 16);
+
+    await this._send_buf(cmd);
+    const res = await this._recv_buf();
+
+    const ack = res.slice(0, this._WRITE_ACK.length);
+    if (!this._WRITE_ACK.equals(ack)) throw new Error("Unexpected ACK");
+
+    if (res.readUInt32LE(4) !== this._ADDRESS_OFFSET + addr) throw new Error("Unexpected addr confirmation");
   }
 
   override async load(snapshot: Buffer) {
@@ -502,6 +555,35 @@ export class TK11Radio extends QuanshengBaseRadio {
     }
 
     const img = Buffer.concat(chunks);
+
+    this.dispatch_progress(0.9);
+
+    await this.load(img);
+
+    this.dispatch_progress(1);
+  }
+
+  override async write() {
+    const img = this._img;
+    if (!img) throw new Error("No image");
+
+    this.dispatch_progress(0);
+
+    await this._serial_clear({ timeout: 1_000 });
+
+    const info = await this._hello();
+
+    console.log(info);
+
+    this.dispatch_progress(0.1);
+
+    for (let i = 0; i < MEMORY_LIMIT; i += MAX_CHUNK_SIZE) {
+      const block = img.slice(i, i + MAX_CHUNK_SIZE);
+
+      await this._write_block(i, block);
+
+      this.dispatch_progress(0.1 + 0.8 * (i / MEMORY_LIMIT));
+    }
 
     this.dispatch_progress(0.9);
 

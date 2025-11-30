@@ -566,7 +566,7 @@ function ChannelMenuItems(props: { field: UI.Field.Channels; index: number }) {
           value="delete"
           color="fg.error"
           _hover={{ bg: "bg.error", color: "fg.error" }}
-          onClick={() => empty.delete(index)}
+          onClick={() => Actions.delete(index, field)}
         >
           <TbTrash />
           {t("delete_channel")}

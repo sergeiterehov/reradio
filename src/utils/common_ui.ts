@@ -150,6 +150,33 @@ export const common_ui = {
     set: (val) => ref.set(Number(val)),
   }),
 
+  channel_x_volume_options: (
+    ref: _GetSetNumber,
+    config: { x: "A" | "B" | "C" | "D"; percents: number[] }
+  ): UI.Field.Slider => ({
+    type: "slider",
+    id: `channel_volume_${config.x}`,
+    name: t("channel_volume_x", { replace: { x: config.x } }),
+    description: config.x === "A" ? t("channel_volume_tooltip") : undefined,
+    tab: UITab.Exchange,
+    min: 0,
+    max: config.percents.length - 1,
+    label: (val) => `${config.percents[val]}%`,
+    get: () => ref.get(),
+    set: (val) => ref.set(Number(val)),
+  }),
+
+  channel_display_mode: (ref: _GetSetNumber, config: { options: string[] }): UI.Field.Select => ({
+    type: "select",
+    id: "channel_display_mode",
+    name: t("channel_display_mode"),
+    description: t("channel_display_mode_tooltip"),
+    tab: UITab.Interface,
+    options: config.options,
+    get: () => ref.get(),
+    set: (val) => ref.set(Number(val)),
+  }),
+
   scan: (ref: _GetSetNumber): UI.Field.Switcher => ({
     type: "switcher",
     id: "scan",
@@ -310,7 +337,7 @@ export const common_ui = {
     name: t("rtone"),
     description: t("rtone_tooltip"),
     tab: UITab.System,
-    options: config.frequencies.map((f) => `${f} ${t("hz")}`),
+    options: config.frequencies.map((f) => (f === 0 ? t("off") : `${f} ${t("hz")}`)),
     get: () => ref.get(),
     set: (val) => ref.set(Number(val)),
   }),

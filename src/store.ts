@@ -35,6 +35,7 @@ export type Store = {
 
     moveChannelsRight: (index: number, channels: UI.Field.Channels) => void;
     rippleDelete: (index: number, channels: UI.Field.Channels) => void;
+    delete: (index: number, channels: UI.Field.Channels) => void;
 
     copyToClipboard: (index: number, channels: UI.Field.Channels) => void;
     replaceFromClipboard: (index: number, channels: UI.Field.Channels) => void;
@@ -233,6 +234,17 @@ export const Store = createStore<Store>()(
         }
 
         for (let i = target; i <= to; i += 1) channels.empty.delete(i);
+      },
+
+      delete: (index, channels) => {
+        if (!channels.empty) return;
+
+        const indexes = get().selectedChannels.get(channels.id);
+
+        for (const i of indexes?.size ? [...indexes] : [index]) {
+          if (channels.empty.get(i)) continue;
+          channels.empty.delete(i);
+        }
       },
 
       copyToClipboard: (index, channels) => {
