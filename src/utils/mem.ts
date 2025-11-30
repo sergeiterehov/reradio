@@ -298,7 +298,7 @@ export const to_js = <T>(value: T): ToJS<T> => {
 
     return Object.fromEntries(
       Object.entries(value)
-        .filter(([k]) => k !== "" && k.startsWith("_"))
+        .filter(([k]) => k !== "" && !k.startsWith("_"))
         .map(([k, v]) => [k, to_js(v)])
     ) as ToJS<T>;
   }

@@ -1,6 +1,3 @@
-import bf888_img from "../images/Baofeng_BF-888.img?hex";
-import uv5r_img from "../images/Baofeng_UV-5R.img?hex";
-import uvk5_img from "../images/Quansheng_UV-K5.img?hex";
 import { Buffer } from "buffer";
 import type { Radio } from "./radio";
 import { BF888Radio } from "./bf888";
@@ -8,6 +5,7 @@ import { RB18Radio, RB618Radio, T18Radio } from "./radtel_t18";
 import { UV16Pro8Radio, UV16ProRadio, UV5RRadio, UV82HPRadio, UV82Radio } from "./uv5r";
 import { UVK5ProgRadio, UVK5Radio } from "./uvk5";
 import { BFC50Radio } from "./bfc50";
+import { TK11Radio } from "./tk11";
 
 export class Demo_UVK5Radio extends UVK5Radio {
   static Info = {
@@ -17,7 +15,7 @@ export class Demo_UVK5Radio extends UVK5Radio {
 
   constructor() {
     super();
-    this.load(Buffer.from(uvk5_img, "hex"));
+    import("../images/Quansheng_UV-K5.img?hex").then(({ default: img }) => this.load(Buffer.from(img, "hex")));
   }
 }
 
@@ -29,7 +27,7 @@ export class Demo_UV5RRadio extends UV5RRadio {
 
   constructor() {
     super();
-    this.load(Buffer.from(uv5r_img, "hex"));
+    import("../images/Baofeng_UV-5R.img?hex").then(({ default: img }) => this.load(Buffer.from(img, "hex")));
   }
 }
 
@@ -41,7 +39,19 @@ export class Demo_BF888Radio extends BF888Radio {
 
   constructor() {
     super();
-    this.load(Buffer.from(bf888_img, "hex"));
+    import("../images/Baofeng_BF-888.img?hex").then(({ default: img }) => this.load(Buffer.from(img, "hex")));
+  }
+}
+
+export class Demo_TK11Radio extends TK11Radio {
+  static Info = {
+    ...TK11Radio.Info,
+    vendor: `Demo - ${TK11Radio.Info.vendor}`,
+  };
+
+  constructor() {
+    super();
+    import("../images/Quansheng_TK11.img?hex").then(({ default: img }) => this.load(Buffer.from(img, "hex")));
   }
 }
 
@@ -55,10 +65,12 @@ export const Library: (typeof Radio)[] = [
   UV16Pro8Radio,
   UVK5Radio,
   UVK5ProgRadio,
+  TK11Radio,
   T18Radio,
   RB18Radio,
   RB618Radio,
   Demo_BF888Radio,
   Demo_UV5RRadio,
   Demo_UVK5Radio,
+  Demo_TK11Radio,
 ];

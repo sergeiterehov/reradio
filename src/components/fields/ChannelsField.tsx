@@ -17,6 +17,7 @@ import {
   Popover,
   Switch,
   Menu,
+  type ButtonProps,
 } from "@chakra-ui/react";
 import { RadioWatch } from "../RadioWatch";
 import { useRadioOn } from "../useRadioOn";
@@ -30,6 +31,7 @@ import {
   TbHelp,
   TbLayoutSidebarRightExpand,
   TbMenu2,
+  TbTextSpellcheck,
   TbTransitionBottom,
   TbTrash,
 } from "react-icons/tb";
@@ -40,6 +42,10 @@ import { useTranslation } from "react-i18next";
 import { t } from "i18next";
 import { Actions, Store } from "@/store";
 import { useStore } from "zustand";
+import { MeasureBox } from "../ui/MeasureBox";
+import { useWindowScroll } from "react-use";
+
+const cardSize = { width: 200, height: 80 };
 
 function SquelchForm(props: {
   config: NonNullable<UI.Field.Channels["squelch_rx"]>;
@@ -93,7 +99,9 @@ function SquelchForm(props: {
                 }}
               >
                 {config.tones.map((freq, i_freq) => (
-                  <option key={i_freq}>{freq}</option>
+                  <option key={i_freq} value={freq}>
+                    {freq}
+                  </option>
                 ))}
               </NativeSelect.Field>
               <NativeSelect.Indicator />
@@ -143,7 +151,9 @@ function SquelchForm(props: {
                 }}
               >
                 {config.codes.map((code, i_code) => (
-                  <option key={i_code}>{code}</option>
+                  <option key={i_code} value={code}>
+                    {code}
+                  </option>
                 ))}
               </NativeSelect.Field>
               <NativeSelect.Indicator />
@@ -340,6 +350,7 @@ function ChannelForm(props: { field: UI.Field.Channels; index: number }) {
                   </Tooltip>
                 </Field.Label>
                 <SegmentGroup.Root
+                  size={mode.options.length > 4 ? "xs" : undefined}
                   value={mode.options[value]}
                   onValueChange={(e) => mode.set(index, mode.options.indexOf(e.value as UI.RadioMode))}
                 >
@@ -485,9 +496,9 @@ function ChannelForm(props: { field: UI.Field.Channels; index: number }) {
   );
 }
 
-function ChannelMenuItems(props: { field: UI.Field.Channels; index: number; onOpen?: () => void }) {
-  const { field, index, onOpen } = props;
-  const { empty } = field;
+function ChannelMenuItems(props: { field: UI.Field.Channels; index: number }) {
+  const { field, index } = props;
+  const { empty, channel } = field;
 
   const selectionMode = useStore(Store, (s) => Boolean(s.selectedChannels.get(field.id)?.size));
 
@@ -495,42 +506,48 @@ function ChannelMenuItems(props: { field: UI.Field.Channels; index: number; onOp
 
   return (
     <>
-      {onOpen && (
-        <Menu.Item value="open" disabled={empty_value} onClick={() => onOpen()}>
+      {!empty_value && (
+        <Menu.Item value="open" disabled={empty_value} onClick={() => Actions.openChannel(field, index)}>
           <TbLayoutSidebarRightExpand />
           {t("open")}
         </Menu.Item>
       )}
       {selectionMode ? (
-        <Menu.Item value="deselect_all" disabled={empty_value} onClick={() => Actions.clearChannelSelection(field)}>
+        <Menu.Item value="deselect_all" onClick={() => Actions.clearChannelSelection(field)}>
           <TbCancel />
           {t("clear_selection")}
         </Menu.Item>
       ) : (
-        <Menu.Item
-          value="select"
-          disabled={empty_value}
-          onClick={() => Actions.setChannelSelection(index, true, field)}
-        >
+        <Menu.Item value="select" onClick={() => Actions.setChannelSelection(index, true, field)}>
           <TbCopyPlus />
           {t("multiselect")}
         </Menu.Item>
       )}
       {selectionMode && (
-        <Menu.Item
-          value="select_to_here"
-          disabled={empty_value}
-          onClick={() => Actions.toggleChannelSelectionTo(index, field)}
-        >
+        <Menu.Item value="select_to_here" onClick={() => Actions.toggleChannelSelectionTo(index, field)}>
           <TbArrowNarrowRightDashed />
           {t("select_to_here")}
+        </Menu.Item>
+      )}
+      {!empty_value && channel.set && (
+        <Menu.Item
+          value="rename"
+          onClick={() => {
+            const newName = prompt("New name", channel.get(index));
+            if (newName === null) return;
+
+            channel.set?.(index, newName);
+          }}
+        >
+          <TbTextSpellcheck />
+          {t("rename")}
         </Menu.Item>
       )}
       <Menu.Item value="move_right" onClick={() => Actions.moveChannelsRight(index, field)}>
         <TbArrowBigRightLines />
         {t("move_channels_right")}
       </Menu.Item>
-      <Menu.Item value="copy" disabled={empty_value} onClick={() => Actions.copyToClipboard(index, field)}>
+      <Menu.Item value="copy" onClick={() => Actions.copyToClipboard(index, field)}>
         <TbCopy />
         {t("copy_clipboard")}
       </Menu.Item>
@@ -549,7 +566,7 @@ function ChannelMenuItems(props: { field: UI.Field.Channels; index: number; onOp
           value="delete"
           color="fg.error"
           _hover={{ bg: "bg.error", color: "fg.error" }}
-          onClick={() => empty.delete(index)}
+          onClick={() => Actions.delete(index, field)}
         >
           <TbTrash />
           {t("delete_channel")}
@@ -559,46 +576,127 @@ function ChannelMenuItems(props: { field: UI.Field.Channels; index: number; onOp
   );
 }
 
-function ChannelCard(props: { field: UI.Field.Channels; index: number }) {
+function Channel(props: { field: UI.Field.Channels; index: number }) {
   const { field, index } = props;
-  const { empty, freq, offset, mode, channel, squelch_rx } = field;
+  const { freq, offset, mode, channel, squelch_rx } = field;
 
-  const selectionMode = useStore(Store, (s) => Boolean(s.selectedChannels.get(field.id)?.size));
-  const selected = useStore(Store, (s) => s.selectedChannels.get(field.id)?.has(index));
-
-  const empty_value = useRadioOn(() => empty?.get(index));
   const channel_value = useRadioOn(() => channel.get(index));
   const freq_value = useRadioOn(() => freq?.get(index));
   const offset_value = useRadioOn(() => offset?.get(index));
   const mode_value = useRadioOn(() => (mode ? mode.options[mode.get(index)] : undefined));
   const squelch_rx_value = useRadioOn(() => squelch_rx?.get(index));
 
+  return (
+    <Stack overflow="hidden" flexGrow="1">
+      <HStack>
+        <Box fontWeight="bolder" fontSize="lg">
+          {freq_value ? freq_value / 1_000_000 : "-"}
+        </Box>
+        {mode_value ? <Box>{mode_value}</Box> : null}
+        {offset_value ? <Box>{`${offset_value > 0 ? "+" : ""}${offset_value / 1_000_000}`}</Box> : null}
+        <Box fontSize="2xs" textOverflow="ellipsis" overflow="hidden" flexGrow="1" textAlign="end">
+          {channel_value}
+        </Box>
+      </HStack>
+      <Box>
+        {(() => {
+          if (!squelch_rx_value || squelch_rx_value.mode === "Off") return t("no_squelch");
+
+          if (squelch_rx_value.mode === "CTCSS") return `CTCSS ${squelch_rx_value.freq}`;
+          if (squelch_rx_value.mode === "DCS")
+            return `DCS D${squelch_rx_value.code.toString().padStart(3, "0")}${squelch_rx_value.polarity}`;
+
+          return "?";
+        })()}
+      </Box>
+    </Stack>
+  );
+}
+
+function ChannelButton(props: {
+  field: UI.Field.Channels;
+  index: number;
+  buttonProps?: ButtonProps;
+  onChannelOpen?(): void;
+}) {
+  const { field, index, buttonProps } = props;
+  const { empty } = field;
+
+  const selectionMode = useStore(Store, (s) => Boolean(s.selectedChannels.get(field.id)?.size));
+  const selected = useStore(Store, (s) => s.selectedChannels.get(field.id)?.has(index));
+
+  const empty_value = useRadioOn(() => empty?.get(index));
+
+  return (
+    <Menu.Root unmountOnExit lazyMount>
+      <Menu.Context>
+        {(menuCtx) => (
+          <Button
+            {...menuCtx.getContextTriggerProps()}
+            variant={selected ? "solid" : empty_value ? "subtle" : "outline"}
+            color={empty_value ? "fg.subtle" : undefined}
+            p="3"
+            fontFamily="monospace"
+            width={`${cardSize.width}px`}
+            height={`${cardSize.height}px`}
+            textAlign="start"
+            onClick={(e) => {
+              if (selectionMode) {
+                if (e.shiftKey) {
+                  Actions.toggleChannelSelectionTo(index, field);
+                } else {
+                  Actions.toggleChannelSelection(index, field);
+                }
+              } else if (e.shiftKey) {
+                Actions.setChannelSelection(index, true, field);
+              } else if (!empty_value) {
+                Actions.openChannel(field, index);
+              } else {
+                return;
+              }
+
+              e.preventDefault();
+              e.stopPropagation();
+            }}
+            {...buttonProps}
+          >
+            {empty_value ? `${index + 1}` : <Channel {...props} />}
+          </Button>
+        )}
+      </Menu.Context>
+      <Menu.Positioner>
+        <Menu.Content>
+          <ChannelMenuItems index={index} field={field} />
+        </Menu.Content>
+      </Menu.Positioner>
+    </Menu.Root>
+  );
+}
+
+function ChannelCard(props: { field: UI.Field.Channels; index: number }) {
+  const { field, index } = props;
+  const { empty, channel } = field;
+
+  const open = useStore(Store, (s) => s.openedChannel?.field_id === field.id && s.openedChannel.index === index);
+
+  const empty_value = useRadioOn(() => empty?.get(index));
+  const channel_value = useRadioOn(() => channel.get(index));
+
   if (empty_value) {
     return (
       <Popover.Root lazyMount unmountOnExit>
-        <Menu.Root unmountOnExit lazyMount>
-          <Menu.ContextTrigger>
-            <Popover.Trigger>
-              <Button
-                variant="subtle"
-                color="fg.subtle"
-                p="3"
-                fontFamily="monospace"
-                width="200px"
-                height="80px"
-                textOverflow="ellipsis"
-                overflow="hidden"
-              >
-                {channel_value}
-              </Button>
-            </Popover.Trigger>
-          </Menu.ContextTrigger>
-          <Menu.Positioner>
-            <Menu.Content>
-              <ChannelMenuItems index={index} field={field} />
-            </Menu.Content>
-          </Menu.Positioner>
-        </Menu.Root>
+        <Popover.Context>
+          {(popoverCtx) => (
+            <Box {...(popoverCtx.getTriggerProps() as object)}>
+              <ChannelButton
+                {...props}
+                buttonProps={{
+                  "aria-expanded": popoverCtx.open,
+                }}
+              />
+            </Box>
+          )}
+        </Popover.Context>
         <Portal>
           <Popover.Positioner>
             <Popover.Content>
@@ -616,70 +714,24 @@ function ChannelCard(props: { field: UI.Field.Channels; index: number }) {
   }
 
   return (
-    <Drawer.Root lazyMount unmountOnExit>
-      <Menu.Root unmountOnExit lazyMount>
-        <Menu.ContextTrigger>
-          <Drawer.Context>
-            {(drawerCtx) => (
-              <Button
-                variant={selected ? "solid" : "outline"}
-                p="3"
-                aria-expanded={drawerCtx.open}
-                fontFamily="monospace"
-                width="200px"
-                height="80px"
-                textAlign="start"
-                onClick={(e) => {
-                  if (selectionMode) {
-                    if (e.shiftKey) {
-                      Actions.toggleChannelSelectionTo(index, field);
-                    } else {
-                      Actions.toggleChannelSelection(index, field);
-                    }
-                  } else {
-                    if (e.shiftKey) {
-                      Actions.setChannelSelection(index, true, field);
-                    } else {
-                      drawerCtx.setOpen(true);
-                    }
-                  }
-                }}
-              >
-                <Stack overflow="hidden" flexGrow="1">
-                  <HStack>
-                    <Box fontWeight="bolder" fontSize="lg">
-                      {freq_value ? freq_value / 1_000_000 : "-"}
-                    </Box>
-                    {mode_value ? <Box>{mode_value}</Box> : null}
-                    {offset_value ? <Box>{`${offset_value > 0 ? "+" : ""}${offset_value / 1_000_000}`}</Box> : null}
-                    <Box fontSize="2xs" textOverflow="ellipsis" overflow="hidden" flexGrow="1" textAlign="end">
-                      {channel_value}
-                    </Box>
-                  </HStack>
-                  <Box>
-                    {(() => {
-                      if (!squelch_rx_value || squelch_rx_value.mode === "Off") return t("no_squelch");
-
-                      if (squelch_rx_value.mode === "CTCSS") return `CTCSS ${squelch_rx_value.freq}`;
-                      if (squelch_rx_value.mode === "DCS")
-                        return `DCS D${squelch_rx_value.code.toString().padStart(3, "0")}${squelch_rx_value.polarity}`;
-
-                      return "?";
-                    })()}
-                  </Box>
-                </Stack>
-              </Button>
-            )}
-          </Drawer.Context>
-        </Menu.ContextTrigger>
-        <Menu.Positioner>
-          <Menu.Content>
-            <Drawer.Context>
-              {(drawerCtx) => <ChannelMenuItems index={index} field={field} onOpen={() => drawerCtx.setOpen(true)} />}
-            </Drawer.Context>
-          </Menu.Content>
-        </Menu.Positioner>
-      </Menu.Root>
+    <Drawer.Root
+      lazyMount
+      unmountOnExit
+      open={open}
+      onOpenChange={(e) => {
+        if (!e.open) Actions.closeChannel();
+      }}
+    >
+      <Drawer.Context>
+        {(drawerCtx) => (
+          <ChannelButton
+            {...props}
+            buttonProps={{
+              "aria-expanded": drawerCtx.open,
+            }}
+          />
+        )}
+      </Drawer.Context>
       <Portal>
         <Drawer.Backdrop />
         <Drawer.Positioner>
@@ -714,13 +766,49 @@ function ChannelCard(props: { field: UI.Field.Channels; index: number }) {
 export function ChannelsField(props: { field: UI.Field.Channels }) {
   const { field } = props;
 
+  useWindowScroll();
+
   return (
-    <HStack wrap="wrap">
-      {Array(field.size)
-        .fill(0)
-        .map((_, i) => (
-          <ChannelCard key={i} field={field} index={i} />
-        ))}
-    </HStack>
+    <MeasureBox display="flex" width="full">
+      {({ width }, container) => {
+        const gap = 8;
+        const overscroll = 100;
+
+        const cardsPerRow = Math.max(1, Math.floor((width + gap) / (cardSize.width + gap)));
+        const height = Math.ceil(field.size / cardsPerRow) * (cardSize.height + gap) - gap;
+
+        const containerRect = container.getBoundingClientRect();
+
+        return (
+          <Box position="relative" height={height}>
+            {Array(field.size)
+              .fill(0)
+              .map((_, i) => {
+                const row = Math.floor(i / cardsPerRow);
+                const top = row * (cardSize.height + gap);
+                const bottom = top + cardSize.height;
+
+                if (bottom < -containerRect.top - overscroll) return null;
+                if (top > -containerRect.top + window.innerHeight + overscroll) return null;
+
+                return (
+                  <div
+                    key={i}
+                    style={{
+                      position: "absolute",
+                      width: cardSize.width,
+                      height: cardSize.height,
+                      top: Math.floor(i / cardsPerRow) * (cardSize.height + gap),
+                      left: (i % cardsPerRow) * (cardSize.width + gap),
+                    }}
+                  >
+                    <ChannelCard field={field} index={i} />
+                  </div>
+                );
+              })}
+          </Box>
+        );
+      }}
+    </MeasureBox>
   );
 }

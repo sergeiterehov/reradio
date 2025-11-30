@@ -17,6 +17,7 @@ export type Store = {
 
   /** <channel_field_id, index[]> */
   selectedChannels: Map<string, Set<number>>;
+  openedChannel?: { field_id: string; index: number };
 
   _actions: {
     download: () => void;
@@ -29,8 +30,12 @@ export type Store = {
     clearChannelSelection: (channels?: UI.Field.Channels) => void;
     toggleChannelSelectionTo: (index: number, channels: UI.Field.Channels) => void;
 
+    openChannel: (field: UI.Field.Channels, index: number) => void;
+    closeChannel: () => void;
+
     moveChannelsRight: (index: number, channels: UI.Field.Channels) => void;
     rippleDelete: (index: number, channels: UI.Field.Channels) => void;
+    delete: (index: number, channels: UI.Field.Channels) => void;
 
     copyToClipboard: (index: number, channels: UI.Field.Channels) => void;
     replaceFromClipboard: (index: number, channels: UI.Field.Channels) => void;
@@ -43,6 +48,17 @@ export const Store = createStore<Store>()(
     let _unsubscribe_progress: () => void;
 
     const _clearTask = () => set({ task: undefined, progress: undefined });
+
+    const _useSelection = (index: number, channels: UI.Field.Channels): { indexes: number[]; multiselect: boolean } => {
+      const indexes = get().selectedChannels.get(channels.id);
+      _actions.clearChannelSelection(channels);
+
+      if (!indexes?.has(index)) {
+        return { indexes: [index], multiselect: false };
+      }
+
+      return { indexes: [...indexes], multiselect: true };
+    };
 
     const _actions: Store["_actions"] = {
       download: async () => {
@@ -170,6 +186,14 @@ export const Store = createStore<Store>()(
         });
       },
 
+      openChannel: (field, index) => {
+        set({ openedChannel: { field_id: field.id, index } });
+      },
+
+      closeChannel: () => {
+        set({ openedChannel: undefined });
+      },
+
       moveChannelsRight: (index, channels) => {
         let from = index;
         let to = channels.size - 1;
@@ -223,14 +247,25 @@ export const Store = createStore<Store>()(
         for (let i = target; i <= to; i += 1) channels.empty.delete(i);
       },
 
+      delete: (index, channels) => {
+        if (!channels.empty) return;
+
+        const { indexes } = _useSelection(index, channels);
+
+        for (const i of indexes) {
+          if (channels.empty.get(i)) continue;
+          channels.empty.delete(i);
+        }
+      },
+
       copyToClipboard: (index, channels) => {
-        const indexes = get().selectedChannels.get(channels.id);
-        clipboardWriteChannels(channels, indexes?.size ? [...indexes] : [index]);
+        const { indexes } = _useSelection(index, channels);
+        clipboardWriteChannels(channels, indexes);
       },
 
       replaceFromClipboard: (index, channels) => {
-        const indexes = get().selectedChannels.get(channels.id);
-        clipboardReplaceChannel(channels, indexes?.size ? [...indexes] : [index]);
+        const { indexes, multiselect } = _useSelection(index, channels);
+        clipboardReplaceChannel(channels, indexes, multiselect);
       },
     };
 

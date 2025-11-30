@@ -1,27 +1,40 @@
 import z from "zod";
 import type { UI } from "./ui";
 
+const zNumber = z.preprocess((val: unknown) => {
+  if (typeof val === "string") {
+    const n = Number(val);
+    if (!isNaN(n)) return n;
+  }
+  return val;
+}, z.number());
+const zBoolean = z.preprocess((val: unknown) => {
+  if (typeof val === "string") {
+    if (val.toLowerCase() === "true") return true;
+    if (val.toLowerCase() === "false") return false;
+  }
+  return val;
+}, z.boolean());
+
 export const zSerializedChannel = z.object({
   channel: z.string().optional(),
-  freq: z.number().optional(),
-  offset: z.number().optional(),
+  freq: zNumber.optional(),
+  offset: zNumber.optional(),
   mode: z.string().optional(),
   squelch_rx_mode: z.string().optional(),
-  squelch_rx_freq: z.number().optional(),
-  squelch_rx_code: z.number().optional(),
+  squelch_rx_freq: zNumber.optional(),
+  squelch_rx_code: zNumber.optional(),
   squelch_rx_polarity: z.enum(["I", "N"]).optional(),
   squelch_tx_mode: z.string().optional(),
-  squelch_tx_freq: z.number().optional(),
-  squelch_tx_code: z.number().optional(),
+  squelch_tx_freq: zNumber.optional(),
+  squelch_tx_code: zNumber.optional(),
   squelch_tx_polarity: z.enum(["I", "N"]).optional(),
-  power: z.number().optional(),
+  power: zNumber.optional(),
   scan: z.string().optional(),
-  bcl: z.boolean().optional(),
+  bcl: zBoolean.optional(),
   ptt_id_on: z.string().optional(),
   ptt_id_id: z.string().optional(),
 });
-
-const zChannelsClipboard = z.object({ channels: z.array(zSerializedChannel) });
 
 export type SerializedChannel = z.infer<typeof zSerializedChannel>;
 
@@ -40,7 +53,7 @@ function serializeChannel(index: number, channels: UI.Field.Channels): Serialize
     if (value.mode === "CTCSS") {
       return {
         mode: value.mode,
-        freq: squelch.tones?.[value.freq] ?? value.freq,
+        freq: value.freq,
       };
     }
 
@@ -48,7 +61,7 @@ function serializeChannel(index: number, channels: UI.Field.Channels): Serialize
       return {
         mode: value.mode,
         polarity: value.polarity,
-        code: squelch.codes?.[value.code] ?? value.code,
+        code: value.code,
       };
     }
 
@@ -143,21 +156,62 @@ function replaceChannel(data: SerializedChannel, index: number, channels: UI.Fie
 
 export async function clipboardWriteChannels(channels: UI.Field.Channels, indexes: number[]) {
   const channel_structs = indexes.map((index) => serializeChannel(index, channels)).filter(Boolean);
-  const struct = { channels: channel_structs };
 
-  await navigator.clipboard.writeText(JSON.stringify(struct));
+  const rows: string[] = [];
+  const header = Object.keys(zSerializedChannel.shape);
+  rows.push(header.join("\t"));
+
+  for (const channel of channel_structs) {
+    if (!channel) continue;
+
+    const row: string[] = [];
+    for (const key of header) {
+      const value = channel[key as keyof SerializedChannel];
+      row.push(value !== undefined ? String(value) : "");
+    }
+    rows.push(row.join("\t"));
+  }
+
+  const tsv = rows.join("\n");
+
+  await navigator.clipboard.writeText(tsv);
 }
 
-export async function clipboardReplaceChannel(channels: UI.Field.Channels, indexes: number[]) {
+export async function clipboardReplaceChannel(channels: UI.Field.Channels, indexes: number[], strictIndexes: boolean) {
+  if (!indexes.length) return;
+
   const text = await navigator.clipboard.readText();
   if (!text) return;
 
-  const rawStruct = await new Promise((r) => r(JSON.parse(text))).catch(() => null);
-  const struct = await zChannelsClipboard.parseAsync(rawStruct).catch(() => undefined);
-  if (!struct) return;
+  const serializedChannels: SerializedChannel[] = [];
 
-  for (let i = 0; i < struct.channels.length && i < indexes.length; i += 1) {
-    const data = struct.channels[i];
-    replaceChannel(data, indexes[i], channels);
+  const rows = text
+    .split("\n")
+    .map((row) => row.trim())
+    .filter((row) => row.length > 0);
+  const header = rows[0].split("\t");
+  for (let i = 1; i < rows.length; i += 1) {
+    const cols = rows[i].split("\t");
+    const channel: Record<string, string> = {};
+
+    for (let j = 0; j < header.length; j += 1) {
+      const key = header[j];
+      const value = cols[j];
+      if (!value) continue;
+
+      channel[key] = value;
+    }
+
+    serializedChannels.push(zSerializedChannel.parse(channel));
+  }
+
+  if (strictIndexes) {
+    for (let i = 0; i < serializedChannels.length && i < indexes.length; i += 1) {
+      replaceChannel(serializedChannels[i], indexes[i], channels);
+    }
+  } else {
+    for (let i = 0; i < serializedChannels.length && i < channels.size; i += 1) {
+      replaceChannel(serializedChannels[i], indexes[0] + i, channels);
+    }
   }
 }
