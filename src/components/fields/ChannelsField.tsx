@@ -766,16 +766,18 @@ function ChannelCard(props: { field: UI.Field.Channels; index: number }) {
 export function ChannelsField(props: { field: UI.Field.Channels }) {
   const { field } = props;
 
-  const scroll = useWindowScroll();
+  useWindowScroll();
 
   return (
     <MeasureBox display="flex" width="full">
-      {({ width }) => {
+      {({ width }, container) => {
         const gap = 8;
         const overscroll = 100;
 
         const cardsPerRow = Math.max(1, Math.floor((width + gap) / (cardSize.width + gap)));
         const height = Math.ceil(field.size / cardsPerRow) * (cardSize.height + gap) - gap;
+
+        const containerRect = container.getBoundingClientRect();
 
         return (
           <Box position="relative" height={height}>
@@ -786,8 +788,8 @@ export function ChannelsField(props: { field: UI.Field.Channels }) {
                 const top = row * (cardSize.height + gap);
                 const bottom = top + cardSize.height;
 
-                if (bottom < scroll.y - overscroll) return null;
-                if (top > scroll.y + window.innerHeight + overscroll) return null;
+                if (bottom < -containerRect.top - overscroll) return null;
+                if (top > -containerRect.top + window.innerHeight + overscroll) return null;
 
                 return (
                   <div
