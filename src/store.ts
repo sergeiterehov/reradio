@@ -49,6 +49,17 @@ export const Store = createStore<Store>()(
 
     const _clearTask = () => set({ task: undefined, progress: undefined });
 
+    const _useSelection = (index: number, channels: UI.Field.Channels): { indexes: number[]; multiselect: boolean } => {
+      const indexes = get().selectedChannels.get(channels.id);
+      _actions.clearChannelSelection(channels);
+
+      if (!indexes?.has(index)) {
+        return { indexes: [index], multiselect: false };
+      }
+
+      return { indexes: [...indexes], multiselect: true };
+    };
+
     const _actions: Store["_actions"] = {
       download: async () => {
         const { radio, task } = get();
@@ -239,22 +250,22 @@ export const Store = createStore<Store>()(
       delete: (index, channels) => {
         if (!channels.empty) return;
 
-        const indexes = get().selectedChannels.get(channels.id);
+        const { indexes } = _useSelection(index, channels);
 
-        for (const i of indexes?.size ? [...indexes] : [index]) {
+        for (const i of indexes) {
           if (channels.empty.get(i)) continue;
           channels.empty.delete(i);
         }
       },
 
       copyToClipboard: (index, channels) => {
-        const indexes = get().selectedChannels.get(channels.id);
-        clipboardWriteChannels(channels, indexes?.size ? [...indexes] : [index]);
+        const { indexes } = _useSelection(index, channels);
+        clipboardWriteChannels(channels, indexes);
       },
 
       replaceFromClipboard: (index, channels) => {
-        const indexes = get().selectedChannels.get(channels.id);
-        clipboardReplaceChannel(channels, indexes?.size ? [...indexes] : [index], Boolean(indexes?.size));
+        const { indexes, multiselect } = _useSelection(index, channels);
+        clipboardReplaceChannel(channels, indexes, multiselect);
       },
     };
 
