@@ -205,8 +205,6 @@ export async function clipboardReplaceChannel(channels: UI.Field.Channels, index
     serializedChannels.push(zSerializedChannel.parse(channel));
   }
 
-  console.log(serializedChannels);
-
   if (strictIndexes) {
     for (let i = 0; i < serializedChannels.length && i < indexes.length; i += 1) {
       replaceChannel(serializedChannels[i], indexes[i], channels);
