@@ -254,7 +254,7 @@ export const Store = createStore<Store>()(
 
       replaceFromClipboard: (index, channels) => {
         const indexes = get().selectedChannels.get(channels.id);
-        clipboardReplaceChannel(channels, indexes?.size ? [...indexes] : [index]);
+        clipboardReplaceChannel(channels, indexes?.size ? [...indexes] : [index], Boolean(indexes?.size));
       },
     };
 

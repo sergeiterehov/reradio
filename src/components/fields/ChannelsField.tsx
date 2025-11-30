@@ -505,26 +505,18 @@ function ChannelMenuItems(props: { field: UI.Field.Channels; index: number }) {
         </Menu.Item>
       )}
       {selectionMode ? (
-        <Menu.Item value="deselect_all" disabled={empty_value} onClick={() => Actions.clearChannelSelection(field)}>
+        <Menu.Item value="deselect_all" onClick={() => Actions.clearChannelSelection(field)}>
           <TbCancel />
           {t("clear_selection")}
         </Menu.Item>
       ) : (
-        <Menu.Item
-          value="select"
-          disabled={empty_value}
-          onClick={() => Actions.setChannelSelection(index, true, field)}
-        >
+        <Menu.Item value="select" onClick={() => Actions.setChannelSelection(index, true, field)}>
           <TbCopyPlus />
           {t("multiselect")}
         </Menu.Item>
       )}
       {selectionMode && (
-        <Menu.Item
-          value="select_to_here"
-          disabled={empty_value}
-          onClick={() => Actions.toggleChannelSelectionTo(index, field)}
-        >
+        <Menu.Item value="select_to_here" onClick={() => Actions.toggleChannelSelectionTo(index, field)}>
           <TbArrowNarrowRightDashed />
           {t("select_to_here")}
         </Menu.Item>
@@ -547,7 +539,7 @@ function ChannelMenuItems(props: { field: UI.Field.Channels; index: number }) {
         <TbArrowBigRightLines />
         {t("move_channels_right")}
       </Menu.Item>
-      <Menu.Item value="copy" disabled={empty_value} onClick={() => Actions.copyToClipboard(index, field)}>
+      <Menu.Item value="copy" onClick={() => Actions.copyToClipboard(index, field)}>
         <TbCopy />
         {t("copy_clipboard")}
       </Menu.Item>
