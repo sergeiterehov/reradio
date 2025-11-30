@@ -43,6 +43,8 @@ import { t } from "i18next";
 import { Actions, Store } from "@/store";
 import { useStore } from "zustand";
 
+const cardSize = { width: 200, height: 80 };
+
 function SquelchForm(props: {
   config: NonNullable<UI.Field.Channels["squelch_rx"]>;
   squelch: UI.Squelch;
@@ -95,7 +97,9 @@ function SquelchForm(props: {
                 }}
               >
                 {config.tones.map((freq, i_freq) => (
-                  <option key={i_freq}>{freq}</option>
+                  <option key={i_freq} value={freq}>
+                    {freq}
+                  </option>
                 ))}
               </NativeSelect.Field>
               <NativeSelect.Indicator />
@@ -145,7 +149,9 @@ function SquelchForm(props: {
                 }}
               >
                 {config.codes.map((code, i_code) => (
-                  <option key={i_code}>{code}</option>
+                  <option key={i_code} value={code}>
+                    {code}
+                  </option>
                 ))}
               </NativeSelect.Field>
               <NativeSelect.Indicator />
@@ -629,8 +635,8 @@ function ChannelButton(props: {
             color={empty_value ? "fg.subtle" : undefined}
             p="3"
             fontFamily="monospace"
-            width="200px"
-            height="80px"
+            width={`${cardSize.width}px`}
+            height={`${cardSize.height}px`}
             textAlign="start"
             onClick={(e) => {
               if (selectionMode) {

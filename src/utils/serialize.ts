@@ -53,7 +53,7 @@ function serializeChannel(index: number, channels: UI.Field.Channels): Serialize
     if (value.mode === "CTCSS") {
       return {
         mode: value.mode,
-        freq: squelch.tones?.[value.freq] ?? value.freq,
+        freq: value.freq,
       };
     }
 
@@ -61,7 +61,7 @@ function serializeChannel(index: number, channels: UI.Field.Channels): Serialize
       return {
         mode: value.mode,
         polarity: value.polarity,
-        code: squelch.codes?.[value.code] ?? value.code,
+        code: value.code,
       };
     }
 
