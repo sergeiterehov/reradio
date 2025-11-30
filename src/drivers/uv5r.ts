@@ -422,7 +422,7 @@ export class UV5RRadio extends Radio {
 
         await this._write_block(i, img.slice(i, i + this.WRITE_BLOCK_SIZE));
 
-        this.dispatch_progress(0.1 + 0.8 * (i / this.MEM_SIZE));
+        this.dispatch_progress(0.1 + 0.9 * (i / this.MEM_SIZE));
       }
     }
 

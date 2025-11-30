@@ -528,12 +528,8 @@ export class UVK5Radio extends QuanshengBaseRadio {
 
       await this._write_block(addr, block);
 
-      this.dispatch_progress(0.1 + 0.8 * (addr / CONFIG_PROG_SIZE));
+      this.dispatch_progress(0.1 + 0.9 * (addr / CONFIG_PROG_SIZE));
     }
-
-    this.dispatch_progress(0.9);
-
-    await this.load(img);
 
     this.dispatch_progress(1);
   }

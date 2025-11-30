@@ -58,6 +58,8 @@ export class TK11Radio extends QuanshengBaseRadio {
     model: "TK11",
   };
 
+  protected readonly _REBOOT_CMD: Buffer = Buffer.from([0xdd, 0x05]);
+
   protected readonly _HELLO_CMD: Buffer = Buffer.from([0xf4, 0x01]);
   protected readonly _HELLO_CONFIG_ACK: Buffer = Buffer.from([0xf5, 0x01]);
 
@@ -582,12 +584,10 @@ export class TK11Radio extends QuanshengBaseRadio {
 
       await this._write_block(i, block);
 
-      this.dispatch_progress(0.1 + 0.8 * (i / MEMORY_LIMIT));
+      this.dispatch_progress(0.1 + 0.85 * (i / MEMORY_LIMIT));
     }
 
-    this.dispatch_progress(0.9);
-
-    await this.load(img);
+    await this._reboot();
 
     this.dispatch_progress(1);
   }
