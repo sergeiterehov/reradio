@@ -145,7 +145,7 @@ export const common_ui = {
     tab: UITab.Exchange,
     min: config.min,
     max: config.max,
-    label: (val) => (val === 0 ? t("off") : String(val + 1)),
+    label: (val) => (val === 0 ? t("off") : String(val)),
     get: () => ref.get(),
     set: (val) => ref.set(Number(val)),
   }),
