@@ -256,6 +256,37 @@ export class TK11Radio extends QuanshengBaseRadio {
         }))
       ),
 
+      ...m.seek(0x19000).skip(0, {}),
+
+      hidden_params: m.struct(() => ({
+        _unknown5: m.u8(),
+        air_cps_retry: m.u8(),
+        kill_flag: m.u8(),
+        encrypt_flag: m.u8(),
+        noaa_tx_flag: m.u8(),
+        _unknown6: m.u8_array(3),
+        lock_freq_flag: m.u8(),
+        _unknown1: m.u8_array(7),
+        band_enable: array_of(13, () => m.u8()),
+        _unknown2: m.u8_array(3),
+        band_tx_enable: array_of(13, () => m.u8()),
+        _unknown3: m.u8_array(3),
+        band_rx_start: array_of(13, () => m.u32()),
+        _unknown4: m.u8_array(4),
+        band_rx_end: array_of(13, () => m.u32()),
+        _unknown8: m.u8_array(4),
+        band_tx_start: array_of(13, () => m.u32()),
+        _unknown9: m.u8_array(4),
+        band_tx_end: array_of(13, () => m.u32()),
+        _unknown7: m.u8_array(4),
+        MwSwAgc_period: m.s16(),
+        MwSwAgc_step: m.s16(),
+        MwSwAgc_LowerLimit: m.s16(),
+        MwSwAgc_UpperLimit: m.s16(),
+        MwSwAgc_gain: m.s16(),
+        _unknown10: m.u8_array(6),
+      })),
+
       ...m.seek(0x1a000).skip(0, {}),
 
       dtmf_contacts: array_of(16, () =>
@@ -488,6 +519,8 @@ export class TK11Radio extends QuanshengBaseRadio {
         common_ui.channel_x_volume_options(mem.general.chn_B_volume, { x: "B", percents: [0, 33, 66, 100] }),
 
         common_ui.dual_watch(mem.general.dual_watch),
+
+        common_ui.unlock_scramble(mem.hidden_params.encrypt_flag),
       ],
     };
   }
@@ -544,6 +577,7 @@ export class TK11Radio extends QuanshengBaseRadio {
       [mem.general2.__raw.addr, mem.general2.__raw.size, 1],
       [mem.channels_idx.__raw.addr, mem.channels_idx.__raw.size, 1],
       [mem.scan_list[0].__raw.addr, mem.scan_list[0].__raw.size, mem.scan_list.length],
+      [mem.hidden_params.__raw.addr, mem.hidden_params.__raw.size, 1],
       [mem.dtmf_contacts[0].__raw.addr, mem.dtmf_contacts[0].__raw.size, mem.dtmf_contacts.length],
       [mem.tone5_contacts[0].__raw.addr, mem.tone5_contacts[0].__raw.size, mem.tone5_contacts.length],
       [
