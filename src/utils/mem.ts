@@ -4,6 +4,7 @@ export namespace M {
   export type U8Ptr = { _m_type: "u8ptr"; addr: number; get(i: number): number; set(i: number, val: number): void };
   export type U8 = { _m_type: "u8"; addr: number; get(): number; set(val: number): void };
   export type U16 = { _m_type: "u16"; addr: number; get(): number; set(val: number): void };
+  export type S16 = { _m_type: "s16"; addr: number; get(): number; set(val: number): void };
   export type U32 = { _m_type: "u32"; addr: number; get(): number; set(val: number): void };
   export type U8array = {
     _m_type: "u8array";
@@ -30,6 +31,7 @@ export type MemMapper = {
   u8_ptr: () => M.U8Ptr;
   u8: () => M.U8;
   u16: () => M.U16;
+  s16: () => M.S16;
   u32: () => M.U32;
   u8_array: (size: number) => M.U8array;
   bitmap: <T extends string>(names: { [K in T]: number }) => { [K in Exclude<T, "" | `_${string}`>]: M.Bits };
@@ -94,6 +96,23 @@ export const create_mem_mapper = (data: Buffer, onchange?: () => void): MemMappe
         },
         set: (val) => {
           data.writeUInt16LE(val, _cur);
+          onchange?.();
+        },
+      };
+    },
+
+    s16: (): M.S16 => {
+      const _cur = cur;
+      cur += 2;
+      return {
+        _m_type: "s16",
+        addr: _cur,
+        get: () => {
+          console.log("Reading S16 at", _cur, "value:", data.slice(_cur, _cur + 2));
+          return data.readInt16LE(_cur);
+        },
+        set: (val) => {
+          data.writeInt16LE(val, _cur);
           onchange?.();
         },
       };
