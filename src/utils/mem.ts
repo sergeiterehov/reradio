@@ -267,7 +267,7 @@ export const create_mem_mapper = (data: Buffer, onchange?: () => void): MemMappe
 type ToJS<T = unknown> = T extends null | undefined
   ? T
   : T extends Array<infer E>
-  ? ToJS<E>
+  ? ToJS<E>[]
   : T extends { size: number; get(i: number): infer V }
   ? V[]
   : T extends { get(): infer V }
