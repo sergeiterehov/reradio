@@ -7,6 +7,8 @@ import { common_ui } from "@/utils/common_ui";
 import { t } from "i18next";
 import { CTCSS_TONES, DCS_CODES, trim_string } from "@/utils/radio";
 
+const PESSIMISTIC_SYNC = false;
+
 const MAX_CHUNK_SIZE = 0x200;
 const MEMORY_LIMIT = 0x23000;
 
@@ -114,23 +116,25 @@ export class TK11Radio extends QuanshengBaseRadio {
 
       ...m.seek(0x11000).skip(0, {}),
 
-      channels_usage: array_of(1011, () => ({
-        flag: m.u8(),
-      })),
+      channels_usage: array_of(1011, () =>
+        m.struct(() => ({
+          flag: m.u8(),
+        }))
+      ),
 
       ...m.seek(0x12000).skip(0, {}),
 
-      fm: {
+      fm: m.struct(() => ({
         vfo_frequency: m.u16(),
         channel_id: m.u8(),
         memory_vfo_flag: m.u8(),
         unknown: m.u8_array(4),
         frequencies: array_of(32, () => m.u16()),
-      },
+      })),
 
       ...m.seek(0x13000).skip(0, {}),
 
-      general: {
+      general: m.struct(() => ({
         channel_ab: m.u8(),
         noaa_sq: m.u8(),
         tx_tot: m.u8(),
@@ -212,11 +216,11 @@ export class TK11Radio extends QuanshengBaseRadio {
         tone5_revs5: m.u8_array(2),
         logo_string1: m.str(16),
         logo_string2: m.str(16),
-      },
+      })),
 
       ...m.seek(0x14000).skip(0, {}),
 
-      general2: {
+      general2: m.struct(() => ({
         unknown_5: m.u8_array(48),
         dtmf_kill: m.u8_array(8),
         dtmf_wakeup: m.u8_array(8),
@@ -224,11 +228,11 @@ export class TK11Radio extends QuanshengBaseRadio {
         tone5_wakeup: m.u8_array(8),
         unknown_6: m.u8_array(16),
         device_name: m.str(16),
-      },
+      })),
 
       ...m.seek(0x15000).skip(0, {}),
 
-      channels_idx: {
+      channels_idx: m.struct(() => ({
         a_id: m.u16(),
         b_id: m.u16(),
         freq_a_id: m.u16(),
@@ -237,7 +241,7 @@ export class TK11Radio extends QuanshengBaseRadio {
         channel_b_id: m.u16(),
         noaa_a_id: m.u16(),
         noaa_b_id: m.u16(),
-      },
+      })),
 
       ...m.seek(0x16000).skip(0, {}),
 
@@ -254,24 +258,30 @@ export class TK11Radio extends QuanshengBaseRadio {
 
       ...m.seek(0x1a000).skip(0, {}),
 
-      dtmf_contacts: array_of(16, () => ({
-        name: m.str(16),
-        code_id: m.u8_array(8),
-      })),
+      dtmf_contacts: array_of(16, () =>
+        m.struct(() => ({
+          name: m.str(16),
+          code_id: m.u8_array(8),
+        }))
+      ),
 
       ...m.seek(0x1a800).skip(0, {}),
 
-      tone5_contacts: array_of(16, () => ({
-        name: m.str(16),
-        code_id: m.u8_array(8),
-      })),
+      tone5_contacts: array_of(16, () =>
+        m.struct(() => ({
+          name: m.str(16),
+          code_id: m.u8_array(8),
+        }))
+      ),
 
       ...m.seek(0x22000).skip(0, {}),
 
-      noaa_decode_addresses: array_of(16, () => ({
-        address: m.u8_array(8),
-        info: m.u8_array(32),
-      })),
+      noaa_decode_addresses: array_of(16, () =>
+        m.struct(() => ({
+          address: m.u8_array(8),
+          info: m.u8_array(32),
+        }))
+      ),
 
       ...m.seek(0x22280).skip(0, {}),
 
@@ -345,6 +355,7 @@ export class TK11Radio extends QuanshengBaseRadio {
             },
           },
           freq: {
+            min: 1_000,
             get: (i) => mem.channels[i].rx_freq.get() * 10,
             set: (i, val) => {
               mem.channels[i].rx_freq.set(val / 10);
@@ -523,6 +534,49 @@ export class TK11Radio extends QuanshengBaseRadio {
     if (res.readUInt32LE(4) !== this._ADDRESS_OFFSET + addr) throw new Error("Unexpected addr confirmation");
   }
 
+  private async _optimistic_sync(
+    mem: NonNullable<typeof this._mem>,
+    sync: (addr: number, size: number, preflight: boolean) => Promise<void>
+  ) {
+    const ranges = [
+      [mem.fm.__raw.addr, mem.fm.__raw.size, 1],
+      [mem.general.__raw.addr, mem.general.__raw.size, 1],
+      [mem.general2.__raw.addr, mem.general2.__raw.size, 1],
+      [mem.channels_idx.__raw.addr, mem.channels_idx.__raw.size, 1],
+      [mem.scan_list[0].__raw.addr, mem.scan_list[0].__raw.size, mem.scan_list.length],
+      [mem.dtmf_contacts[0].__raw.addr, mem.dtmf_contacts[0].__raw.size, mem.dtmf_contacts.length],
+      [mem.tone5_contacts[0].__raw.addr, mem.tone5_contacts[0].__raw.size, mem.tone5_contacts.length],
+      [
+        mem.noaa_decode_addresses[0].__raw.addr,
+        mem.noaa_decode_addresses[0].__raw.size,
+        mem.noaa_decode_addresses.length,
+      ],
+      [mem.noaa_same_events_control.addr, mem.noaa_same_events_control.size, 1],
+    ];
+
+    const USAGE_ADDR_START = mem.channels_usage[0].__raw.addr;
+    const USAGE_ADDR_END = USAGE_ADDR_START + mem.channels_usage[0].__raw.size * mem.channels_usage.length;
+
+    for (let i = USAGE_ADDR_START; i < USAGE_ADDR_END; i += MAX_CHUNK_SIZE) {
+      await sync(i, MAX_CHUNK_SIZE, true);
+    }
+
+    const CHANNEL_SIZE = mem.channels[0].__raw.size;
+    for (let index = 0; index < mem.channels.length; index += 1) {
+      const flag = mem.channels_usage[index].flag.get();
+      if (flag === 0xff) continue;
+
+      const addr = mem.channels[index].__raw.addr;
+      await sync(addr, CHANNEL_SIZE, false);
+    }
+
+    for (const [start, size, count] of ranges) {
+      for (let i = start; i < start + size * count; i += size) {
+        await sync(i, size, false);
+      }
+    }
+  }
+
   override async load(snapshot: Buffer) {
     const mem = this._parse(snapshot);
 
@@ -544,30 +598,40 @@ export class TK11Radio extends QuanshengBaseRadio {
 
     console.log(info);
 
-    this.dispatch_progress(0.1);
+    this.dispatch_progress(0.05);
 
-    const chunks: Buffer[] = [];
+    const img = Buffer.alloc(MEMORY_LIMIT);
+    const mem = this._parse(img);
 
-    for (let i = 0; i < MEMORY_LIMIT; i += MAX_CHUNK_SIZE) {
-      const chunk = await this._read_block(i, MAX_CHUNK_SIZE);
+    if (PESSIMISTIC_SYNC) {
+      for (let i = 0; i < MEMORY_LIMIT; i += MAX_CHUNK_SIZE) {
+        const chunk = await this._read_block(i, MAX_CHUNK_SIZE);
+        chunk.copy(img, i);
 
-      chunks.push(chunk);
+        this.dispatch_progress(0.1 + 0.8 * (i / MEMORY_LIMIT));
+      }
+    } else {
+      await this._optimistic_sync(mem, async (addr, size, preflight) => {
+        const chunk = await this._read_block(addr, size);
+        chunk.copy(img, addr);
 
-      this.dispatch_progress(0.1 + 0.8 * (i / MEMORY_LIMIT));
+        this.dispatch_progress(preflight ? 0.1 : 0.1 + 0.9 * (addr / MEMORY_LIMIT));
+      });
     }
 
-    const img = Buffer.concat(chunks);
-
-    this.dispatch_progress(0.9);
-
-    await this.load(img);
-
     this.dispatch_progress(1);
+
+    this._img = img;
+    this._mem = mem;
+    this.dispatch_ui_change();
   }
 
   override async write() {
     const img = this._img;
     if (!img) throw new Error("No image");
+
+    const mem = this._mem;
+    if (!mem) throw new Error("No memory map");
 
     this.dispatch_progress(0);
 
@@ -577,14 +641,22 @@ export class TK11Radio extends QuanshengBaseRadio {
 
     console.log(info);
 
-    this.dispatch_progress(0.1);
+    this.dispatch_progress(0.05);
 
-    for (let i = 0; i < MEMORY_LIMIT; i += MAX_CHUNK_SIZE) {
-      const block = img.slice(i, i + MAX_CHUNK_SIZE);
+    if (PESSIMISTIC_SYNC) {
+      for (let i = 0; i < MEMORY_LIMIT; i += MAX_CHUNK_SIZE) {
+        const block = img.slice(i, i + MAX_CHUNK_SIZE);
+        await this._write_block(i, block);
 
-      await this._write_block(i, block);
+        this.dispatch_progress(0.1 + 0.85 * (i / MEMORY_LIMIT));
+      }
+    } else {
+      await this._optimistic_sync(mem, async (addr, size, preflight) => {
+        const block = img.slice(addr, addr + size);
+        await this._write_block(addr, block);
 
-      this.dispatch_progress(0.1 + 0.85 * (i / MEMORY_LIMIT));
+        this.dispatch_progress(preflight ? 0.1 : 0.1 + 0.85 * (addr / MEMORY_LIMIT));
+      });
     }
 
     await this._reboot();
