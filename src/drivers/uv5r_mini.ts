@@ -94,6 +94,17 @@ export class UV5RMiniRadio extends Radio {
   protected readonly _encryption_index = 1;
   protected readonly _channels = 999;
   protected readonly _am_band = [108_000_000, 136_000_000];
+  protected readonly _key_indexes = [
+    [0x07, 0],
+    [0x1c, 1],
+    [0x1d, 2],
+    [0x2d, 3],
+    [0x0a, 4],
+    [0x0c, 5],
+    [0x34, 6],
+    [0x08, 4],
+    [0x03, 5],
+  ];
 
   protected _img?: Buffer;
   protected _mem?: ReturnType<typeof this._parse>;
@@ -271,7 +282,7 @@ export class UV5RMiniRadio extends Radio {
     const mem = this._mem;
     if (!mem) return { fields: [] };
 
-    const { channels, pttid } = mem;
+    const { channels, pttid, settings } = mem;
 
     return {
       fields: [
@@ -369,6 +380,45 @@ export class UV5RMiniRadio extends Radio {
             set: (i, val) => channels[i].bcl.set(val ? 1 : 0),
           },
         },
+        common_ui.beep(settings.beep),
+        common_ui.sql(settings.squelch, { min: 0, max: 9 }),
+        common_ui.pow_tot(settings.tot, { from: 0, to: 180, step: 15 }),
+        common_ui.dual_watch(settings.dualstandby),
+        common_ui.voice_prompt(settings.voicesw),
+        common_ui.voice_language(settings.voice, { languages: [t("lang_en"), t("lang_ch")] }),
+        common_ui.hello_mode(settings.powerondistype, { options: [t("hello_picture"), t("hello_voltage")] }),
+        common_ui.backlight_timeout(settings.backlight, {
+          min: 0,
+          max: 4,
+          seconds: [0, 5, 10, 15, 20],
+          names: { 0: t("always_on") },
+        }),
+        common_ui.keypad_lock_auto(settings.autolock),
+        common_ui.roger_beep(settings.roger),
+        common_ui.pow_battery_save(settings.savemode),
+        common_ui.rtone(settings.tone, { frequencies: [1000, 1450, 1750, 2100] }),
+        common_ui.scan_mode(settings.scanmode, { options: [t("scan_time"), t("scan_carrier"), t("scan_search")] }),
+        common_ui.alarm_mode(settings.alarmmode, { options: [t("alarm_site"), t("alarm_tone"), t("alarm_code")] }),
+        common_ui.timeout_alarm(settings.totalarm, { from: 0, to: 10, step: 1 }),
+        common_ui.key_side_fn(
+          {
+            get: () => {
+              const code = settings.key1short.get();
+              for (const [key, index] of this._key_indexes) {
+                if (code === key) return index;
+              }
+              return 0;
+            },
+            set: (val) => {
+              const [key] = this._key_indexes[val] || this._key_indexes[0];
+              settings.key1short.set(key);
+            },
+          },
+          { functions: [t("fn_fm"), t("fn_scan"), t("fn_search"), t("fn_vox"), t("fn_sos")] }
+        ),
+        common_ui.vox(settings.voxsw),
+        common_ui.vox_level(settings.vox, { min: 0, max: 8 }),
+        common_ui.vox_delay(settings.voxdlytime, { from: 0.5, to: 2, step: 0.1 }),
       ],
     };
   }
