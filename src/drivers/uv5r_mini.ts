@@ -2,7 +2,12 @@ import { Buffer } from "buffer";
 import { Radio, type RadioInfo } from "./radio";
 import type { UI } from "@/utils/ui";
 import { serial } from "@/utils/serial";
-import { array_of, create_mem_mapper } from "@/utils/mem";
+import { array_of, create_mem_mapper, type M } from "@/utils/mem";
+import { common_ui } from "@/utils/common_ui";
+import { CTCSS_TONES, DCS_CODES, trim_string } from "@/utils/radio";
+import { t } from "i18next";
+
+const DTMF_CHARS = "0123456789ABCD*#";
 
 // Таблица шифрования (массив Buffer'ов)
 const tblEncrySymbol: Buffer[] = [
@@ -66,15 +71,15 @@ export class UV5RMiniRadio extends Radio {
     model: "UV-5R Mini",
   };
 
-  protected readonly _MEM_TOTAL = 0xA1C0;
+  protected readonly _MEM_TOTAL = 0xa1c0;
   protected readonly _BLOCK_SIZE = 0x40;
   protected readonly _MEM_RANGES = [
     { addr: 0x0000, size: 0x8040 },
     { addr: 0x9000, size: 0x0040 },
-    { addr: 0xA000, size: 0x01C0 },
+    { addr: 0xa000, size: 0x01c0 },
   ];
-  protected readonly _ANI_ADDR = 0xA000;
-  protected readonly _PTT_ID_ADDR= 0xA020;
+  protected readonly _ANI_ADDR = 0xa000;
+  protected readonly _PTT_ID_ADDR = 0xa020;
 
   protected readonly _PROG_CMD = Buffer.from("PROGRAMCOLORPROU", "ascii");
   protected readonly _PROG_ACK = Buffer.from([0x06]);
@@ -82,9 +87,13 @@ export class UV5RMiniRadio extends Radio {
   protected readonly _WRITE_CMD = Buffer.from("W", "ascii");
   protected readonly _WRITE_ACK = Buffer.from([0x06]);
 
+  protected readonly _DCS_CODES = [...DCS_CODES, 645].sort((a, b) => a - b);
+  protected readonly _CTCSS_TONE = [...CTCSS_TONES];
+
   protected readonly _encryption = true;
   protected readonly _encryption_index = 1;
   protected readonly _channels = 999;
+  protected readonly _am_band = [108_000_000, 136_000_000];
 
   protected _img?: Buffer;
   protected _mem?: ReturnType<typeof this._parse>;
@@ -93,54 +102,45 @@ export class UV5RMiniRadio extends Radio {
     const m = create_mem_mapper(img, this.dispatch_ui);
 
     return {
-      memory: array_of(this._channels, () => m.struct(() => ({
-        rxfreq: m.lbcd(4),
-        txfreq: m.lbcd(4),
-        rxtone: m.u16(),
-        txtone: m.u16(),
-        scode: m.u8(),
-        pttid: m.u8(),
-        ...m.bitmap({_unknown7:2,
-          scramble:2,
-          _unknown8:2,
-          lowpower:2}),
-        ...m.bitmap({_unknown1:1,
-          wide:1,
-          sqmode:2,
-          bcl:1,
-          scan:1,
-          _unknown2:1,
-          fhss:1}),
-        _unknown3: m.u8(),
-        _unknown4: m.u8(),
-        _unknown5: m.u8(),
-        _unknown6: m.u8(),
-        name: m.str(12),
-        }))),
-      
+      channels: array_of(this._channels, () =>
+        m.struct(() => ({
+          rxfreq: m.lbcd(4),
+          txfreq: m.lbcd(4),
+          rxtone: m.u16(),
+          txtone: m.u16(),
+          scode: m.u8(),
+          pttid: m.u8(),
+          ...m.bitmap({ _unknown7: 2, scramble: 2, _unknown8: 2, lowpower: 2 }),
+          ...m.bitmap({ _unknown1: 1, wide: 1, sqmode: 2, bcl: 1, scan: 1, _unknown2: 1, fhss: 1 }),
+          _unknown3: m.u8(),
+          _unknown4: m.u8(),
+          _unknown5: m.u8(),
+          _unknown6: m.u8(),
+          name: m.str(12),
+        }))
+      ),
+
       ...m.seek(0x8000).skip(0, {}),
 
-      vfo: array_of(2, () => m.struct(() => ({
-              freq: m.u8_array(8),
-              rxtone: m.u16(),
-              txtone: m.u16(),
-              _unknown0: m.u8(),
-              bcl: m.u8(),
-              ...m.bitmap({sftd:3,
-                scode:5}),
-              _unknown1: m.u8(),
-              lowpower: m.u8(),
-              ...m.bitmap({_unknown2:1,
-                wide:1,
-                _unknown3:5,
-                fhss:1}),
-              _unknown4: m.u8(),
-              step: m.u8(),
-              offset: m.u8_array(6),
-              _unknown5: m.u8_array(2),
-              sqmode: m.u8(),
-              _unknown6: m.u8_array(3),
-      }))),
+      vfo: array_of(2, () =>
+        m.struct(() => ({
+          freq: m.u8_array(8),
+          rxtone: m.u16(),
+          txtone: m.u16(),
+          _unknown0: m.u8(),
+          bcl: m.u8(),
+          ...m.bitmap({ sftd: 3, scode: 5 }),
+          _unknown1: m.u8(),
+          lowpower: m.u8(),
+          ...m.bitmap({ _unknown2: 1, wide: 1, _unknown3: 5, fhss: 1 }),
+          _unknown4: m.u8(),
+          step: m.u8(),
+          offset: m.u8_array(6),
+          _unknown5: m.u8_array(2),
+          sqmode: m.u8(),
+          _unknown6: m.u8_array(3),
+        }))
+      ),
 
       ...m.seek(0x9000).skip(0, {}),
 
@@ -171,8 +171,7 @@ export class UV5RMiniRadio extends Radio {
         roger: m.u8(),
         a_or_b_selected: m.u8(),
         fmenable: m.u8(),
-        ...m.bitmap({chbworkmode:4,
-          chaworkmode:4}),
+        ...m.bitmap({ chbworkmode: 4, chaworkmode: 4 }),
         keylock: m.u8(),
         powerondistype: m.u8(),
         tone: m.u8(),
@@ -209,8 +208,7 @@ export class UV5RMiniRadio extends Radio {
       ani: m.struct(() => ({
         code: m.u8_array(5),
         _unknown: m.u8(),
-        ...m.bitmap({_unused1:6,
-          aniid:2}),
+        ...m.bitmap({ _unused1: 6, aniid: 2 }),
         dtmfon: m.u8(),
         dtmfoff: m.u8(),
         separatecode: m.u8(),
@@ -219,11 +217,13 @@ export class UV5RMiniRadio extends Radio {
 
       ...m.seek(this._PTT_ID_ADDR).skip(0, {}),
 
-      pttid: array_of(20, () => m.struct(() => ({
-        code: m.u8_array(5),
-        name: m.str(10),
-        _unused: m.u8(),
-      }))),
+      pttid: array_of(20, () =>
+        m.struct(() => ({
+          code: m.u8_array(5),
+          name: m.str(10),
+          _unused: m.u8(),
+        }))
+      ),
 
       upcode: m.struct(() => ({
         _unknown32: m.u8_array(32),
@@ -236,8 +236,141 @@ export class UV5RMiniRadio extends Radio {
     };
   }
 
+  protected _get_squelch_ui(get_ref: (i: number) => M.U16): UI.Field.Channels["squelch_rx"] {
+    return {
+      options: ["Off", "CTCSS", "DCS"],
+      codes: this._DCS_CODES,
+      tones: this._CTCSS_TONE,
+      get: (i) => {
+        const val = get_ref(i).get();
+
+        if (val === 0x0000 || val === 0xffff) return { mode: "Off" };
+
+        if (val >= 0x0258) return { mode: "CTCSS", freq: val / 10 };
+
+        if (val > 0x69) return { mode: "DCS", polarity: "I", code: this._DCS_CODES[val - 0x69 - 1] };
+
+        return { mode: "DCS", polarity: "N", code: this._DCS_CODES[val - 1] };
+      },
+      set: (i, val) => {
+        let raw = 0x0000;
+
+        if (val.mode === "CTCSS") {
+          raw = val.freq * 10;
+        } else if (val.mode === "DCS") {
+          raw = this._DCS_CODES.indexOf(val.code) + 1;
+          if (val.polarity === "I") raw += 0x69;
+        }
+
+        get_ref(i).set(raw);
+      },
+    };
+  }
+
   ui(): UI.Root {
-    return { fields: [] };
+    const mem = this._mem;
+    if (!mem) return { fields: [] };
+
+    const { channels, pttid } = mem;
+
+    return {
+      fields: [
+        {
+          ...common_ui.channels({ size: channels.length }),
+          channel: {
+            get: (i) => trim_string(channels[i].name.get()) || `CH-${(i + 1).toString().padStart(3, "0")}`,
+            set: (i, val) => {
+              const name = channels[i].name;
+              const size = name.raw.size;
+              name.set(val.substring(0, size).padEnd(size, "\xFF"));
+            },
+          },
+          empty: {
+            get: (i) => channels[i].__raw.get()[0] === 0xff,
+            delete: (i) => channels[i].__raw.set(new Array(channels[i].__raw.size).fill(0xff)),
+            init: (i) => {
+              const ch = channels[i];
+              ch.__raw.set(new Array(channels[i].__raw.size).fill(0x00));
+              ch.rxfreq.set(446_006_25);
+              ch.txfreq.set(ch.rxfreq.get());
+              ch.name.set("".padEnd(ch.name.raw.size, "\xFF"));
+            },
+          },
+          freq: {
+            min: 108_000_000,
+            max: 519_999_999,
+            get: (i) => channels[i].rxfreq.get() * 10,
+            set: (i, val) => {
+              const rx = channels[i].rxfreq.get();
+              const tx = channels[i].txfreq.get();
+
+              channels[i].rxfreq.set(val / 10);
+              if (rx === tx) channels[i].txfreq.set(val / 10);
+            },
+          },
+          offset: {
+            get: (i) => {
+              const rx = channels[i].rxfreq.get();
+              const tx = channels[i].txfreq.get();
+
+              return (tx - rx) * 10;
+            },
+            set: (i, val) => {
+              const rx = channels[i].rxfreq.get();
+              channels[i].txfreq.set(rx + val / 10);
+            },
+          },
+          mode: {
+            options: ["NFM", "FM", "AM"],
+            get: (i) => {
+              const freq = channels[i].rxfreq.get() * 10;
+              if (freq >= this._am_band[0] && freq < this._am_band[1]) return 2;
+              if (channels[i].wide.get()) return 0;
+
+              return 1;
+            },
+            set: (i, val) => channels[i].wide.set(val === 0 ? 1 : 0),
+          },
+          squelch_rx: this._get_squelch_ui((i) => channels[i].rxtone),
+          squelch_tx: this._get_squelch_ui((i) => channels[i].txtone),
+          power: {
+            options: [5, 1],
+            name: (val) => [t("power_high"), t("power_low")][val] || "?",
+            get: (i) => (channels[i].lowpower.get() === 1 ? 1 : 0),
+            set: (i, val) => channels[i].lowpower.set(val),
+          },
+          ptt_id: {
+            on_options: ["Off", "Begin", "End", "BeginAndEnd"],
+            id_options: pttid.map((id) => {
+              const code = id.code
+                .get()
+                .map((c) => DTMF_CHARS[c] || "")
+                .join("");
+              if (!code) return t("off");
+
+              const name = trim_string(id.name.get());
+              if (name) return `${name} (${code})`;
+
+              return code;
+            }),
+            get: (i) => ({ on: channels[i].pttid.get(), id: channels[i].scode.get() }),
+            set: (i, val) => {
+              channels[i].pttid.set(val.on);
+              channels[i].scode.set(val.id);
+            },
+          },
+          scan: {
+            options: ["Off", "On"],
+            get: (i) => channels[i].scan.get(),
+            set: (i, val) => channels[i].scan.set(val),
+          },
+          bcl: {
+            get: (i) => channels[i].bcl.get() === 1,
+            set: (i, val) => channels[i].bcl.set(val ? 1 : 0),
+          },
+        },
+      ],
+    };
   }
 
   protected async _indent() {
@@ -325,13 +458,11 @@ export class UV5RMiniRadio extends Radio {
         const block = await this._read_block(i, this._BLOCK_SIZE);
         block.copy(img, i);
 
-        this.dispatch_progress(0.1 + 0.8 * i / img.length);
+        this.dispatch_progress(0.1 + 0.8 * (i / img.length));
       }
     }
 
     const mem = this._parse(img);
-
-    console.log(mem);
 
     this._img = img;
     this._mem = mem;
@@ -358,7 +489,7 @@ export class UV5RMiniRadio extends Radio {
         const block = img.slice(i, i + this._BLOCK_SIZE);
         await this._write_block(i, block);
 
-        this.dispatch_progress(0.1 + 0.8 * i / img.length);
+        this.dispatch_progress(0.1 + 0.8 * (i / img.length));
       }
     }
 
