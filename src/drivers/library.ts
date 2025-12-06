@@ -56,7 +56,20 @@ export class Demo_TK11Radio extends TK11Radio {
   }
 }
 
+export class Demo_UV5RMiniRadio extends UV5RMiniRadio {
+  static Info = {
+    ...UV5RMiniRadio.Info,
+    vendor: `Demo - ${UV5RMiniRadio.Info.vendor}`,
+  };
+
+  constructor() {
+    super();
+    import("../images/Baofeng_UV-5R_Mini.img?hex").then(({ default: img }) => this.load(Buffer.from(img, "hex")));
+  }
+}
+
 export const Library: (typeof Radio)[] = [
+  Demo_UV5RMiniRadio,
   UV5RMiniRadio,
   BF888Radio,
   BFC50Radio,
