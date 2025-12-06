@@ -4,6 +4,7 @@ import { array_of, create_mem_mapper } from "@/utils/mem";
 import type { UI } from "@/utils/ui";
 import { common_ui } from "@/utils/common_ui";
 import { t } from "i18next";
+import { serial } from "@/utils/serial";
 
 const CMD_ACK = Buffer.from([0x06]);
 const PROGRAM_CMD = Buffer.from("PROGRAM", "ascii");
@@ -16,8 +17,6 @@ export class BF888Radio extends Radio {
     vendor: "Baofeng",
     model: "BF-888",
   };
-
-  override baudRate = 9600;
 
   protected _parse(data: Buffer) {
     const m = create_mem_mapper(data, this.dispatch_ui);
@@ -131,28 +130,28 @@ export class BF888Radio extends Radio {
   }
 
   protected async _enter_programming_mode() {
-    await this._serial_write(Buffer.from([0x02]));
+    await serial.write(Buffer.from([0x02]));
     // await new Promise((r) => setTimeout(r, 100));
-    await this._serial_write(PROGRAM_CMD);
+    await serial.write(PROGRAM_CMD);
 
-    const ack = await this._serial_read(1);
+    const ack = await serial.read(1);
     if (!ack.equals(CMD_ACK)) throw new Error("Radio refused to enter programming mode");
 
     // Эта команда должна быть отправлена с минимальной задержкой! Можно отправить с командой prog
-    await this._serial_write(Buffer.from([0x02]));
+    await serial.write(Buffer.from([0x02]));
 
-    const ident = await this._serial_read(8);
-    await this._serial_write(CMD_ACK);
+    const ident = await serial.read(8);
+    await serial.write(CMD_ACK);
 
-    const ack2 = await this._serial_read(1);
+    const ack2 = await serial.read(1);
     if (!ack2.equals(CMD_ACK)) throw new Error("Bad ACK after reading ident");
 
     if (!IDENT.some((id) => ident.slice(0, id.length).equals(id))) throw new Error("Incorrect model");
   }
 
   protected async _exit_programming_mode() {
-    await this._serial_write(Buffer.from("E", "ascii"));
-    await this._serial_read(1);
+    await serial.write(Buffer.from("E", "ascii"));
+    await serial.read(1);
   }
 
   protected async _read_block(addr: number, size: number) {
@@ -160,9 +159,9 @@ export class BF888Radio extends Radio {
     cmd.write("R", 0);
     cmd.writeInt16BE(addr, 1);
     cmd.writeUInt8(size, 3);
-    await this._serial_write(cmd);
+    await serial.write(cmd);
 
-    const res = await this._serial_read(4 + size);
+    const res = await serial.read(4 + size);
 
     const res_expected = Buffer.concat([Buffer.from("W"), cmd.slice(1)]);
     if (Buffer.compare(res_expected, res.slice(0, res_expected.length)) !== 0) {
@@ -171,9 +170,9 @@ export class BF888Radio extends Radio {
 
     const data = res.slice(4);
 
-    await this._serial_write(CMD_ACK);
+    await serial.write(CMD_ACK);
 
-    const ack = await this._serial_read(1);
+    const ack = await serial.read(1);
     if (!ack.equals(CMD_ACK)) throw new Error(`No ACK reading block 0x${addr.toString(16)}`);
 
     return data;
@@ -185,16 +184,17 @@ export class BF888Radio extends Radio {
     cmd.writeInt16BE(addr, 1);
     cmd.writeUInt8(data.length, 3);
 
-    await this._serial_write(Buffer.concat([cmd, data]));
+    await serial.write(Buffer.concat([cmd, data]));
 
-    const sck = await this._serial_read(1);
+    const sck = await serial.read(1);
     if (!sck.equals(CMD_ACK)) throw new Error("No ACK");
   }
 
   override async read() {
     this.dispatch_progress(0);
 
-    await this._serial_clear();
+    await serial.begin({ baudRate: 9600 });
+    await serial.clear();
 
     this._img = undefined;
     this._mem = undefined;
@@ -226,7 +226,8 @@ export class BF888Radio extends Radio {
 
     this.dispatch_progress(0);
 
-    await this._serial_clear();
+    await serial.begin({ baudRate: 9600 });
+    await serial.clear();
 
     await this._enter_programming_mode();
     this.dispatch_progress(0.1);

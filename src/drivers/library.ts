@@ -6,6 +6,7 @@ import { UV16Pro8Radio, UV16ProRadio, UV5RRadio, UV82HPRadio, UV82Radio } from "
 import { UVK5ProgRadio, UVK5Radio } from "./uvk5";
 import { BFC50Radio } from "./bfc50";
 import { TK11Radio } from "./tk11";
+import { UV5RMiniRadio } from "./uv5r_mini";
 
 export class Demo_UVK5Radio extends UVK5Radio {
   static Info = {
@@ -56,6 +57,7 @@ export class Demo_TK11Radio extends TK11Radio {
 }
 
 export const Library: (typeof Radio)[] = [
+  UV5RMiniRadio,
   BF888Radio,
   BFC50Radio,
   UV5RRadio,

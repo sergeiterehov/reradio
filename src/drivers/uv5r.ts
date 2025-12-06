@@ -5,6 +5,7 @@ import { array_of, create_mem_mapper } from "@/utils/mem";
 import { common_ui, modify_field, UITab } from "@/utils/common_ui";
 import { DCS_CODES } from "@/utils/radio";
 import { t } from "i18next";
+import { serial } from "@/utils/serial";
 
 const INDENT_291 = Buffer.from([0x50, 0xbb, 0xff, 0x20, 0x12, 0x07, 0x25]);
 const INDENT_A58 = Buffer.from([0x50, 0xbb, 0xff, 0x20, 0x14, 0x04, 0x13]);
@@ -297,21 +298,21 @@ export class UV5RRadio extends Radio {
       console.log("Try ident:", indent.toString("hex"));
 
       for (let i = 0; i < indent.length; i += 1) {
-        await this._serial_write(indent.slice(i, i + 1));
+        await serial.write(indent.slice(i, i + 1));
         await new Promise((r) => setTimeout(r, 10));
       }
 
-      const ack = await this._serial_read(1);
+      const ack = await serial.read(1);
       if (!ack.equals(ACK)) throw new Error("Identification rejected");
 
-      await this._serial_write(Buffer.from([0x02]));
+      await serial.write(Buffer.from([0x02]));
 
-      const response = await this._serial_read(8);
+      const response = await serial.read(8);
 
       console.log("Response:", response.toString("hex"));
 
-      await this._serial_write(ACK);
-      const ack2 = await this._serial_read(1);
+      await serial.write(ACK);
+      const ack2 = await serial.read(1);
       if (!ack2.equals(ACK)) throw new Error("Identification ACK rejected");
 
       return response;
@@ -326,22 +327,22 @@ export class UV5RRadio extends Radio {
     cmd.writeUInt16BE(addr, 1);
     cmd.writeUInt8(size, 3);
 
-    await this._serial_write(cmd);
+    await serial.write(cmd);
 
     if (!first) {
-      const ack = await this._serial_read(1);
+      const ack = await serial.read(1);
       if (!ack.equals(ACK)) throw new Error("Refused NOT first block reading");
     }
 
     const expect_answer = Buffer.from(cmd);
     expect_answer.write("X", 0);
 
-    const answer = await this._serial_read(4);
+    const answer = await serial.read(4);
     if (!answer.equals(expect_answer)) throw new Error("Invalid answer when reading");
 
-    const data = await this._serial_read(size);
+    const data = await serial.read(size);
 
-    await this._serial_write(Buffer.from([0x06]));
+    await serial.write(Buffer.from([0x06]));
     await new Promise((r) => setTimeout(r, 50));
 
     return data;
@@ -353,11 +354,11 @@ export class UV5RRadio extends Radio {
     cmd.writeUInt16BE(addr, 1);
     cmd.writeUInt8(data.length, 3);
 
-    await this._serial_write(Buffer.concat([cmd, data]));
+    await serial.write(Buffer.concat([cmd, data]));
 
     await new Promise((r) => setTimeout(r, 50));
 
-    const ack = await this._serial_read(1);
+    const ack = await serial.read(1);
     if (!ack.equals(ACK)) throw new Error(`Refused to access block 0x${addr.toString(16)}`);
   }
 
@@ -376,7 +377,8 @@ export class UV5RRadio extends Radio {
     this._mem = undefined;
     this.dispatch_ui_change();
 
-    await this._serial_clear();
+    await serial.begin({ baudRate: 9600 });
+    await serial.clear();
 
     const ident = await this._read_ident();
 
@@ -411,7 +413,8 @@ export class UV5RRadio extends Radio {
     const img = this._img;
     if (!img) throw new Error("No data");
 
-    await this._serial_clear();
+    await serial.begin({ baudRate: 9600 });
+    await serial.clear();
 
     const ident = await this._read_ident();
 

@@ -6,6 +6,7 @@ import { array_of, create_mem_mapper, type M } from "@/utils/mem";
 import { common_ui } from "@/utils/common_ui";
 import { t } from "i18next";
 import { CTCSS_TONES, DCS_CODES, trim_string } from "@/utils/radio";
+import { serial } from "@/utils/serial";
 
 const PESSIMISTIC_SYNC = false;
 
@@ -626,7 +627,8 @@ export class TK11Radio extends QuanshengBaseRadio {
     this._img = undefined;
     this.dispatch_ui_change();
 
-    await this._serial_clear({ timeout: 1_000 });
+    await serial.begin({ baudRate: 9600 });
+    await serial.clear({ timeout: 1_000 });
 
     const info = await this._hello();
 
@@ -669,7 +671,8 @@ export class TK11Radio extends QuanshengBaseRadio {
 
     this.dispatch_progress(0);
 
-    await this._serial_clear({ timeout: 1_000 });
+    await serial.begin({ baudRate: 9600 });
+    await serial.clear({ timeout: 1_000 });
 
     const info = await this._hello();
 
