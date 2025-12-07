@@ -1,4 +1,4 @@
-import type { Buffer } from "buffer";
+import { Buffer } from "buffer";
 
 export namespace M {
   export type U8Ptr = { _m_type: "u8ptr"; addr: number; get(i: number): number; set(i: number, val: number): void };
@@ -12,6 +12,13 @@ export namespace M {
     size: number;
     get(): number[];
     set(val: number[]): void;
+  };
+  export type Buf = {
+    _m_type: "buf";
+    addr: number;
+    size: number;
+    get(): Buffer;
+    set(val: Buffer): void;
   };
   export type Bits = { _m_type: "u8bits"; raw: U8; bits: number[]; get(): number; set(val: number): void };
   export type LBCD = {
@@ -37,6 +44,7 @@ export type MemMapper = {
   s16: () => M.S16;
   u32: () => M.U32;
   u8_array: (size: number) => M.U8array;
+  buf: (size: number) => M.Buf;
   bitmap: <T extends string>(names: { [K in T]: number }) => { [K in Exclude<T, "" | `_${string}`>]: M.Bits };
   lbcd: (size: number) => M.LBCD;
   str: (size: number) => M.Str;
@@ -177,6 +185,25 @@ export const create_mem_mapper = (data: Buffer, onchange?: () => void): MemMappe
       };
     },
 
+    buf: (size: number): M.Buf => {
+      const _cur = cur;
+      cur += size;
+      return {
+        _m_type: "buf",
+        addr: _cur,
+        size,
+        get: () => {
+          return Buffer.from(data.slice(_cur, _cur + size));
+        },
+        set: (val) => {
+          if (size !== val.length) throw new Error("Wrong buffer length");
+
+          val.copy(data, _cur);
+          onchange?.();
+        },
+      };
+    },
+
     bitmap: <T extends string>(names: { [K in T]: number }): { [K in T]: M.Bits } => {
       const raw = mapper.u8();
 
@@ -309,8 +336,8 @@ type ToJS<T = unknown> = T extends null | undefined
   ? T
   : T extends Array<infer E>
   ? ToJS<E>[]
-  : T extends { size: number; get(i: number): infer V }
-  ? V[]
+  : T extends { _m_type: "buf" }
+  ? string
   : T extends { get(): infer V }
   ? V
   : T extends object
@@ -326,15 +353,13 @@ export const to_js = <T>(value: T): ToJS<T> => {
 
   if (typeof value === "object") {
     if ("get" in value && typeof value.get === "function") {
-      const get = value.get;
+      const got: unknown = value.get();
 
-      if ("size" in value) {
-        return Array(value.size)
-          .fill(0)
-          .map((_, i) => get(i)) as ToJS<T>;
+      if (Buffer.isBuffer(got)) {
+        return got.toString("hex").toUpperCase().match(/../g)?.join(" ") as ToJS<T>;
       }
 
-      return get() as ToJS<T>;
+      return got as ToJS<T>;
     }
 
     return Object.fromEntries(
