@@ -6,6 +6,7 @@ import { array_of, create_mem_mapper, type M } from "@/utils/mem";
 import { CTCSS_TONES, DCS_CODES, trim_string } from "@/utils/radio";
 import { common_ui, modify_field, UITab } from "@/utils/common_ui";
 import { t } from "i18next";
+import { serial } from "@/utils/serial";
 
 const CONFIG_MEM_SIZE = 0x2000;
 const CONFIG_PROG_SIZE = 0x1d00;
@@ -484,7 +485,8 @@ export class UVK5Radio extends QuanshengBaseRadio {
     this._img = undefined;
     this.dispatch_ui_change();
 
-    await this._serial_clear({ timeout: 1_000 });
+    await serial.begin({ baudRate: this._baudRate });
+    await serial.clear({ timeout: 1_000 });
 
     const info = await this._hello();
 
@@ -515,7 +517,8 @@ export class UVK5Radio extends QuanshengBaseRadio {
 
     this.dispatch_progress(0);
 
-    await this._serial_clear({ timeout: 1_000 });
+    await serial.begin({ baudRate: this._baudRate });
+    await serial.clear({ timeout: 1_000 });
 
     const info = await this._hello();
 
@@ -666,7 +669,8 @@ export class UVK5ProgRadio extends QuanshengBaseRadio {
   override async read() {
     this.dispatch_progress(0);
 
-    await this._serial_clear();
+    await serial.begin({ baudRate: this._baudRate });
+    await serial.clear();
 
     this.dispatch_progress(0.3);
 
@@ -690,7 +694,8 @@ export class UVK5ProgRadio extends QuanshengBaseRadio {
 
     this.dispatch_progress(0.03);
 
-    await this._serial_clear();
+    await serial.begin({ baudRate: this._baudRate });
+    await serial.clear();
 
     const bootloader_version = await this._read_bootloader_version();
 

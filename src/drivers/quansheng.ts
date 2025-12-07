@@ -1,6 +1,7 @@
 import { Buffer } from "buffer";
 import { Radio, type RadioInfo } from "./radio";
 import { hex } from "@/utils/radio";
+import { serial } from "@/utils/serial";
 
 const CRC16_TABLE = new Uint16Array([
   0x0000, 0x1021, 0x2042, 0x3063, 0x4084, 0x50a5, 0x60c6, 0x70e7, 0x8108, 0x9129, 0xa14a, 0xb16b, 0xc18c, 0xd1ad,
@@ -79,7 +80,7 @@ export class QuanshengBaseRadio extends Radio {
     xor_firmware_arr_mut,
   };
 
-  baudRate = 38_400;
+  _baudRate = 38_400;
 
   protected readonly _SESSION_ID = Buffer.from([0x6a, 0x39, 0x57, 0x64]);
 
@@ -127,7 +128,7 @@ export class QuanshengBaseRadio extends Radio {
 
     console.log("QUANSHENG WRITE:", hex(buf));
 
-    await this._serial_write(res);
+    await serial.write(res);
   }
 
   protected async _recv_buf() {
@@ -136,7 +137,7 @@ export class QuanshengBaseRadio extends Radio {
 
     const first_length = p_length + 2;
 
-    const header_len = await this._serial_read(first_length, { timeout: 1_000 });
+    const header_len = await serial.read(first_length, { timeout: 1_000 });
 
     const header = header_len.slice(p_header, p_length);
     const length = header_len.readUInt16LE(p_length);
@@ -149,7 +150,7 @@ export class QuanshengBaseRadio extends Radio {
 
     const rest_length = p_footer + _FOOTER.length;
 
-    const data_crc_footer_obf = await this._serial_read(rest_length, { timeout: 3_000 });
+    const data_crc_footer_obf = await serial.read(rest_length, { timeout: 3_000 });
 
     const footer = data_crc_footer_obf.slice(p_footer);
     const crc_obf = data_crc_footer_obf.readUInt16LE(p_crc);

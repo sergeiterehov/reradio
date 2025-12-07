@@ -7,6 +7,7 @@ import YaMetrika from "./YaMetrika";
 import type { UI } from "./utils/ui";
 import { moveChannel } from "./utils/radio";
 import { clipboardReplaceChannel, clipboardWriteChannels } from "./utils/serialize";
+import { serial } from "./utils/serial";
 
 enableMapSet();
 
@@ -70,14 +71,12 @@ export const Store = createStore<Store>()(
 
         set({ task: "Downloading" });
         try {
-          await radio.connect();
-
           try {
             await radio.read();
 
             YaMetrika.richGoal(YaMetrika.Goal.SuccessReadFromRadio, { ...radio.info });
           } finally {
-            await radio.disconnect();
+            await serial.end();
           }
         } finally {
           _clearTask();
@@ -93,13 +92,12 @@ export const Store = createStore<Store>()(
 
         set({ task: "Uploading" });
         try {
-          await radio.connect();
           try {
             await radio.write();
 
             YaMetrika.richGoal(YaMetrika.Goal.SuccessWriteToRadio, { ...radio.info });
           } finally {
-            await radio.disconnect();
+            await serial.end();
           }
         } finally {
           _clearTask();

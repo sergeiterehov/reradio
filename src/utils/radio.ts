@@ -26,7 +26,7 @@ export function* range(start: number, end: number, step: number = 1) {
 }
 
 export function trim_string(str: string) {
-  return str.replace(/[\s\x00\xFF]+.*$/, "");
+  return str.replace(/\s*[\x00\xFF]+.*$/, "");
 }
 
 export function download_buffer(img: Buffer) {

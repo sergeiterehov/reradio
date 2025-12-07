@@ -4,6 +4,7 @@ import { array_of, create_mem_mapper } from "@/utils/mem";
 import type { UI } from "@/utils/ui";
 import { common_ui } from "@/utils/common_ui";
 import { t } from "i18next";
+import { serial } from "@/utils/serial";
 
 const CMD_ACK = Buffer.from([0x06]);
 
@@ -28,19 +29,19 @@ export abstract class BaseT18ProtocolRadio extends Radio {
   protected async _enterProgrammingMode() {
     const _magic = Buffer.concat([Buffer.from([0x02]), this._magic]);
 
-    await this._serial_write(_magic);
-    if (this._echo) await this._serial_read(_magic.length);
+    await serial.write(_magic);
+    if (this._echo) await serial.read(_magic.length);
 
-    const ack1 = await this._serial_read(1);
+    const ack1 = await serial.read(1);
     if (ack1[0] !== CMD_ACK[0]) {
       throw new Error("Radio refused to enter programming mode");
     }
 
-    await this._serial_write(Buffer.from([0x02]));
+    await serial.write(Buffer.from([0x02]));
 
-    if (this._echo) await this._serial_read(1);
+    if (this._echo) await serial.read(1);
 
-    const ident = await this._serial_read(8);
+    const ident = await serial.read(8);
 
     const matchesFingerprint = this._fingerprint.some((fp) => ident.slice(0, fp.length).equals(fp));
 
@@ -48,10 +49,10 @@ export abstract class BaseT18ProtocolRadio extends Radio {
       throw new Error("Radio identification failed.");
     }
 
-    await this._serial_write(CMD_ACK);
-    if (this._echo) await this._serial_read(CMD_ACK.length);
+    await serial.write(CMD_ACK);
+    if (this._echo) await serial.read(CMD_ACK.length);
 
-    const ack2 = await this._serial_read(1);
+    const ack2 = await serial.read(1);
 
     if (ack2[0] !== CMD_ACK[0]) {
       throw new Error("Radio refused to enter programming mode");
@@ -59,8 +60,8 @@ export abstract class BaseT18ProtocolRadio extends Radio {
   }
 
   protected async _exitProgrammingMode() {
-    await this._serial_write(this.CMD_EXIT);
-    if (this._echo) await this._serial_read(this.CMD_EXIT.length);
+    await serial.write(this.CMD_EXIT);
+    if (this._echo) await serial.read(this.CMD_EXIT.length);
   }
 
   protected async _readBlock(addr: number, size: number) {
@@ -69,10 +70,10 @@ export abstract class BaseT18ProtocolRadio extends Radio {
     cmd.writeInt16BE(addr, 1);
     cmd.writeUInt8(size, 3);
 
-    await this._serial_write(cmd);
-    if (this._echo) await this._serial_read(cmd.length);
+    await serial.write(cmd);
+    if (this._echo) await serial.read(cmd.length);
 
-    const res = await this._serial_read(4 + size);
+    const res = await serial.read(4 + size);
     const expected = Buffer.concat([Buffer.from("W"), cmd.slice(1)]);
     if (Buffer.compare(expected, res.slice(0, expected.length)) !== 0) {
       throw new Error(`Error riding block 0x${addr.toString(16)}`);
@@ -81,10 +82,10 @@ export abstract class BaseT18ProtocolRadio extends Radio {
     const data = res.slice(4);
 
     if (this._ackBlock) {
-      await this._serial_write(CMD_ACK);
-      if (this._echo) await this._serial_read(CMD_ACK.length);
+      await serial.write(CMD_ACK);
+      if (this._echo) await serial.read(CMD_ACK.length);
 
-      const ack = await this._serial_read(1);
+      const ack = await serial.read(1);
       if (!ack.equals(CMD_ACK)) throw new Error(`No ACK reading block 0x${addr.toString(16)}`);
     }
 
@@ -97,10 +98,10 @@ export abstract class BaseT18ProtocolRadio extends Radio {
     cmd.writeInt16BE(addr, 1);
     cmd.writeUInt8(data.length, 3);
 
-    await this._serial_write(Buffer.concat([cmd, data]));
-    if (this._echo) await this._serial_read(cmd.length + data.length);
+    await serial.write(Buffer.concat([cmd, data]));
+    if (this._echo) await serial.read(cmd.length + data.length);
 
-    const sck = await this._serial_read(1);
+    const sck = await serial.read(1);
     if (!sck.equals(CMD_ACK)) throw new Error("No ACK");
   }
 
@@ -113,7 +114,8 @@ export abstract class BaseT18ProtocolRadio extends Radio {
   async read() {
     this.dispatch_progress(0);
 
-    await this._serial_clear();
+    await serial.begin({ baudRate: 9600 });
+    await serial.clear();
 
     this._img = undefined;
     this._mem = undefined;
@@ -146,7 +148,8 @@ export abstract class BaseT18ProtocolRadio extends Radio {
   async write() {
     this.dispatch_progress(0);
 
-    await this._serial_clear();
+    await serial.begin({ baudRate: 9600 });
+    await serial.clear();
 
     if (!this._img) throw new Error("No data read");
 
