@@ -3,7 +3,7 @@ import { Radio, type RadioInfo } from "./radio";
 import type { UI } from "@/utils/ui";
 import { serial } from "@/utils/serial";
 import { array_of, create_mem_mapper, type M } from "@/utils/mem";
-import { common_ui } from "@/utils/common_ui";
+import { common_ui, UITab } from "@/utils/common_ui";
 import { CTCSS_TONES, DCS_CODES, trim_string } from "@/utils/radio";
 import { t } from "i18next";
 
@@ -419,6 +419,35 @@ export class UV5RMiniRadio extends Radio {
         common_ui.vox(settings.voxsw),
         common_ui.vox_level(settings.vox, { min: 0, max: 8 }),
         common_ui.vox_delay(settings.voxdlytime, { from: 0.5, to: 2, step: 0.1 }),
+
+        ...pttid.flatMap((id, i): [UI.Field.Chars, UI.Field.Text] => [
+          {
+            type: "chars",
+            id: `ptt_id_${i}`,
+            name: `PTT ID ${i + 1}`,
+            tab: UITab.DTMF,
+            abc: DTMF_CHARS,
+            pad: "\xff",
+            uppercase: true,
+            length: id.code.size,
+            get: () => id.code.get(),
+            set: (val) => {
+              id.code.set(val);
+              this.dispatch_ui_change();
+            },
+          },
+          {
+            type: "text",
+            id: `ptt_name_${i}`,
+            name: `Name ${i + 1}`,
+            tab: UITab.DTMF,
+            get: () => trim_string(id.name.get()),
+            set: (val) => {
+              id.name.set(val.substring(0, id.name.raw.size).padEnd(id.name.raw.size, "\xFF"));
+              this.dispatch_ui_change();
+            },
+          },
+        ]),
       ],
     };
   }

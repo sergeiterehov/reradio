@@ -69,7 +69,6 @@ export class Demo_UV5RMiniRadio extends UV5RMiniRadio {
 }
 
 export const Library: (typeof Radio)[] = [
-  Demo_UV5RMiniRadio,
   BF888Radio,
   BFC50Radio,
   UV5RRadio,
@@ -86,6 +85,7 @@ export const Library: (typeof Radio)[] = [
   RB618Radio,
   Demo_BF888Radio,
   Demo_UV5RRadio,
+  Demo_UV5RMiniRadio,
   Demo_UVK5Radio,
   Demo_TK11Radio,
 ];
