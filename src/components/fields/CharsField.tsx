@@ -8,7 +8,8 @@ export function CharsField(props: { field: UI.Field.Chars }) {
   const value = useRadioOn(field.get);
 
   const padChar = field.pad[0];
-  const padIndex = Math.max(0, field.abc.indexOf(padChar));
+  let padIndex = field.abc.indexOf(padChar);
+  if (padIndex === -1) padIndex = padChar.charCodeAt(0);
 
   const getText = useCallback((val: number[]) => val.map((c) => field.abc[c]).join(""), [field.abc]);
 

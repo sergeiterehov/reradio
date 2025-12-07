@@ -30,8 +30,10 @@ function App() {
     setActiveTab((prev) => {
       if (!ui) return prev;
 
-      const tabs = [...new Set(ui.fields.map((f) => f.tab))];
-      return tabs.at(0) ?? prev;
+      const tabs_set = new Set(ui.fields.map((f) => f.tab));
+      if (tabs_set.has(prev)) return prev;
+
+      return tabs_set.values().next().value ?? prev;
     });
   }, [ui]);
 
