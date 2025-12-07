@@ -7,6 +7,9 @@ import { array_of, create_mem_mapper, to_js, type M } from "@/utils/mem";
 import { CTCSS_TONES, DCS_CODES, trim_string } from "@/utils/radio";
 import { t } from "i18next";
 
+const TYPE_DIGITAL = 0;
+const TYPE_ANALOG = 1;
+
 const TOT = [
   0, 5, 10, 15, 30, 45, 60, 75, 90, 105, 120, 135, 150, 165, 180, 195, 210, 225, 240, 255, 270, 285, 300, 315, 330, 345,
   360, 375, 390, 405, 420, 435, 450, 465, 480, 495, 510, 525, 540, 555, 570, 585, 600,
@@ -195,6 +198,16 @@ export class RT4DRadio extends Radio {
             options: ["On", "Off"],
             get: (i) => channels[i].scan_skip.get(),
             set: (i, val) => channels[i].scan_skip.set(val),
+          },
+          bcl: {
+            get: (i) => {
+              const ch = channels[i];
+              return Boolean((ch.type.get() === TYPE_ANALOG ? ch.analog.bcl : ch.digital.bcl).get());
+            },
+            set: (i, val) => {
+              const ch = channels[i];
+              (ch.type.get() === TYPE_ANALOG ? ch.analog.bcl : ch.digital.bcl).set(val ? 1 : 0);
+            },
           },
 
           // Analog
