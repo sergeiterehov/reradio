@@ -1,5 +1,5 @@
 export namespace UI {
-  export type RadioMode = "FM" | "NFM" | "WFM" | "AM" | "NAM";
+  export type RadioMode = "FM" | "NFM" | "WFM" | "AM" | "NAM" | "SSB";
   export type SquelchMode = "Off" | "CTCSS" | "DCS";
   export type ScanMode = "On" | "Off";
   export type PttIdOn = "Off" | "Begin" | "End" | "BeginAndEnd";

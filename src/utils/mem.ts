@@ -26,7 +26,10 @@ export namespace M {
 }
 
 export type MemMapper = {
+  readonly addr: number;
   seek: (addr: number) => MemMapper;
+  offset: (offset: number) => MemMapper;
+  at: <T>(addr: number, fn: (mapper: MemMapper) => T) => T;
   skip: <R>(size: number, ret: R) => R;
   u8_ptr: () => M.U8Ptr;
   u8: () => M.U8;
@@ -44,9 +47,28 @@ export const create_mem_mapper = (data: Buffer, onchange?: () => void): MemMappe
   let cur = 0;
 
   const mapper: MemMapper = {
+    get addr() {
+      return cur;
+    },
+
     seek: (addr: number) => {
       cur = addr;
       return mapper;
+    },
+
+    offset: (offset: number) => {
+      cur += offset;
+      return mapper;
+    },
+
+    at: (addr, fn) => {
+      const prev = cur;
+      try {
+        cur = addr;
+        return fn(mapper);
+      } finally {
+        cur = prev;
+      }
     },
 
     skip: <R>(size: number, ret: R): R => {
