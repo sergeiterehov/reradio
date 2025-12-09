@@ -28,9 +28,72 @@ const ENCRYPT_ARC = 0;
 const ENCRYPT_AES_128 = 1;
 const ENCRYPT_AES_256 = 2;
 
-const TOT = [
+const TIMER = [
   0, 5, 10, 15, 30, 45, 60, 75, 90, 105, 120, 135, 150, 165, 180, 195, 210, 225, 240, 255, 270, 285, 300, 315, 330, 345,
   360, 375, 390, 405, 420, 435, 450, 465, 480, 495, 510, 525, 540, 555, 570, 585, 600,
+];
+
+const DELAY = [
+  0, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100, 1200, 1300, 1400, 1500, 1600, 1700, 1800, 1900, 2000,
+];
+
+const STEP = ["0.25K", "1.25K", "2.5K", "5K", "6.25K", "10K", "12.5K", "20K", "25K", "50K", "100K", "500K", "1M", "5M"];
+
+const RANGE = [
+  "18-64MHz",
+  "64-136MHz",
+  "136-174MHz",
+  "174-240MHz",
+  "240-320MHz",
+  "320-400MHz",
+  "400-480MHz",
+  "480-560MHz",
+  "560-640MHz",
+  "840-920MHz",
+  "920-1000MHz",
+];
+
+const KEY_FN = [
+  "None",
+  "Analog CH Monitor",
+  "Power Switch",
+  "Dual Standby",
+  "TX Priority",
+  "Scanning",
+  "Backlight",
+  "Analog Roger Beep",
+  "FM Radio",
+  "Talkaround",
+  "Emergency Alarm",
+  "Freq Detect",
+  "Remote CTC/DCS Decode",
+  "Send Tone",
+  "Query State",
+  "Remote Monit",
+  "Color Code Detect",
+  "DMR Remote Stun",
+  "DMR Remote Kill",
+  "DMR Remote Wakeup",
+  "Online Detect",
+  "Group call ID Show",
+  "AM/FM Switch(RX)",
+  "Analog Spectrum",
+  "SQ",
+  "Freq Step",
+  "Analg/DMR Switch Of VFO CH",
+  "NOAA Weather CH",
+  "Save CH",
+  "New SMS",
+  "SMS Menu",
+  "LCD Brightness",
+  "Analog VOX",
+  "Zone Selection",
+  "Promiscuos Mode",
+  "Dual Slot On-off",
+  "Time Slot Switch",
+  "Color Code Switch",
+  "DMR Encrypt On-off",
+  "RX Group List Selection",
 ];
 
 function checksum(buf: Buffer, offset: number = 0, length: number = buf.length) {
@@ -59,7 +122,7 @@ export class RT4DRadio extends Radio {
     { start: 592, end: 788 }, // bufSMSData
     { start: 856, end: 857 }, // bufFM
   ];
-  protected readonly _MEM_SIZE = 856 * 1024;
+  protected readonly _MEM_SIZE = 857 * 1024;
 
   protected _img?: Buffer;
   protected _mem?: ReturnType<typeof this._parse>;
@@ -68,6 +131,161 @@ export class RT4DRadio extends Radio {
     const m = create_mem_mapper(img, this.dispatch_ui);
 
     return {
+      ...m.seek(0x2000).skip(0, {}),
+
+      settings: {
+        _unknown0: m.buf(16),
+        start_pic: m.u8(), // 0=off, on
+        screen_save_timer: m.u8(), // TIMER[]
+        _unknown18: m.u8(),
+        start_beep: m.u8(), // 0=off, on
+        startup_lab: m.u8(), // 0=off, on
+        _unknown21: m.buf(2),
+        start_line: m.u16(),
+        start_column: m.u16(),
+        password_sw: m.u8(), // 0=off, on
+        password: m.str(16),
+        start_text: m.str(32),
+        name: m.str(16),
+        voice_prompt: m.u8(), // 0=off, 1=on
+        key_beep: m.u8(), // 0=off, 1=on
+        key_lock: m.u8(), // 0=off, 1=on
+        lock_timer: m.u8(), // TIMER[]
+        backlight_sw: m.u8(), // 0=off, 1=on
+        backlight_brightness: m.u8(), // 0..4
+        backlight_timer: m.u8(), // TIMER[]
+        save_mode: m.u8(), // 0=off, 1=1:1, 2=1:2, 3=1:3
+        save_start_timer: m.u8(), // TIMER[]
+        menu_timer: m.u8(), // TIMER[]
+        dw: m.u8(), // 0=off, 1=on
+        talkaround: m.u8(), // 0=off, 1=talkaround, 2=inverse
+        alarm: m.u8(), // 0=local, 1=remote, 2=both
+        apo: m.u8(), // auto power off: 0=off, 1=on
+        apo_seconds: m.u32(),
+        alarms: array_of(4, () => ({
+          mode: m.u8(), // 0=off, 1=once, 2=everyday
+          hour: m.u8(),
+          minute: m.u8(),
+        })),
+        _unknown122: m.buf(4),
+        tx_priority: m.u8(), // 0=edit, 1=busy
+        main_ptt: m.u8(), // 0=ch-a, 1=ch-main
+        step: m.u8(), // STEP[]
+        _unknown129: m.buf(2),
+        main_range: m.u8(), // 0=a, 1=b
+        ranges: array_of(2, () => ({
+          mode: m.u8(), // 0=freq, 1=ch, 2=zone
+          display: m.u8(), // 0=ch, 1=freq, 2=alias
+          zone: m.u8(), // index: 0-249
+          ch: m.u16(), // index: 0-1999
+        })),
+        lock_ranges: array_of(4, () => ({
+          type: m.u8(), // 0=rx-tx, 1=rx, 2=lock
+          start: m.u16(),
+          end: m.u16(),
+        })),
+        scan_direction: m.u8(), // 0=up, 1=down
+        scan_mode: m.u8(), // 0=to, 1=co, 2=se
+        scan_return: m.u8(), // 0=original-ch, 1=current-ch
+        scan_dwell: m.u8(), // 0-30
+        _unknown166: m.buf(4),
+        keys: {
+          fs1_short: m.u8(), // KEY_FN[]
+          fs1_long: m.u8(),
+          fs2_short: m.u8(),
+          fs2_long: m.u8(),
+          alarm_short: m.u8(),
+          alarm_long: m.u8(),
+          pad_0: m.u8(),
+          pad_1: m.u8(),
+          pad_2: m.u8(),
+          pad_3: m.u8(),
+          pad_4: m.u8(),
+          pad_5: m.u8(),
+          pad_6: m.u8(),
+          pad_7: m.u8(),
+          pad_8: m.u8(),
+          pad_9: m.u8(),
+        },
+        gps_sw: m.u8(), // 0=off, 1=on
+        gps_baud: m.u8(), // 4800,9600,14400,19200,38400,56000,57600,115200,128000,256000
+        utc: m.u8(), // "UTC 0", "UTC+1", "UTC+2", "UTC+3", "UTC+3.5", "UTC+4", "UTC+5", "UTC+5.5", "UTC+6", "UTC+7", "UTC+8", "UTC+9", "UTC+10", "UTC+11", "UTC+12", "UTC-1", "UTC-2", "UTC-3", "UTC-4", "UTC-5", "UTC-6", "UTC-7", "UTC-8", "UTC-9", "UTC-10", "UTC-11", "UTC-12"
+        auto_gps_time: m.u8(), // 0=off, 1=on
+        gps_record_sw: m.u8(), // 0=off, 1=on
+        gps_record: m.u16(),
+        bt_sw: m.u8(), // 0=off, 1=on
+        bt_name: m.str(16),
+        bt_pin: m.str(16),
+        bt_pin_sw: m.u8(), // 0=off, on
+        bt_mode: m.u8(), // 0=audio, 1=programming
+        bt_mic: m.u8(), // 0=off, on
+        bt_spk: m.u8(), // 0=off, on
+        bt_mic_gain: m.u8(),
+        bt_spk_gain: m.u8(),
+        second_ptt: m.u8(), // 0=off, on
+        contrast: m.u8(), // 5..25
+        freq_input: m.u8(), // 0=xxx_xxx, xxx_xxx.xx
+        dual_display: m.u8(), // 0=dual, single
+        _unknown236: m.buf(20),
+
+        // Analog +256
+        tone: m.u16(), // 110-20_000
+        sql: m.u8(), // 0-10
+        _unknown259: m.buf(2),
+        mic_gain: m.u8(), // 0-31
+        spk_gain: m.u8(), // 0-63
+        _unknown263: m.buf(4),
+        tx_beep_start: m.u8(), // 0=off, 1=on
+        tx_beep_end: m.u8(), // 0=off, 1=1, 2=2, 3=mdc1200, 4=gps
+        _unknown269: m.buf(3),
+        detect_range: m.u8(), // RANGE[]
+        detect_delay: m.u16(), // DELAY[]
+        _unknown275: m.buf(1),
+        glitch: m.u8(), // 0-10, 0
+        _unknown277: m.buf(107),
+
+        // Digital +384
+        radio_id: m.u32(),
+        remote_control: m.u8(), // 0=off, 1=on
+        _unknown389: m.buf(2),
+        mic_gain_dig: m.u8(), // 0-24
+        spk_gain_dig: m.u8(), // 0-24
+        _unknown393: m.buf(4),
+        tx_beep_start_dig: m.u8(), // 0=off, 1=on
+        tx_beep_end_dig: m.u8(), // 0=off, 1=on, 2=on
+        group_call_timer: m.u16(), // 0-9999
+        single_call_timer: m.u16(), // 0-9999
+        sql_dig: m.u8(), // 0-10
+        group_display: m.u8(), // 0=caller, 1=group
+        _unknown405: m.buf(107),
+
+        // DTMF +512
+        dtmf: {
+          send_delay: m.u8(), // DELAY[]
+          send_duration: m.u8(), // [30,40,...,200]
+          send_interval: m.u8(), // [30,40,...,200]
+          send_mode: m.u8(), // 0=off, 1=begin, 2=end, 3=both
+          send_select: m.u8(), // code index: 0-15
+          display: m.u8(), // 0=off, 1=on
+          encode_gain: m.u8(), // 0-127
+          decode_th: m.u8(), // 0-63
+          remote_control: m.u8(), // 0=off, 1=on
+          calibrate: m.u8(), // 0=off, 1=on
+          list: array_of(20, () =>
+            m.struct(() => ({
+              code: m.str(14),
+              _unknown1: m.buf(1),
+              length: m.u8(), // >14=off
+            }))
+          ),
+        },
+
+        freq_scan_direction: m.u8(), // 0=up, 1=down
+        sms_beep: m.u8(), // 0=off, 1=on
+        freq_scan_start: m.u32(), // 18_00_000-999_999_999
+        freq_scan_end: m.u32(), // 18_00_000-999_999_999
+      },
+
       ...m.seek(0x4000).skip(0, {}),
 
       channels: array_of(1024, () =>
@@ -165,6 +383,22 @@ export class RT4DRadio extends Radio {
           key: m.buf(32),
         }))
       ),
+
+      ...m.seek(0xd6000).skip(0, {}),
+
+      fm: {
+        mode: m.u8(), // 0=ch, 1=freq
+        standby: m.u8(), // 0=off, 1=on
+        area: m.u8(), // 1..16
+        channel: m.u8(), // 1..16
+        scan: m.u8(), // 0=carrier stop, 1=scanning all
+        areas: array_of(16, () =>
+          m.struct(() => ({
+            name: m.str(16),
+            channels: array_of(16, () => m.u16()),
+          }))
+        ),
+      },
     };
   }
 
@@ -400,9 +634,9 @@ export class RT4DRadio extends Radio {
                 get: () => channels[i].digital.monit.get() === 1,
                 set: (val) => channels[i].digital.monit.set(val ? 1 : 0),
               });
-              extra.push(common_ui.tot_list(channels[i].digital.tot, { seconds: TOT }));
+              extra.push(common_ui.tot_list(channels[i].digital.tot, { seconds: TIMER }));
             } else {
-              extra.push(common_ui.tot_list(channels[i].analog.tot, { seconds: TOT.slice(0, 32) }));
+              extra.push(common_ui.tot_list(channels[i].analog.tot, { seconds: TIMER.slice(0, 32) }));
             }
 
             return extra;
@@ -462,7 +696,7 @@ export class RT4DRadio extends Radio {
         const addr = i * 1024;
         block.copy(img, addr);
 
-        this.dispatch_progress(0.1 + 0.8 * (addr / this._MEM_SIZE));
+        this.dispatch_progress(0.1 + 0.8 * ((addr + 1024) / this._MEM_SIZE));
       }
     }
 
