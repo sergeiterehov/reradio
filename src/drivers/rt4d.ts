@@ -10,6 +10,15 @@ import { t } from "i18next";
 const TYPE_DIGITAL = 0;
 const TYPE_ANALOG = 1;
 
+const MODE_SINGLE_SLOT = 0;
+const MODE_DIRECT_DUAL = 1;
+
+const SLOT_1 = 0;
+const SLOT_2 = 1;
+
+const ID_SELECT_RADIO = 0;
+const ID_SELECT_CHANNEL = 1;
+
 const TOT = [
   0, 5, 10, 15, 30, 45, 60, 75, 90, 105, 120, 135, 150, 165, 180, 195, 210, 225, 240, 255, 270, 285, 300, 315, 330, 345,
   360, 375, 390, 405, 420, 435, 450, 465, 480, 495, 510, 525, 540, 555, 570, 585, 600,
@@ -79,9 +88,9 @@ export class RT4DRadio extends Radio {
               bcl: m.at(addr + 17, () => m.u8()), // 0=allow-tx, 1=channel-free, 2=color-code-idle, #0
               tot: m.at(addr + 20, () => m.u8()), // TOT[], #0
               group: m.at(addr + 22, () => m.u16()), // 0=none, number
-              contact: m.at(addr + 24, () => m.u16()), // 0=none, number
+              contact: m.at(addr + 24, () => m.u16()), // 0=all-call, number
               encryption: m.at(addr + 26, () => m.u16()), // 0=none, number
-              channel_id: m.at(addr + 28, () => m.u32()),
+              own_id: m.at(addr + 28, () => m.u32()), // 0=1, number
             },
 
             analog: {
@@ -164,6 +173,21 @@ export class RT4DRadio extends Radio {
               ch.__raw.set(new Array(ch.__raw.size).fill(0x00));
               ch.rx_freq.set(446_000_00);
               ch.tx_freq.set(ch.rx_freq.get());
+              ch.type.set(TYPE_ANALOG);
+            },
+          },
+          digital: {
+            get: (i) => channels[i].type.get() === TYPE_DIGITAL,
+            set: (i, val) => {
+              const ch = channels[i];
+              const prev = ch.type.get() === TYPE_DIGITAL;
+
+              if (prev === val) return;
+
+              for (const ref of Object.values(ch.digital)) ref.set(0);
+              for (const ref of Object.values(ch.analog)) ref.set(0);
+
+              ch.type.set(val ? TYPE_DIGITAL : TYPE_ANALOG);
             },
           },
           channel: {
@@ -210,30 +234,101 @@ export class RT4DRadio extends Radio {
             },
           },
 
-          // Analog
-
           mode: {
-            options: ["FM", "AM", "SSB", "NFM"],
+            options: ["NFM", "FM", "AM", "SSB"],
             get: (i) => {
               const mode = channels[i].analog.mode.get();
               const band = channels[i].analog.band.get();
 
-              if (mode === 0 && band === 1) return 3;
+              if (mode === 0 && band === 1) return 0;
 
-              return mode;
+              return mode + 1;
             },
             set: (i, val) => {
-              if (val === 3) {
+              if (val === 0) {
                 channels[i].analog.mode.set(0);
                 channels[i].analog.band.set(1);
               } else {
-                channels[i].analog.mode.set(val);
+                channels[i].analog.mode.set(val - 1);
                 channels[i].analog.band.set(0);
               }
             },
           },
           squelch_rx: this._get_squelch_ui((i) => channels[i].analog.rx_tone),
           squelch_tx: this._get_squelch_ui((i) => channels[i].analog.tx_tone),
+
+          dmr_encryption: {
+            keys: [
+              { name: "", type: "Off" },
+              // TODO: insert keys
+            ],
+            get: (i) => ({ key_index: channels[i].digital.encryption.get() }),
+            set: (i, val) => channels[i].digital.encryption.set(val.key_index),
+          },
+          dmr_slot: {
+            options: ["Slot-1", "Slot-2", "DualSlot"],
+            get: (i) => {
+              if (channels[i].digital.mode.get() === MODE_DIRECT_DUAL) return 2;
+              return channels[i].digital.slot.get() === SLOT_2 ? 1 : 0;
+            },
+            set: (i, val) => {
+              if (val === 2) {
+                channels[i].digital.mode.set(MODE_DIRECT_DUAL);
+              } else {
+                channels[i].digital.mode.set(MODE_SINGLE_SLOT);
+                channels[i].digital.slot.set(val === 0 ? SLOT_1 : SLOT_2);
+              }
+            },
+          },
+          dmr_color_code: {
+            get: (i) => channels[i].digital.color_code.get(),
+            set: (i, val) => channels[i].digital.color_code.set(val),
+          },
+          dmr_contact: {
+            contacts: [
+              { type: "Group", id: 16_777_215 },
+              // TODO: insert contacts
+            ],
+            get: (i) => channels[i].digital.contact.get(),
+            set: (i, val) => channels[i].digital.contact.set(val),
+          },
+          dmr_rx_list: {
+            lists: [
+              t("off"),
+              // TODO: insert lists
+            ],
+            get: (i) => channels[i].digital.group.get(),
+            set: (i, val) => channels[i].digital.group.set(val),
+          },
+          dmr_id: {
+            from: ["Radio", "Channel"],
+            get: (i) => {
+              if (channels[i].digital.id_select.get() !== ID_SELECT_CHANNEL) return { from: "Radio" };
+              return { from: "Channel", id: channels[i].digital.own_id.get() };
+            },
+            set: (i, val) => {
+              if (val.from === "Radio") {
+                channels[i].digital.id_select.set(ID_SELECT_RADIO);
+              } else {
+                channels[i].digital.id_select.set(ID_SELECT_CHANNEL);
+                channels[i].digital.own_id.set(val.id);
+              }
+            },
+          },
+
+          extra: (i) =>
+            channels[i].type.get() === TYPE_DIGITAL
+              ? [
+                  {
+                    type: "switcher",
+                    id: "dmr_monit",
+                    name: "Monitoring",
+                    options: ["Radio", "Channel"],
+                    get: () => channels[i].digital.monit.get() === 1,
+                    set: (val) => channels[i].digital.monit.set(val ? 1 : 0),
+                  },
+                ]
+              : [],
         },
       ],
     };

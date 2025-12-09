@@ -1,13 +1,19 @@
 export namespace UI {
   export type RadioMode = "FM" | "NFM" | "WFM" | "AM" | "NAM" | "SSB";
-  export type SquelchMode = "Off" | "CTCSS" | "DCS";
   export type ScanMode = "On" | "Off";
   export type PttIdOn = "Off" | "Begin" | "End" | "BeginAndEnd";
+  export type DMREncryptionType = "Off" | "ARC" | "AES-128" | "AES-256";
+  export type DMRSlot = "Slot-1" | "Slot-2" | "DualSlot";
+  export type DMRContactType = "Individual" | "Group";
 
   export type Squelch =
     | { mode: "Off" }
     | { mode: "CTCSS"; freq: number }
     | { mode: "DCS"; code: number; polarity: "N" | "I" };
+  export type SquelchMode = Squelch["mode"];
+
+  export type DMR_ID = { from: "Radio" } | { from: "Channel"; id: number };
+  export type DMR_IDFrom = DMR_ID["from"];
 
   export namespace Field {
     type _Field<T extends string> = {
@@ -20,14 +26,20 @@ export namespace UI {
     };
 
     export type None = _Field<"none">;
+    export type Cargo = _Field<"cargo"> & { get: () => unknown; set: (val: unknown) => void };
 
     export type Channels = _Field<"channels"> & {
       size: number;
       channel: { get: (i: number) => string; set?: (i: number, val: string) => void };
+      extra?: (i: number) => Field.Any[];
       empty?: {
         get: (i: number) => boolean;
         init: (i: number) => void;
         delete: (i: number) => void;
+      };
+      digital?: {
+        get: (i: number) => boolean;
+        set?: (i: number, val: boolean) => void;
       };
       freq?: {
         min?: number;
@@ -78,6 +90,35 @@ export namespace UI {
         get: (i: number) => { on: number; id: number };
         set: (i: number, val: { on: number; id: number }) => void;
       };
+      dmr_id?: {
+        from: DMR_IDFrom[];
+        get: (i: number) => DMR_ID;
+        set: (i: number, val: DMR_ID) => void;
+      };
+      dmr_rx_list?: {
+        lists: string[];
+        get: (i: number) => number;
+        set: (i: number, i_group: number) => void;
+      };
+      dmr_contact?: {
+        contacts: { type: DMRContactType; id: number; name?: string }[];
+        get: (i: number) => number;
+        set: (i: number, i_contact: number) => void;
+      };
+      dmr_slot?: {
+        options: DMRSlot[];
+        get: (i: number) => number;
+        set: (i: number, i_option: number) => void;
+      };
+      dmr_color_code?: {
+        get: (i: number) => number;
+        set: (i: number, code: number) => void;
+      };
+      dmr_encryption?: {
+        keys: { name: string; type: DMREncryptionType }[];
+        get: (i: number) => { key_index: number };
+        set: (i: number, val: { key_index: number }) => void;
+      };
     };
 
     export type Switcher = _Field<"switcher"> & { get: () => boolean; set: (val: boolean) => void };
@@ -109,7 +150,7 @@ export namespace UI {
       set: (val: globalThis.File | undefined) => void;
     };
 
-    export type Any = None | Channels | Switcher | Select | Label | Slider | Text | Chars | File;
+    export type Any = None | Cargo | Channels | Switcher | Select | Label | Slider | Text | Chars | File;
   }
 
   export type Root = { fields: Field.Any[] };
