@@ -332,6 +332,18 @@ export const common_ui = {
     get: () => ref.get(),
     set: (val) => ref.set(Number(val)),
   }),
+  tot_list: (ref: _GetSetNumber, config: { seconds: number[] }): UI.Field.Slider => ({
+    type: "slider",
+    id: "tot",
+    name: t("tot"),
+    description: t("tot_tooltip"),
+    tab: UITab.Power,
+    min: 0,
+    max: config.seconds.length - 1,
+    label: (val) => (config.seconds[val] ? t("seconds_value", { replace: { value: config.seconds[val] } }) : t("off")),
+    get: () => ref.get(),
+    set: (val) => ref.set(val),
+  }),
 
   timeout_alarm: (ref: _GetSetNumber, config: { from: number; to: number; step: number }): UI.Field.Slider => ({
     type: "slider",

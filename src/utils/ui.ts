@@ -2,9 +2,13 @@ export namespace UI {
   export type RadioMode = "FM" | "NFM" | "WFM" | "AM" | "NAM" | "SSB";
   export type ScanMode = "On" | "Off";
   export type PttIdOn = "Off" | "Begin" | "End" | "BeginAndEnd";
-  export type DMREncryptionType = "Off" | "ARC" | "AES-128" | "AES-256";
   export type DMRSlot = "Slot-1" | "Slot-2" | "DualSlot";
+
   export type DMRContactType = "Individual" | "Group";
+  export type DMRContact = { type: DMRContactType; id: number; name?: string };
+
+  export type DMREncryptionType = "Off" | "ARC" | "AES-128" | "AES-256";
+  export type DMREncryption = { name: string; type: DMREncryptionType };
 
   export type Squelch =
     | { mode: "Off" }
@@ -101,7 +105,7 @@ export namespace UI {
         set: (i: number, i_group: number) => void;
       };
       dmr_contact?: {
-        contacts: { type: DMRContactType; id: number; name?: string }[];
+        contacts: DMRContact[];
         get: (i: number) => number;
         set: (i: number, i_contact: number) => void;
       };
@@ -115,7 +119,7 @@ export namespace UI {
         set: (i: number, code: number) => void;
       };
       dmr_encryption?: {
-        keys: { name: string; type: DMREncryptionType }[];
+        keys: DMREncryption[];
         get: (i: number) => { key_index: number };
         set: (i: number, val: { key_index: number }) => void;
       };

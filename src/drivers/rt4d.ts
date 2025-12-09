@@ -6,6 +6,7 @@ import { common_ui } from "@/utils/common_ui";
 import { array_of, create_mem_mapper, to_js, type M } from "@/utils/mem";
 import { CTCSS_TONES, DCS_CODES, trim_string } from "@/utils/radio";
 import { t } from "i18next";
+import { _unknown } from "zod/v4/core";
 
 const TYPE_DIGITAL = 0;
 const TYPE_ANALOG = 1;
@@ -18,6 +19,14 @@ const SLOT_2 = 1;
 
 const ID_SELECT_RADIO = 0;
 const ID_SELECT_CHANNEL = 1;
+
+const CONTACT_INDIVIDUAL = 0;
+const CONTACT_GROUP = 1;
+const CONTACT_CALL_ALL = 2;
+
+const ENCRYPT_ARC = 0;
+const ENCRYPT_AES_128 = 1;
+const ENCRYPT_AES_256 = 2;
 
 const TOT = [
   0, 5, 10, 15, 30, 45, 60, 75, 90, 105, 120, 135, 150, 165, 180, 195, 210, 225, 240, 255, 270, 285, 300, 315, 330, 345,
@@ -122,6 +131,40 @@ export class RT4DRadio extends Radio {
           return channel;
         })
       ),
+
+      ...m.seek(0x5c000).skip(0, {}),
+
+      contacts: array_of(2000, () =>
+        m.struct(() => ({
+          _unknown0: m.u8(),
+          type: m.u8(), // 0=individual, 1=group, 2=all, end-of-list
+          id: m.u32(),
+          _unknown6: m.buf(10),
+          name: m.str(16),
+        }))
+      ),
+
+      ...m.seek(0x7c000).skip(0, {}),
+
+      rx_groups: array_of(32, () =>
+        m.struct(() => ({
+          _unknown0: m.u8(),
+          enabled: m.u8(), // 1=enabled, disabled
+          name: m.str(14),
+          contacts: array_of(128, () => m.u16()), // <2000=contact_index, empty
+        }))
+      ),
+
+      ...m.seek(0x82000).skip(0, {}),
+
+      keys: array_of(256, () =>
+        m.struct(() => ({
+          _unknown0: m.u8(),
+          type: m.u8(), // 0=ARC, 1=AES-128, 2=AES-256, 3=unknown, 4=unknown, end-of-list
+          name: m.str(14),
+          key: m.buf(32),
+        }))
+      ),
     };
   }
 
@@ -159,7 +202,7 @@ export class RT4DRadio extends Radio {
     const mem = this._mem;
     if (!mem) return { fields: [] };
 
-    const { channels } = mem;
+    const { channels, contacts, rx_groups, keys } = mem;
 
     return {
       fields: [
@@ -260,7 +303,17 @@ export class RT4DRadio extends Radio {
           dmr_encryption: {
             keys: [
               { name: "", type: "Off" },
-              // TODO: insert keys
+              ...(() => {
+                const list: UI.DMREncryption[] = [];
+                for (const key of keys) {
+                  const type = key.type.get();
+                  if (type > 4) break;
+                  if (type === ENCRYPT_ARC) list.push({ type: "ARC", name: trim_string(key.name.get()) });
+                  if (type === ENCRYPT_AES_128) list.push({ type: "AES-128", name: trim_string(key.name.get()) });
+                  if (type === ENCRYPT_AES_256) list.push({ type: "AES-256", name: trim_string(key.name.get()) });
+                }
+                return list;
+              })(),
             ],
             get: (i) => ({ key_index: channels[i].digital.encryption.get() }),
             set: (i, val) => channels[i].digital.encryption.set(val.key_index),
@@ -285,17 +338,36 @@ export class RT4DRadio extends Radio {
             set: (i, val) => channels[i].digital.color_code.set(val),
           },
           dmr_contact: {
-            contacts: [
-              { type: "Group", id: 16_777_215 },
-              // TODO: insert contacts
-            ],
+            contacts: (() => {
+              const list: UI.DMRContact[] = [];
+              for (const c of contacts) {
+                const type = c.type.get();
+                if (type === CONTACT_CALL_ALL) {
+                  list.push({ type: "Group", id: 16_777_215 });
+                } else if (type === CONTACT_GROUP) {
+                  list.push({ type: "Group", id: c.id.get(), name: trim_string(c.name.get()) });
+                } else if (type === CONTACT_INDIVIDUAL) {
+                  list.push({ type: "Individual", id: c.id.get(), name: trim_string(c.name.get()) });
+                } else {
+                  break;
+                }
+              }
+              return list;
+            })(),
             get: (i) => channels[i].digital.contact.get(),
             set: (i, val) => channels[i].digital.contact.set(val),
           },
           dmr_rx_list: {
             lists: [
               t("off"),
-              // TODO: insert lists
+              ...(() => {
+                const list: string[] = [];
+                for (const rx of rx_groups) {
+                  if (rx.enabled.get() !== 1) break;
+                  list.push(trim_string(rx.name.get()));
+                }
+                return list;
+              })(),
             ],
             get: (i) => channels[i].digital.group.get(),
             set: (i, val) => channels[i].digital.group.set(val),
@@ -316,19 +388,25 @@ export class RT4DRadio extends Radio {
             },
           },
 
-          extra: (i) =>
-            channels[i].type.get() === TYPE_DIGITAL
-              ? [
-                  {
-                    type: "switcher",
-                    id: "dmr_monit",
-                    name: "Monitoring",
-                    options: ["Radio", "Channel"],
-                    get: () => channels[i].digital.monit.get() === 1,
-                    set: (val) => channels[i].digital.monit.set(val ? 1 : 0),
-                  },
-                ]
-              : [],
+          extra: (i) => {
+            const extra: UI.Field.Any[] = [];
+
+            // TODO: all fields
+            if (channels[i].type.get() === TYPE_DIGITAL) {
+              extra.push({
+                type: "switcher",
+                id: "dmr_monit",
+                name: "Monitoring",
+                get: () => channels[i].digital.monit.get() === 1,
+                set: (val) => channels[i].digital.monit.set(val ? 1 : 0),
+              });
+              extra.push(common_ui.tot_list(channels[i].digital.tot, { seconds: TOT }));
+            } else {
+              extra.push(common_ui.tot_list(channels[i].analog.tot, { seconds: TOT.slice(0, 32) }));
+            }
+
+            return extra;
+          },
         },
       ],
     };
