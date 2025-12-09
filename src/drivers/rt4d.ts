@@ -6,7 +6,6 @@ import { common_ui } from "@/utils/common_ui";
 import { array_of, create_mem_mapper, to_js, type M } from "@/utils/mem";
 import { CTCSS_TONES, DCS_CODES, trim_string } from "@/utils/radio";
 import { t } from "i18next";
-import { _unknown } from "zod/v4/core";
 
 const TYPE_DIGITAL = 0;
 const TYPE_ANALOG = 1;
