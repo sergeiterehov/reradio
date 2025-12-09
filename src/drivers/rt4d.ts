@@ -383,6 +383,27 @@ export class RT4DRadio extends Radio {
         }))
       ),
 
+      ...m.seek(0x94000).skip(0, {}),
+
+      // preset: 0-15, draft: 16-269, received: 270-526, sent: 527-783
+      sms: array_of(784, () =>
+        m.struct(() => ({
+          box: m.u8(), // 0=preset, 1=draft, 2=received, 3=sent
+          type: m.u8(), // 0=individual, 1=group, 2=all, unknown
+          id: m.u32(),
+          time: m.struct(() => ({
+            year2: m.u8(),
+            month: m.u8(),
+            day: m.u8(),
+            hour: m.u8(),
+            minute: m.u8(),
+            second: m.u8(),
+          })),
+          _unknown12: m.buf(44),
+          text: m.str(200),
+        }))
+      ),
+
       ...m.seek(0x1c000).skip(0, {}),
 
       zones: array_of(256, () =>
