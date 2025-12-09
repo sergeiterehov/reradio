@@ -383,6 +383,17 @@ export class RT4DRadio extends Radio {
         }))
       ),
 
+      ...m.seek(0x1c000).skip(0, {}),
+
+      zones: array_of(256, () =>
+        m.struct(() => ({
+          _unknown0: m.buf(4),
+          name: m.str(16),
+          channels: array_of(200, () => m.u16()),
+          _unknown420: m.buf(92),
+        }))
+      ),
+
       ...m.seek(0xd6000).skip(0, {}),
 
       fm: {
