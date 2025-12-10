@@ -270,6 +270,7 @@ export class RT4DRadio extends Radio {
           decode_th: m.u8(), // 0-63
           remote_control: m.u8(), // 0=off, 1=on
           calibrate: m.u8(), // 0=off, 1=on
+          // 1-16, stun, wake, kill, monitor
           list: array_of(20, () =>
             m.struct(() => ({
               code: m.str(14),
