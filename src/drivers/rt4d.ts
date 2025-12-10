@@ -104,7 +104,7 @@ function checksum(buf: Buffer, offset: number = 0, length: number = buf.length) 
 export class RT4DRadio extends Radio {
   static override Info: RadioInfo = {
     vendor: "Radtel",
-    model: "RT-4D",
+    model: "RT-4D V3",
   };
 
   protected readonly _PROG_CMD = Buffer.from([0x34, 0x52, 0x05, 0x10, 0x9b]);
@@ -125,12 +125,132 @@ export class RT4DRadio extends Radio {
   protected readonly _MEM_SIZE = 1024 * 1024;
 
   protected _img?: Buffer;
-  protected _mem?: ReturnType<typeof this._parse>;
+  protected _mem?: ReturnType<typeof this._parse_v3>;
 
-  protected _parse(img: Buffer) {
+  protected _parse_v3(img: Buffer) {
     const m = create_mem_mapper(img, this.dispatch_ui);
 
     return {
+      ...m.seek(0x4000).skip(0, {}),
+
+      channels: array_of(1024, () =>
+        m.struct(() => ({
+          ...m.bitmap({
+            type: 2, // 0=digital, 1=analog, empty
+            rxtx: 2, // 0=rx+tx, 1=rx, 2=tx, #0
+            id_select: 1, // 0=radio, 1=channel
+            dmr_mode: 1, // 0=single-slot, 1=dual-slot
+            dmr_slot: 1, // 0=1, 1=2
+            dmr_monit: 1, // 0=off, 1=on
+          }),
+          ...m.bitmap({
+            color_code: 4,
+            scramble: 4, // 0=off, [1..8], #0
+          }),
+          ...m.bitmap({
+            power: 2, // 0=low, 1=hight, #0
+            tot: 6, // TIMER[], #0
+          }),
+          ...m.bitmap({
+            scan_skip: 1,
+            call_priority: 2, // 0=allow-tx, 1=channel-free, 2=color-code-idle
+            tx_priority: 2, // 0=allow-tx, 1=channel-free, 2=subtone-free
+            tail_tone: 3, //  0=off, 1=55hz, 2=120-deg-shift, 3=180-deg-shift, 4=240-deg-shift, #0
+          }),
+          ...m.bitmap({
+            band: 2, // 0=wide, 1=narrow, #0
+            amfm: 2, // 0=fm, 1=am, 2=ssb, #0
+            ctdc: 3, // 0=normal, 1=enc1, 2=enc2, 3=mute-code, #0
+            _unknown7: 1,
+          }),
+          rx_freq: m.u32(),
+          tx_freq: m.u32(),
+          rx_tone: m.u16(),
+          tx_tone: m.u16(),
+          contact: m.u16(), // index, #0
+          rx_tg_list: m.u8(), // 0=none, number[], #0
+          encryption: m.u16(), // 0=none, number[], #0
+          ch_dmr_id: m.u32(),
+          mute_code: m.u32(),
+          _unknown30: m.buf(2),
+          name: m.str(16),
+        }))
+      ),
+
+      ...m.seek(0x1c000).skip(0, {}),
+      // TODO: VFO A,B like channel
+
+      ...m.seek(0x5e000).skip(0, {}),
+
+      contacts: array_of(10_000, () =>
+        m.struct(() => ({
+          type: m.u8(), // 0=individual, 1=group, 2=all-call, empty
+          id: m.u32(), // hex id
+          name: m.str(16),
+        }))
+      ),
+
+      ...m.seek(0xc6000).skip(0, {}),
+
+      tg_lists: array_of(250, () =>
+        m.struct(() => ({
+          name: m.str(16),
+          contacts: array_of(32, () => m.u16()),
+        }))
+      ),
+
+      ...m.seek(0xd0000).skip(0, {}),
+
+      keys: array_of(256, () =>
+        m.struct(() => ({
+          _unknown0: m.buf(1),
+          type: m.u8(), // 0=ARC, 1=AES128, 2=AES256, 3=?, 4=?, empty
+          name: m.str(14),
+          key: m.str(32),
+        }))
+      ),
+
+      ...m.seek(0x1e000).skip(0, {}),
+
+      zones: array_of(250, () =>
+        m.struct(() => ({
+          ab_channels: array_of(2, () => m.u16()), // TODO: really AB (original name - bufZoneCH)?
+          name: m.str(16),
+          channels: array_of(250, () => m.u16()),
+        }))
+      ),
+
+      ...m.seek(0xf0000).skip(0, {}),
+
+      fm: array_of(80, () =>
+        m.struct(() => ({
+          range: m.u8(),
+          freq: m.u16(), // mhz * 10
+          sw_mode: m.u8(), // 0=am, 1=lsb, 2=usb, 3=cw, #0
+          sw_step: m.u8(), // 0=1k, 1=5k, 2=9k, 3=10k, #0
+          sw_bw: m.u8(), // 0=0.5k, 1=1k, 2=1.2k, 3=2.2k, 4=3k, 5=4k, #0
+          sw_agc: m.u8(), // 0=AGC, [0...-37], #0
+          _unknown7: m.buf(2),
+          _unknown9_: m.u16(), // 000.000 WTF?
+          _unknown11: m.buf(1),
+          mw_mode: m.u8(), // 0=am, 1=lsb, 2=usb, 3=cw, #0
+          mw_step: m.u8(), // 0=1k, 1=5k, 2=9k, 3=10k, #0
+          mw_bw: m.u8(), // 0=0.5k, 1=1k, 2=1.2k, 3=2.2k, 4=3k, 5=4k, #0
+          mw_agc: m.u8(), // 0=AGC, [0...-37], #0
+          _unknown16: m.u16(), // val-32768
+          _unknown18: m.u16(),
+          _unknown20: m.buf(1),
+          lw_mode: m.u8(), // 0=am, 1=lsb, 2=usb, 3=cw, #0
+          lw_step: m.u8(), // 0=1k, 1=5k, 2=9k, 3=10k, #0
+          lw_bw: m.u8(), // 0=0.5k, 1=1k, 2=1.2k, 3=2.2k, 4=3k, 5=4k, #0
+          lw_agc: m.u8(), // 0=AGC, [0...-37], #0
+          _unknown25: m.u16(), // val-32768
+          _unknown27: m.buf(3),
+          name: m.str(16),
+          _unknown46: m.buf(2),
+        }))
+      ),
+
       ...m.seek(0x2000).skip(0, {}),
 
       settings: {
@@ -287,108 +407,10 @@ export class RT4DRadio extends Radio {
         freq_scan_end: m.u32(), // 18_00_000-999_999_999
       },
 
-      ...m.seek(0x4000).skip(0, {}),
+      ...m.seek(0xd6000).skip(0, {}),
 
-      channels: array_of(1024, () =>
-        m.struct(() => {
-          const addr = m.addr;
-          const channel = {
-            type: m.at(addr + 2, () => m.u8()), // 0=digital, 1=analog, empty
-
-            rx_freq: m.at(addr + 6, () => m.u32()),
-            tx_freq: m.at(addr + 10, () => m.u32()),
-
-            pow: m.at(addr + 16, () => m.u8()), // 0=low, 1=high
-            ...m.at(addr + 19, () =>
-              m.bitmap({
-                scan_skip: 1, // 0=scan, 1=skip
-                _: 7,
-              })
-            ),
-            name: m.at(addr + 32, () => m.str(16)),
-
-            digital: {
-              id_select: m.at(addr + 0, () => m.u8()), // 0=radio_id, 1=channel_id, #0
-              slot: m.at(addr + 3, () => m.u8()), // 0=1, 1=2, #0
-              color_code: m.at(addr + 4, () => m.u8()), // 0..15, #0
-              mode: m.at(addr + 5, () => m.u8()), // 0=dual-off, 1=direct-dual, #0
-              monit: m.at(addr + 14, () => m.u8()), // 0=off, 1=on, #0
-              bcl: m.at(addr + 17, () => m.u8()), // 0=allow-tx, 1=channel-free, 2=color-code-idle, #0
-              tot: m.at(addr + 20, () => m.u8()), // TOT[], #0
-              group: m.at(addr + 22, () => m.u16()), // 0=none, number
-              contact: m.at(addr + 24, () => m.u16()), // 0=all-call, number
-              encryption: m.at(addr + 26, () => m.u16()), // 0=none, number
-              own_id: m.at(addr + 28, () => m.u32()), // 0=1, number
-            },
-
-            analog: {
-              mode: m.at(addr + 0, () => m.u8()), // 0=fm, 1=am, 2=ssb
-              band: m.at(addr + 3, () => m.u8()), // 0=wide, 1=narrow
-              rx_tone: m.at(addr + 4, () => m.u16()),
-              tx_tone: m.at(addr + 14, () => m.u16()),
-              bcl: m.at(addr + 17, () => m.u8()), //0=allow-tx, 1=channel-free, 2=subtone-idle
-              ...m.at(addr + 18, () =>
-                m.bitmap({
-                  ctdc: 3, // 0=normal, 1=encrypt1, 2=encrypt2, 3=encrypt3, 4=mute-code
-                  tot: 5, // TOT[]
-                })
-              ),
-              ...m.at(addr + 19, () =>
-                m.bitmap({
-                  _: 1,
-                  tail_tone: 3, // 0=off, 1=55hz, 2=120-deg-shift, 3=180-deg-shift, 4=240-deg-shift
-                  scramble: 4, // 0..8
-                })
-              ),
-              mute1: m.at(addr + 20, () => m.u32()),
-              _mute2: m.at(addr + 24, () => m.u32()), // unused
-              _mute3: m.at(addr + 28, () => m.u32()), // unused
-            },
-          };
-
-          m.seek(addr + 48);
-          return channel;
-        })
-      ),
-
-      ...m.seek(0x5c000).skip(0, {}),
-
-      contacts: array_of(2000, () =>
-        m.struct(() => ({
-          _unknown0: m.u8(),
-          type: m.u8(), // 0=individual, 1=group, 2=all, end-of-list
-          id: m.u32(),
-          _unknown6: m.buf(10),
-          name: m.str(16),
-        }))
-      ),
-
-      ...m.seek(0x7c000).skip(0, {}),
-
-      rx_groups: array_of(32, () =>
-        m.struct(() => ({
-          _unknown0: m.u8(),
-          enabled: m.u8(), // 1=enabled, disabled
-          name: m.str(14),
-          contacts: array_of(128, () => m.u16()), // <2000=contact_index, empty
-        }))
-      ),
-
-      ...m.seek(0x82000).skip(0, {}),
-
-      keys: array_of(256, () =>
-        m.struct(() => ({
-          _unknown0: m.u8(),
-          type: m.u8(), // 0=ARC, 1=AES-128, 2=AES-256, 3=unknown, 4=unknown, end-of-list
-          name: m.str(14),
-          key: m.buf(32),
-        }))
-      ),
-
-      ...m.seek(0x94000).skip(0, {}),
-
-      // preset: 0-15, draft: 16-269, received: 270-526, sent: 527-783
-      sms: array_of(784, () =>
+      // preset, draft, received, sent
+      sms: array_of(16 + 128 + 128 + 128, () =>
         m.struct(() => ({
           box: m.u8(), // 0=preset, 1=draft, 2=received, 3=sent
           type: m.u8(), // 0=individual, 1=group, 2=all, unknown
@@ -402,36 +424,9 @@ export class RT4DRadio extends Radio {
             second: m.u8(),
           })),
           _unknown12: m.buf(44),
-          text: m.str(200),
+          text: m.str(200), // v1=200, v2=160 but next mem is unused
         }))
       ),
-
-      ...m.seek(0x1c000).skip(0, {}),
-
-      zones: array_of(256, () =>
-        m.struct(() => ({
-          _unknown0: m.buf(4),
-          name: m.str(16),
-          channels: array_of(200, () => m.u16()),
-          _unknown420: m.buf(92),
-        }))
-      ),
-
-      ...m.seek(0xd6000).skip(0, {}),
-
-      fm: {
-        mode: m.u8(), // 0=ch, 1=freq
-        standby: m.u8(), // 0=off, 1=on
-        area: m.u8(), // 1..16
-        channel: m.u8(), // 1..16
-        scan: m.u8(), // 0=carrier stop, 1=scanning all
-        areas: array_of(16, () =>
-          m.struct(() => ({
-            name: m.str(16),
-            channels: array_of(16, () => m.u16()),
-          }))
-        ),
-      },
     };
   }
 
@@ -469,7 +464,7 @@ export class RT4DRadio extends Radio {
     const mem = this._mem;
     if (!mem) return { fields: [] };
 
-    const { channels, contacts, rx_groups, keys } = mem;
+    const { channels, contacts, tg_lists, keys } = mem;
 
     return {
       fields: [
@@ -488,17 +483,7 @@ export class RT4DRadio extends Radio {
           },
           digital: {
             get: (i) => channels[i].type.get() === TYPE_DIGITAL,
-            set: (i, val) => {
-              const ch = channels[i];
-              const prev = ch.type.get() === TYPE_DIGITAL;
-
-              if (prev === val) return;
-
-              for (const ref of Object.values(ch.digital)) ref.set(0);
-              for (const ref of Object.values(ch.analog)) ref.set(0);
-
-              ch.type.set(val ? TYPE_DIGITAL : TYPE_ANALOG);
-            },
+            set: (i, val) => channels[i].type.set(val ? TYPE_DIGITAL : TYPE_ANALOG),
           },
           channel: {
             get: (i) => trim_string(channels[i].name.get()) || `CH-${i + 1}`,
@@ -525,8 +510,8 @@ export class RT4DRadio extends Radio {
           power: {
             options: [1, 5],
             name: (val) => [t("power_low"), t("power_high")][val] || "?",
-            get: (i) => channels[i].pow.get(),
-            set: (i, val) => channels[i].pow.set(val),
+            get: (i) => channels[i].power.get(),
+            set: (i, val) => channels[i].power.set(val),
           },
           scan: {
             options: ["On", "Off"],
@@ -536,19 +521,19 @@ export class RT4DRadio extends Radio {
           bcl: {
             get: (i) => {
               const ch = channels[i];
-              return Boolean((ch.type.get() === TYPE_ANALOG ? ch.analog.bcl : ch.digital.bcl).get());
+              return Boolean((ch.type.get() === TYPE_ANALOG ? ch.tx_priority : ch.call_priority).get());
             },
             set: (i, val) => {
               const ch = channels[i];
-              (ch.type.get() === TYPE_ANALOG ? ch.analog.bcl : ch.digital.bcl).set(val ? 1 : 0);
+              (ch.type.get() === TYPE_ANALOG ? ch.tx_priority : ch.call_priority).set(val ? 1 : 0);
             },
           },
 
           mode: {
             options: ["NFM", "FM", "AM", "SSB"],
             get: (i) => {
-              const mode = channels[i].analog.mode.get();
-              const band = channels[i].analog.band.get();
+              const mode = channels[i].amfm.get();
+              const band = channels[i].amfm.get();
 
               if (mode === 0 && band === 1) return 0;
 
@@ -556,16 +541,16 @@ export class RT4DRadio extends Radio {
             },
             set: (i, val) => {
               if (val === 0) {
-                channels[i].analog.mode.set(0);
-                channels[i].analog.band.set(1);
+                channels[i].amfm.set(0);
+                channels[i].band.set(1);
               } else {
-                channels[i].analog.mode.set(val - 1);
-                channels[i].analog.band.set(0);
+                channels[i].amfm.set(val - 1);
+                channels[i].band.set(0);
               }
             },
           },
-          squelch_rx: this._get_squelch_ui((i) => channels[i].analog.rx_tone),
-          squelch_tx: this._get_squelch_ui((i) => channels[i].analog.tx_tone),
+          squelch_rx: this._get_squelch_ui((i) => channels[i].rx_tone),
+          squelch_tx: this._get_squelch_ui((i) => channels[i].tx_tone),
 
           dmr_encryption: {
             keys: [
@@ -582,27 +567,27 @@ export class RT4DRadio extends Radio {
                 return list;
               })(),
             ],
-            get: (i) => ({ key_index: channels[i].digital.encryption.get() }),
-            set: (i, val) => channels[i].digital.encryption.set(val.key_index),
+            get: (i) => ({ key_index: channels[i].encryption.get() }),
+            set: (i, val) => channels[i].encryption.set(val.key_index),
           },
           dmr_slot: {
             options: ["Slot-1", "Slot-2", "DualSlot"],
             get: (i) => {
-              if (channels[i].digital.mode.get() === MODE_DIRECT_DUAL) return 2;
-              return channels[i].digital.slot.get() === SLOT_2 ? 1 : 0;
+              if (channels[i].dmr_mode.get() === MODE_DIRECT_DUAL) return 2;
+              return channels[i].dmr_slot.get() === SLOT_2 ? 1 : 0;
             },
             set: (i, val) => {
               if (val === 2) {
-                channels[i].digital.mode.set(MODE_DIRECT_DUAL);
+                channels[i].dmr_mode.set(MODE_DIRECT_DUAL);
               } else {
-                channels[i].digital.mode.set(MODE_SINGLE_SLOT);
-                channels[i].digital.slot.set(val === 0 ? SLOT_1 : SLOT_2);
+                channels[i].dmr_mode.set(MODE_SINGLE_SLOT);
+                channels[i].dmr_slot.set(val === 0 ? SLOT_1 : SLOT_2);
               }
             },
           },
           dmr_color_code: {
-            get: (i) => channels[i].digital.color_code.get(),
-            set: (i, val) => channels[i].digital.color_code.set(val),
+            get: (i) => channels[i].color_code.get(),
+            set: (i, val) => channels[i].color_code.set(val),
           },
           dmr_contact: {
             contacts: (() => {
@@ -621,36 +606,36 @@ export class RT4DRadio extends Radio {
               }
               return list;
             })(),
-            get: (i) => channels[i].digital.contact.get(),
-            set: (i, val) => channels[i].digital.contact.set(val),
+            get: (i) => channels[i].contact.get(),
+            set: (i, val) => channels[i].contact.set(val),
           },
           dmr_rx_list: {
             lists: [
               t("off"),
               ...(() => {
                 const list: string[] = [];
-                for (const rx of rx_groups) {
-                  if (rx.enabled.get() !== 1) break;
-                  list.push(trim_string(rx.name.get()));
+                for (const rx of tg_lists) {
+                  const name = trim_string(rx.name.get());
+                  if (name) list.push(name);
                 }
                 return list;
               })(),
             ],
-            get: (i) => channels[i].digital.group.get(),
-            set: (i, val) => channels[i].digital.group.set(val),
+            get: (i) => channels[i].rx_tg_list.get(),
+            set: (i, val) => channels[i].rx_tg_list.set(val),
           },
           dmr_id: {
             from: ["Radio", "Channel"],
             get: (i) => {
-              if (channels[i].digital.id_select.get() !== ID_SELECT_CHANNEL) return { from: "Radio" };
-              return { from: "Channel", id: channels[i].digital.own_id.get() };
+              if (channels[i].id_select.get() !== ID_SELECT_CHANNEL) return { from: "Radio" };
+              return { from: "Channel", id: channels[i].ch_dmr_id.get() };
             },
             set: (i, val) => {
               if (val.from === "Radio") {
-                channels[i].digital.id_select.set(ID_SELECT_RADIO);
+                channels[i].id_select.set(ID_SELECT_RADIO);
               } else {
-                channels[i].digital.id_select.set(ID_SELECT_CHANNEL);
-                channels[i].digital.own_id.set(val.id);
+                channels[i].id_select.set(ID_SELECT_CHANNEL);
+                channels[i].ch_dmr_id.set(val.id);
               }
             },
           },
@@ -664,13 +649,12 @@ export class RT4DRadio extends Radio {
                 type: "switcher",
                 id: "dmr_monit",
                 name: "Monitoring",
-                get: () => channels[i].digital.monit.get() === 1,
-                set: (val) => channels[i].digital.monit.set(val ? 1 : 0),
+                get: () => channels[i].dmr_monit.get() === 1,
+                set: (val) => channels[i].dmr_monit.set(val ? 1 : 0),
               });
-              extra.push(common_ui.tot_list(channels[i].digital.tot, { seconds: TIMER }));
-            } else {
-              extra.push(common_ui.tot_list(channels[i].analog.tot, { seconds: TIMER.slice(0, 32) }));
             }
+
+            extra.push(common_ui.tot_list(channels[i].tot, { seconds: TIMER }));
 
             return extra;
           },
@@ -697,7 +681,7 @@ export class RT4DRadio extends Radio {
   }
 
   async load(snapshot: Buffer) {
-    const mem = this._parse(snapshot);
+    const mem = this._parse_v3(snapshot);
 
     this._img = snapshot;
     this._mem = mem;

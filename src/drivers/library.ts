@@ -77,7 +77,7 @@ export class Demo_RTRT4DRadio extends RT4DRadio {
 
   constructor() {
     super();
-    import("../images/Radtel_RT-4D_v1.img?hex").then(({ default: img }) => this.load(Buffer.from(img, "hex")));
+    import("../images/Radtel_RT-4D_v3.img?hex").then(({ default: img }) => this.load(Buffer.from(img, "hex")));
   }
 }
 
