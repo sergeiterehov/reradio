@@ -4,7 +4,7 @@ import { serial } from "@/utils/serial";
 import { Buffer } from "buffer";
 import { common_ui } from "@/utils/common_ui";
 import { array_of, create_mem_mapper, to_js, type M } from "@/utils/mem";
-import { CTCSS_TONES, DCS_CODES, trim_string } from "@/utils/radio";
+import { CTCSS_TONES, DCS_CODES, download_buffer, trim_string } from "@/utils/radio";
 import { t } from "i18next";
 
 const TYPE_DIGITAL = 0;
@@ -112,16 +112,17 @@ export class RT4DRadio extends Radio {
   protected readonly _END_CMD = Buffer.from([0x34, 0x52, 0x05, 0xee, 0x79]);
 
   protected readonly _RANGES = [
-    { start: 8, end: 12 }, // bufCFG
-    { start: 16, end: 64 }, // bufAll
-    { start: 112, end: 240 }, // bufZone
-    { start: 368, end: 432 }, // bufContact
-    { start: 496, end: 508 }, // bufGroupList
-    { start: 520, end: 532 }, // bufEncrypt
-    { start: 592, end: 788 }, // bufSMSData
-    { start: 856, end: 857 }, // bufFM
+    { start: 8, end: 8 },
+    { start: 16, end: 63 },
+    { start: 112, end: 112 },
+    { start: 120, end: 147 },
+    { start: 376, end: 583 },
+    { start: 792, end: 811 },
+    { start: 831, end: 843 },
+    { start: 856, end: 955 },
+    { start: 960, end: 963 },
   ];
-  protected readonly _MEM_SIZE = 857 * 1024;
+  protected readonly _MEM_SIZE = 1024 * 1024;
 
   protected _img?: Buffer;
   protected _mem?: ReturnType<typeof this._parse>;
@@ -722,7 +723,7 @@ export class RT4DRadio extends Radio {
     const img = Buffer.alloc(this._MEM_SIZE);
 
     for (const range of this._RANGES) {
-      for (let i = range.start; i < range.end; i += 1) {
+      for (let i = range.start; i <= range.end; i += 1) {
         const block = await this._read_block(i);
 
         const addr = i * 1024;
@@ -733,6 +734,8 @@ export class RT4DRadio extends Radio {
     }
 
     await serial.write(this._END_CMD);
+
+    download_buffer(img);
 
     this.dispatch_progress(1);
   }
