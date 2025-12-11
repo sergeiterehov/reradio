@@ -163,7 +163,7 @@ export namespace UI {
     export type Table = _Field<"table"> & {
       header: () => { [k: string]: { name: string } };
       size: () => number;
-      get: (i: number) => { [k: string]: string } | undefined;
+      get: (i: number) => { [k in string]?: string };
       set_ui?: (i: number) => Field.Any[];
       delete?: (i: number) => void;
     };

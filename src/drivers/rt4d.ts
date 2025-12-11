@@ -691,10 +691,6 @@ export class RT4DRadio extends Radio {
             const c = contacts[i];
 
             c.__raw.set(new Array(c.__raw.size).fill(0xff));
-            for (let ri = i; ri < contacts.length - 1; ri += 1) {
-              contacts[ri].__raw.set(contacts[ri + 1].__raw.get());
-              if (contacts[ri + 1].type.get() > 2) break;
-            }
           },
         } as UI.Field.Contacts,
 
@@ -712,7 +708,7 @@ export class RT4DRadio extends Radio {
           get: (i) => {
             const key = keys[i];
             const type = key.type.get();
-            if (type > 4) return;
+            if (type > 4) return {};
 
             return {
               name: trim_string(key.name.get()),
@@ -723,6 +719,7 @@ export class RT4DRadio extends Radio {
                 .toString("hex"),
             };
           },
+          delete: (i) => keys[i].__raw.set(new Array(keys[i].__raw.size).fill(0xff)),
           set_ui: (i) => [
             {
               type: "text",

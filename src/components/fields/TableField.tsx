@@ -1,14 +1,15 @@
 import { Store } from "@/store";
 import { type UI } from "@/utils/ui";
-import { Box, Drawer, Fieldset, Table } from "@chakra-ui/react";
+import { Box, Drawer, Fieldset, IconButton, Table } from "@chakra-ui/react";
 import { useRef, useState, useEffect } from "react";
 import { useStore } from "zustand";
 import { createColumnHelper, flexRender, getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import { useWindowVirtualizer } from "@tanstack/react-virtual";
 import { useTranslation } from "react-i18next";
 import { AnyField } from "./AnyField";
+import { TbTrash } from "react-icons/tb";
 
-type RowType = { [k in string]?: string } | { $index: number };
+type RowType = { [k in string]?: string };
 
 const columnHelper = createColumnHelper<RowType>();
 
@@ -50,8 +51,7 @@ export function TableField(props: { field: UI.Field.Table }) {
       const _data: RowType[] = [];
       for (let i = 0; i < field.size(); i += 1) {
         const row = field.get(i);
-        if (!row) continue;
-        _data.push({ ...row, $index: i });
+        _data.push(row);
       }
       setData(_data);
     };
@@ -102,8 +102,7 @@ export function TableField(props: { field: UI.Field.Table }) {
                         transform: `translateY(${_row.start}px)`,
                       }}
                       onClick={() => {
-                        const _index = row.original.$index as number;
-                        setActiveIndex(_index);
+                        setActiveIndex(_row.index);
                         drawer.setOpen(true);
                       }}
                     >
@@ -125,7 +124,24 @@ export function TableField(props: { field: UI.Field.Table }) {
         <Drawer.Content>
           <Drawer.CloseTrigger />
           <Drawer.Header>
-            <Drawer.Title>{t("editing")}</Drawer.Title>
+            <Drawer.Title flexGrow={1}>{t("editing")}</Drawer.Title>
+            {field.delete && (
+              <Drawer.Context>
+                {(drawer) => (
+                  <IconButton
+                    variant="ghost"
+                    rounded="full"
+                    colorPalette="red"
+                    onClick={() => {
+                      field.delete?.(activeIndex);
+                      drawer.setOpen(false);
+                    }}
+                  >
+                    <TbTrash />
+                  </IconButton>
+                )}
+              </Drawer.Context>
+            )}
           </Drawer.Header>
           <Drawer.Body>
             <Fieldset.Root>
