@@ -94,6 +94,7 @@ export function TableField(props: { field: UI.Field.Table }) {
                   return (
                     <tr
                       key={row.id}
+                      aria-selected={drawer.open && activeIndex === _row.index}
                       style={{
                         display: "flex",
                         position: "absolute",
