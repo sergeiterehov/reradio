@@ -23,7 +23,7 @@ import { useStore } from "zustand";
 import { Store } from "@/store";
 import { useWindowScroll } from "react-use";
 import { MeasureBox } from "../ui/MeasureBox";
-import { TbHelp, TbTrash, TbUser, TbUsersGroup } from "react-icons/tb";
+import { TbHelp, TbTrash, TbUsersGroup, TbUserSquareRounded } from "react-icons/tb";
 import { useTranslation } from "react-i18next";
 import { Tooltip } from "../ui/tooltip";
 import { DMR_ALL_CALL_ID } from "@/utils/radio";
@@ -63,7 +63,7 @@ function ContactDetails(props: { field: UI.Field.Contacts; index: number }) {
                 <SegmentGroup.Indicator />
                 <SegmentGroup.Items
                   items={[
-                    { value: "Individual", label: <TbUser /> },
+                    { value: "Individual", label: <TbUserSquareRounded /> },
                     { value: "Group", label: <TbUsersGroup /> },
                   ]}
                 />
@@ -160,7 +160,11 @@ function ContactCard(props: { field: UI.Field.Contacts; index: number }) {
                     aria-expanded={popover.open}
                     {...popover.getTriggerProps()}
                   >
-                    {contact.type === "Group" ? <TbUsersGroup /> : contact.type === "Individual" ? <TbUser /> : null}
+                    {contact.type === "Group" ? (
+                      <TbUsersGroup />
+                    ) : contact.type === "Individual" ? (
+                      <TbUserSquareRounded />
+                    ) : null}
                     {contact.id === DMR_ALL_CALL_ID ? t("all_call") : contact.name || `#${contact.id}`}
                   </Button>
                 </Box>
