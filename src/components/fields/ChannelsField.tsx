@@ -513,7 +513,7 @@ function ChannelForm(props: { field: UI.Field.Channels; index: number }) {
                     value={key_index}
                     onChange={(e) => dmr_encryption.set(index, { key_index: Number(e.currentTarget.value) })}
                   >
-                    {dmr_encryption.keys.map((opt, i_opt) => (
+                    {dmr_encryption.keys().map((opt, i_opt) => (
                       <option key={i_opt} value={i_opt}>
                         {(() => {
                           if (opt.type === "Off") return t("off");

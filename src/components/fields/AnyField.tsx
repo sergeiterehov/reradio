@@ -8,6 +8,7 @@ import { TextField } from "./TextField";
 import { CharsField } from "./CharsField";
 import { FileField } from "./FileField";
 import { ContactsField } from "./ContactsField";
+import { TableField } from "./TableField";
 
 export function AnyField(props: { field: UI.Field.Any }) {
   const { field } = props;
@@ -21,6 +22,7 @@ export function AnyField(props: { field: UI.Field.Any }) {
   if (field.type === "chars") return <CharsField field={field} />;
   if (field.type === "file") return <FileField field={field} />;
   if (field.type === "contacts") return <ContactsField field={field} />;
+  if (field.type === "table") return <TableField field={field} />;
 
   return null;
 }

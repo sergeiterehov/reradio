@@ -2,7 +2,7 @@ import type { UI } from "@/utils/ui";
 import { Radio, type RadioInfo } from "./radio";
 import { serial } from "@/utils/serial";
 import { Buffer } from "buffer";
-import { common_ui } from "@/utils/common_ui";
+import { common_ui, UITab } from "@/utils/common_ui";
 import { array_of, create_mem_mapper, to_js, type M } from "@/utils/mem";
 import { CTCSS_TONES, DCS_CODES, DMR_ALL_CALL_ID, download_buffer, trim_string } from "@/utils/radio";
 import { t } from "i18next";
@@ -35,6 +35,8 @@ const TIMER = [
 const DELAY = [
   0, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100, 1200, 1300, 1400, 1500, 1600, 1700, 1800, 1900, 2000,
 ];
+
+const ENC_TYPE: UI.DMREncryptionType[] = ["ARC", "AES-128", "AES-256"];
 
 const STEP = ["0.25K", "1.25K", "2.5K", "5K", "6.25K", "10K", "12.5K", "20K", "25K", "50K", "100K", "500K", "1M", "5M"];
 
@@ -206,7 +208,7 @@ export class RT4DRadio extends Radio {
           _unknown0: m.buf(1),
           type: m.u8(), // 0=ARC, 1=AES128, 2=AES256, 3=?, 4=?, empty
           name: m.str(14),
-          key: m.str(32),
+          key: m.buf(32),
         }))
       ),
 
@@ -553,7 +555,7 @@ export class RT4DRadio extends Radio {
           squelch_tx: this._get_squelch_ui((i) => channels[i].tx_tone),
 
           dmr_encryption: {
-            keys: [
+            keys: () => [
               { name: "", type: "Off" },
               ...(() => {
                 const list: UI.DMREncryption[] = [];
@@ -694,6 +696,78 @@ export class RT4DRadio extends Radio {
               if (contacts[ri + 1].type.get() > 2) break;
             }
           },
+        } as UI.Field.Contacts,
+
+        {
+          type: "table",
+          id: "keys",
+          name: "Encryption keys",
+          tab: UITab.Encryption,
+          size: () => keys.length,
+          header: () => ({
+            name: { name: t("name") },
+            type: { name: t("encryption_type") },
+            key: { name: t("encryption_key") },
+          }),
+          get: (i) => {
+            const key = keys[i];
+            const type = key.type.get();
+            if (type > 4) return;
+
+            return {
+              name: trim_string(key.name.get()),
+              type: ENC_TYPE[type],
+              key: key.key
+                .get()
+                .slice(0, type === 0 ? 5 : type === 1 ? 16 : type === 2 ? 32 : 0)
+                .toString("hex"),
+            };
+          },
+          set_ui: (i) => [
+            {
+              type: "text",
+              id: "name",
+              name: t("name"),
+              get: () => trim_string(keys[i].name.get()),
+              set: (val) => {
+                const name = keys[i].name;
+                name.set(val.substring(0, name.raw.size).padEnd(name.raw.size, "\xff"));
+              },
+            },
+            {
+              type: "select",
+              id: "type",
+              name: t("encryption_type"),
+              short: true,
+              options: ENC_TYPE,
+              get: () => keys[i].type.get(),
+              set: (val) => keys[i].type.set(val),
+            },
+            {
+              type: "text",
+              id: "key",
+              name: t("encryption_key"),
+              get: () => {
+                const key = keys[i];
+                const type = key.type.get();
+                return key.key
+                  .get()
+                  .slice(0, type === 0 ? 5 : type === 1 ? 16 : type === 2 ? 32 : 0)
+                  .toString("hex");
+              },
+              set: (val) => {
+                const key = keys[i];
+                const type = key.type.get();
+                const length = type === 0 ? 5 : type === 1 ? 16 : type === 2 ? 32 : 0;
+
+                const buf = Buffer.alloc(key.key.size, 0xff);
+                Buffer.from(val.replaceAll(/[^0-9a-f]+/g, "").padStart(length * 2, "0"), "hex")
+                  .slice(0, length)
+                  .copy(buf);
+                key.key.set(buf);
+              },
+            },
+          ],
         },
       ],
     };

@@ -119,7 +119,7 @@ export namespace UI {
         set: (i: number, code: number) => void;
       };
       dmr_encryption?: {
-        keys: DMREncryption[];
+        keys: () => DMREncryption[];
         get: (i: number) => { key_index: number };
         set: (i: number, val: { key_index: number }) => void;
       };
@@ -160,8 +160,27 @@ export namespace UI {
       get: () => globalThis.File | undefined;
       set: (val: globalThis.File | undefined) => void;
     };
+    export type Table = _Field<"table"> & {
+      header: () => { [k: string]: { name: string } };
+      size: () => number;
+      get: (i: number) => { [k: string]: string } | undefined;
+      set_ui?: (i: number) => Field.Any[];
+      delete?: (i: number) => void;
+    };
 
-    export type Any = None | Cargo | Channels | Contacts | Switcher | Select | Label | Slider | Text | Chars | File;
+    export type Any =
+      | None
+      | Cargo
+      | Channels
+      | Contacts
+      | Switcher
+      | Select
+      | Label
+      | Slider
+      | Text
+      | Chars
+      | File
+      | Table;
   }
 
   export type Root = { fields: Field.Any[] };

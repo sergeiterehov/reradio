@@ -19,6 +19,7 @@ export const UITab = {
   Unlock: t("uitab_unlock"),
   Firmware: t("uitab_firmware"),
   Contacts: t("uitab_contacts"),
+  Encryption: t("uitab_encryption"),
 };
 
 export const modify_field = <F extends UI.Field.Any, R extends UI.Field.Any>(field: F, modifier: (field: F) => R): R =>
@@ -40,7 +41,7 @@ export const common_ui = {
     channel: { get: (i) => `CH${i + 1}` },
   }),
 
-  contacts: (config: { size: number }): Omit<UI.Field.Contacts, "get" | "set"> => ({
+  contacts: (config: { size: number }): Omit<UI.Field.Contacts, "get" | "set" | "delete"> => ({
     type: "contacts",
     id: "contacts",
     name: "Contacts",
