@@ -4,7 +4,7 @@ import { serial } from "@/utils/serial";
 import { Buffer } from "buffer";
 import { common_ui } from "@/utils/common_ui";
 import { array_of, create_mem_mapper, to_js, type M } from "@/utils/mem";
-import { CTCSS_TONES, DCS_CODES, download_buffer, trim_string } from "@/utils/radio";
+import { CTCSS_TONES, DCS_CODES, DMR_ALL_CALL_ID, download_buffer, trim_string } from "@/utils/radio";
 import { t } from "i18next";
 
 const TYPE_DIGITAL = 0;
@@ -590,12 +590,12 @@ export class RT4DRadio extends Radio {
             set: (i, val) => channels[i].color_code.set(val),
           },
           dmr_contact: {
-            contacts: (() => {
+            contacts: () => {
               const list: UI.DMRContact[] = [];
               for (const c of contacts) {
                 const type = c.type.get();
                 if (type === CONTACT_CALL_ALL) {
-                  list.push({ type: "Group", id: 16_777_215 });
+                  list.push({ type: "Group", id: 16_777_215, name: "" });
                 } else if (type === CONTACT_GROUP) {
                   list.push({ type: "Group", id: c.id.get(), name: trim_string(c.name.get()) });
                 } else if (type === CONTACT_INDIVIDUAL) {
@@ -605,7 +605,7 @@ export class RT4DRadio extends Radio {
                 }
               }
               return list;
-            })(),
+            },
             get: (i) => channels[i].contact.get(),
             set: (i, val) => channels[i].contact.set(val),
           },
@@ -657,6 +657,42 @@ export class RT4DRadio extends Radio {
             extra.push(common_ui.tot_list(channels[i].tot, { seconds: TIMER }));
 
             return extra;
+          },
+        },
+
+        {
+          ...common_ui.contacts({ size: contacts.length }),
+          get: (i) => {
+            if (i === 0) return { type: "Group", id: DMR_ALL_CALL_ID, name: "" };
+
+            const c = contacts[i];
+
+            const type = c.type.get();
+            if (type > 2) return;
+
+            return {
+              type: type === CONTACT_GROUP ? "Group" : "Individual",
+              id: c.id.get(),
+              name: trim_string(c.name.get()),
+            };
+          },
+          set: (i, val) => {
+            if (i === 0) throw new Error("Protected contact");
+            const c = contacts[i];
+
+            c.type.set(val.type === "Group" ? CONTACT_GROUP : CONTACT_INDIVIDUAL);
+            c.id.set(val.id);
+            c.name.set(val.name.substring(0, c.name.raw.size).padEnd(c.name.raw.size, "\xFF"));
+          },
+          delete: (i) => {
+            if (i === 0) throw new Error("Protected contact");
+            const c = contacts[i];
+
+            c.__raw.set(new Array(c.__raw.size).fill(0xff));
+            for (let ri = i; ri < contacts.length - 1; ri += 1) {
+              contacts[ri].__raw.set(contacts[ri + 1].__raw.get());
+              if (contacts[ri + 1].type.get() > 2) break;
+            }
           },
         },
       ],

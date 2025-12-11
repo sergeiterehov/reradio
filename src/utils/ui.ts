@@ -5,7 +5,7 @@ export namespace UI {
   export type DMRSlot = "Slot-1" | "Slot-2" | "DualSlot";
 
   export type DMRContactType = "Individual" | "Group";
-  export type DMRContact = { type: DMRContactType; id: number; name?: string };
+  export type DMRContact = { type: DMRContactType; id: number; name: string };
 
   export type DMREncryptionType = "Off" | "ARC" | "AES-128" | "AES-256";
   export type DMREncryption = { name: string; type: DMREncryptionType };
@@ -105,7 +105,7 @@ export namespace UI {
         set: (i: number, i_group: number) => void;
       };
       dmr_contact?: {
-        contacts: DMRContact[];
+        contacts: () => DMRContact[];
         get: (i: number) => number;
         set: (i: number, i_contact: number) => void;
       };
@@ -123,6 +123,13 @@ export namespace UI {
         get: (i: number) => { key_index: number };
         set: (i: number, val: { key_index: number }) => void;
       };
+    };
+
+    export type Contacts = _Field<"contacts"> & {
+      size: number;
+      get: (i: number) => DMRContact | undefined;
+      set?: (i: number, val: DMRContact) => void;
+      delete?: (i: number) => void;
     };
 
     export type Switcher = _Field<"switcher"> & { get: () => boolean; set: (val: boolean) => void };
@@ -154,7 +161,7 @@ export namespace UI {
       set: (val: globalThis.File | undefined) => void;
     };
 
-    export type Any = None | Cargo | Channels | Switcher | Select | Label | Slider | Text | Chars | File;
+    export type Any = None | Cargo | Channels | Contacts | Switcher | Select | Label | Slider | Text | Chars | File;
   }
 
   export type Root = { fields: Field.Any[] };

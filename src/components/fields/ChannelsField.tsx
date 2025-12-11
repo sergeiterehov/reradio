@@ -52,6 +52,7 @@ import { useStore } from "zustand";
 import { MeasureBox } from "../ui/MeasureBox";
 import { useWindowScroll } from "react-use";
 import { AnyField } from "./AnyField";
+import { DMR_ALL_CALL_ID } from "@/utils/radio";
 
 const cardSize = { width: 200, height: 80 };
 
@@ -456,10 +457,10 @@ function ChannelForm(props: { field: UI.Field.Channels; index: number }) {
                     value={value}
                     onChange={(e) => dmr_contact.set(index, Number(e.currentTarget.value))}
                   >
-                    {dmr_contact.contacts.map((opt, i_opt) => (
+                    {dmr_contact.contacts().map((opt, i_opt) => (
                       <option key={i_opt} value={i_opt}>
                         {(() => {
-                          if (opt.type === "Group" && opt.id === 16_777_215) return t("all_call");
+                          if (opt.type === "Group" && opt.id === DMR_ALL_CALL_ID) return t("all_call");
 
                           const num = `${opt.type === "Group" ? "TG " : "#"}${opt.id}`;
                           if (!opt.name) return num;

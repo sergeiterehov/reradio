@@ -18,6 +18,7 @@ export const UITab = {
   DTMF: t("uitab_dtmf"),
   Unlock: t("uitab_unlock"),
   Firmware: t("uitab_firmware"),
+  Contacts: t("uitab_contacts"),
 };
 
 export const modify_field = <F extends UI.Field.Any, R extends UI.Field.Any>(field: F, modifier: (field: F) => R): R =>
@@ -37,6 +38,14 @@ export const common_ui = {
     tab: UITab.Channels,
     size: config.size,
     channel: { get: (i) => `CH${i + 1}` },
+  }),
+
+  contacts: (config: { size: number }): Omit<UI.Field.Contacts, "get" | "set"> => ({
+    type: "contacts",
+    id: "contacts",
+    name: "Contacts",
+    tab: UITab.Contacts,
+    size: config.size,
   }),
 
   channel_squelch_lbcd: (ref_by_channel: (i: number) => M.LBCD): UI.Field.Channels["squelch_rx"] => ({
