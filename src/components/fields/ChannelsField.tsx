@@ -18,10 +18,7 @@ import {
   Switch,
   Menu,
   type ButtonProps,
-  Badge,
-  Icon,
   Slider,
-  Input,
 } from "@chakra-ui/react";
 import { RadioWatch } from "../RadioWatch";
 import { useRadioOn } from "../useRadioOn";
@@ -34,8 +31,6 @@ import {
   TbCopyPlus,
   TbHelp,
   TbLayoutSidebarRightExpand,
-  TbLock,
-  TbLockOpen2,
   TbMenu2,
   TbRadio,
   TbTextSpellcheck,
@@ -462,7 +457,7 @@ function ChannelForm(props: { field: UI.Field.Channels; index: number }) {
                         {(() => {
                           if (opt.type === "Group" && opt.id === DMR_ALL_CALL_ID) return t("all_call");
 
-                          const num = `${opt.type === "Group" ? "TG " : "#"}${opt.id}`;
+                          const num = `${opt.type === "Group" ? "TG " : ""}${opt.id}`;
                           if (!opt.name) return num;
 
                           return `${opt.name} (${num})`;

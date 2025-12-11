@@ -8,7 +8,9 @@ import {
   Fieldset,
   HStack,
   Input,
+  InputGroup,
   Menu,
+  NativeSelect,
   NumberInput,
   Popover,
   SegmentGroup,
@@ -29,8 +31,13 @@ import { useRadioOn } from "../useRadioOn";
 
 const cardSize = { width: 200, height: 40 };
 
+let idLastFormat: "10" | "HEX" = "10";
+
 function ContactDetails(props: { field: UI.Field.Contacts; index: number }) {
   const { field, index } = props;
+
+  const [format, setFormat] = useState(idLastFormat);
+  idLastFormat = format;
 
   const { t } = useTranslation();
   const contact = useRadioOn(() => field.get(index));
@@ -71,15 +78,44 @@ function ContactDetails(props: { field: UI.Field.Contacts; index: number }) {
               <TbHelp />
             </Tooltip>
           </Field.Label>
-          <NumberInput.Root
-            width="full"
-            value={String(contact.id)}
-            onValueChange={(e) => field.set?.(index, { ...contact, id: e.valueAsNumber })}
-            min={1}
-            max={DMR_ALL_CALL_ID}
+          <InputGroup
+            flex="1"
+            endElement={
+              <NativeSelect.Root size="xs" variant="plain" width="auto" me="-1">
+                <NativeSelect.Field
+                  fontSize="sm"
+                  value={format}
+                  onChange={(e) => setFormat(e.currentTarget.value as typeof format)}
+                >
+                  <option value="10">10</option>
+                  <option value="HEX">HEX</option>
+                </NativeSelect.Field>
+                <NativeSelect.Indicator />
+              </NativeSelect.Root>
+            }
           >
-            <NumberInput.Input />
-          </NumberInput.Root>
+            {format === "HEX" ? (
+              <Input
+                value={contact.id.toString(16)}
+                onChange={(e) =>
+                  field.set?.(index, {
+                    ...contact,
+                    id: Number.parseInt(e.currentTarget.value.replaceAll(/[^0-9a-f]/g, ""), 16),
+                  })
+                }
+              />
+            ) : (
+              <NumberInput.Root
+                width="full"
+                value={String(contact.id)}
+                onValueChange={(e) => field.set?.(index, { ...contact, id: e.valueAsNumber })}
+                min={1}
+                max={DMR_ALL_CALL_ID}
+              >
+                <NumberInput.Input />
+              </NumberInput.Root>
+            )}
+          </InputGroup>
         </Field.Root>
       </Fieldset.Content>
     </Fieldset.Root>
