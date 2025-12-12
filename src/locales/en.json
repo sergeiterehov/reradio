@@ -75,6 +75,7 @@
     "dual_watch_priority_ab_tooltip": "Specifies which receiver (A or B) remains active after a signal is received in dual-watch mode. When set to OFF, the receiver that last received a signal stays active; when set to A or B, the selected receiver always resumes after any transmission ends.",
     "dual_watch_tooltip": "Enables monitoring of two channels simultaneously, automatically switching to the active one when a signal is detected.",
     "editing": "Editing",
+    "empty": "Empty",
     "encryption_key": "Key",
     "encryption_type": "Type",
     "end": "end",

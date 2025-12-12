@@ -2,10 +2,13 @@ import type { UI } from "@/utils/ui";
 import { Field, Input } from "@chakra-ui/react";
 import { useRadioOn } from "../useRadioOn";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 export function TextField(props: { field: UI.Field.Text }) {
   const { field } = props;
   const value = useRadioOn(field.get);
+
+  const { t } = useTranslation();
 
   const [text, setText] = useState(String(value));
   useEffect(() => setText(String(value)), [value]);
@@ -14,7 +17,7 @@ export function TextField(props: { field: UI.Field.Text }) {
     <Field.Root>
       <Field.Label>{field.name}</Field.Label>
       <Input
-        placeholder="Empty"
+        placeholder={t("empty")}
         value={text}
         onChange={(e) => setText(e.currentTarget.value)}
         onBlur={() => {

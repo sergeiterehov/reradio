@@ -152,6 +152,8 @@ export class RT4DRadio extends Radio {
   protected _img?: Buffer;
   protected _mem?: ReturnType<typeof this._parse_v3>;
 
+  // MARK: Mem mapping
+
   protected _parse_v3(img: Buffer) {
     const m = create_mem_mapper(img, this.dispatch_ui);
 
@@ -280,11 +282,11 @@ export class RT4DRadio extends Radio {
 
       settings: {
         _unknown0: m.buf(16),
-        start_pic: m.u8(), // 0=off, on
+        start_pic_ws: m.u8(), // 0=off, on
         screen_save_timer: m.u8(), // TIMER[]
         _unknown18: m.u8(),
         start_beep: m.u8(), // 0=off, on
-        startup_lab: m.u8(), // 0=off, on
+        start_text_sw: m.u8(), // 0=off, on
         _unknown21: m.buf(2),
         start_line: m.u16(),
         start_column: m.u16(),
@@ -489,12 +491,14 @@ export class RT4DRadio extends Radio {
     const mem = this._mem;
     if (!mem) return { fields: [] };
 
-    const { channels, contacts, tg_lists, zones, keys, settings } = mem;
+    const { channels, contacts, tg_lists, zones, keys, settings, fm } = mem;
     const { dtmf } = settings;
     const { list: dtmf_list } = dtmf;
 
     return {
       fields: [
+        // MARK: Channels
+
         {
           ...common_ui.channels({ size: channels.length }),
           swap: (a, b) => {
@@ -692,6 +696,76 @@ export class RT4DRadio extends Radio {
           },
         } as UI.Field.Channels,
 
+        // MARK: Zones
+
+        {
+          type: "table",
+          id: "zones",
+          name: t("zones"),
+          tab: UITab.Zones,
+          size: () => zones.length,
+          header: () => ({ name: { name: t("name") } }),
+          get: (i) => ({ name: trim_string(zones[i].name.get()) }),
+          set_ui: (i_zone) => [
+            {
+              type: "text",
+              id: "name",
+              name: t("name"),
+              get: () => trim_string(zones[i_zone].name.get()),
+              set: (val) => set_string(zones[i_zone].name, val, "\x00"),
+            },
+            {
+              type: "table",
+              id: "channels",
+              name: t("channels"),
+              size: () => zones[i_zone].channels.length,
+              header: () => ({ name: { num: { name: t("channel_number") }, name: t("contact_name") } }),
+              get: (i_contact) => {
+                const ch_index = zones[i_zone].channels[i_contact].get();
+                if (ch_index >= channels.length) return {};
+
+                const ch = channels[ch_index];
+                if (ch.type.get() > 1) return {};
+
+                return { num: (ch_index + 1).toString(), name: trim_string(ch.name.get()) };
+              },
+              delete: (i_group) => {
+                zones[i_zone].channels[i_group].set(0xffff);
+              },
+              set_ui: (i_channel) => {
+                const ch_indexes: number[] = [];
+                const ch_options: string[] = [];
+                for (let ic = 0; ic < channels.length; ic += 1) {
+                  const ch = channels[ic];
+                  const type = ch.type.get();
+                  if (type > 1) continue;
+
+                  ch_indexes.push(ic);
+                  ch_options.push(`${ic + 1}. ${trim_string(ch.name.get())}`);
+                }
+
+                if (zones[i_zone].channels[i_channel].get() === 0xffff) {
+                  ch_indexes.unshift(0xffff);
+                  ch_options.unshift(t("off"));
+                }
+
+                return [
+                  {
+                    type: "select",
+                    id: "name",
+                    name: t("channel"),
+                    options: ch_options,
+                    get: () => ch_indexes.indexOf(zones[i_zone].channels[i_channel].get()),
+                    set: (val) => zones[i_zone].channels[i_channel].set(ch_indexes[val]),
+                  },
+                ];
+              },
+            },
+          ],
+        },
+
+        // MARK: Contacts
+
         {
           ...common_ui.contacts({ size: contacts.length }),
           get: (i) => {
@@ -723,6 +797,8 @@ export class RT4DRadio extends Radio {
             c.__raw.set(new Array(c.__raw.size).fill(0xff));
           },
         } as UI.Field.Contacts,
+
+        // MARK: Keys
 
         {
           type: "table",
@@ -788,6 +864,8 @@ export class RT4DRadio extends Radio {
             },
           ],
         },
+
+        // MARK: TG Lists
 
         {
           type: "table",
@@ -856,71 +934,29 @@ export class RT4DRadio extends Radio {
           ],
         },
 
-        {
-          type: "table",
-          id: "zones",
-          name: t("zones"),
-          tab: UITab.Zones,
-          size: () => zones.length,
-          header: () => ({ name: { name: t("name") } }),
-          get: (i) => ({ name: trim_string(zones[i].name.get()) }),
-          set_ui: (i_zone) => [
-            {
-              type: "text",
-              id: "name",
-              name: t("name"),
-              get: () => trim_string(zones[i_zone].name.get()),
-              set: (val) => set_string(zones[i_zone].name, val, "\x00"),
+        // MARK: Settings
+
+        common_ui.device_name(settings.name, { pad: "\x00" }),
+        common_ui.hello_mode(
+          {
+            get: () => (settings.start_text_sw.get() === 1 ? 0b01 : 0) | (settings.start_pic_ws.get() === 1 ? 0b10 : 0),
+            set: (val) => {
+              settings.start_text_sw.set(val & 0b01 ? 1 : 0);
+              settings.start_pic_ws.set(val & 0b10 ? 1 : 0);
             },
-            {
-              type: "table",
-              id: "channels",
-              name: t("channels"),
-              size: () => zones[i_zone].channels.length,
-              header: () => ({ name: { num: { name: t("channel_number") }, name: t("contact_name") } }),
-              get: (i_contact) => {
-                const ch_index = zones[i_zone].channels[i_contact].get();
-                if (ch_index >= channels.length) return {};
+          },
+          {
+            options: [
+              t("hello_blank"),
+              t("hello_text"),
+              t("hello_picture"),
+              `${t("hello_text")} + ${t("hello_picture")}`,
+            ],
+          }
+        ),
+        common_ui.hello_msg_str_x(settings.start_text, { line: 0, pad: "\x00" }),
 
-                const ch = channels[ch_index];
-                if (ch.type.get() > 1) return {};
-
-                return { num: (ch_index + 1).toString(), name: trim_string(ch.name.get()) };
-              },
-              delete: (i_group) => {
-                zones[i_zone].channels[i_group].set(0xffff);
-              },
-              set_ui: (i_channel) => {
-                const ch_indexes: number[] = [];
-                const ch_options: string[] = [];
-                for (let ic = 0; ic < channels.length; ic += 1) {
-                  const ch = channels[ic];
-                  const type = ch.type.get();
-                  if (type > 1) continue;
-
-                  ch_indexes.push(ic);
-                  ch_options.push(`${ic + 1}. ${trim_string(ch.name.get())}`);
-                }
-
-                if (zones[i_zone].channels[i_channel].get() === 0xffff) {
-                  ch_indexes.unshift(0xffff);
-                  ch_options.unshift(t("off"));
-                }
-
-                return [
-                  {
-                    type: "select",
-                    id: "name",
-                    name: t("channel"),
-                    options: ch_options,
-                    get: () => ch_indexes.indexOf(zones[i_zone].channels[i_channel].get()),
-                    set: (val) => zones[i_zone].channels[i_channel].set(ch_indexes[val]),
-                  },
-                ];
-              },
-            },
-          ],
-        },
+        // MARK: DTMF
 
         {
           type: "table",
@@ -944,9 +980,49 @@ export class RT4DRadio extends Radio {
             },
           ],
         },
+
+        // MARK: FM
+
+        {
+          type: "table",
+          id: "fm_list",
+          name: t("fm"),
+          description: t("fm_tooltip"),
+          tab: t("fm"),
+          size: () => fm.length,
+          header: () => ({ freq: { name: t("frequency") }, name: { name: t("name") } }),
+          get: (i) => {
+            const freq = fm[i].freq.get();
+            if (freq === 0xffff) return {};
+            return { freq: (freq / 10).toFixed(1), name: trim_string(fm[i].name.get()) };
+          },
+          delete: (i) => fm[i].__raw.set(new Array(fm[i].__raw.size).fill(0xff)),
+          set_ui: (i) => [
+            {
+              type: "text",
+              id: "freq",
+              name: t("frequency"),
+              get: () => {
+                const freq = fm[i].freq.get();
+                if (freq === 0xffff) return "";
+                return (freq / 10).toFixed(1);
+              },
+              set: (val) => fm[i].freq.set(Math.max(640, (Number.parseFloat(val) || 0) * 10)),
+            },
+            {
+              type: "text",
+              id: "name",
+              name: t("name"),
+              get: () => trim_string(fm[i].name.get()),
+              set: (val) => set_string(fm[i].name, val, "\x00"),
+            },
+          ],
+        },
       ],
     };
   }
+
+  // MARK: Serial
 
   protected async _read_block(addr: number) {
     const cmd = Buffer.alloc(4);
