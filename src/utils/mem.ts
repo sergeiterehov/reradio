@@ -377,3 +377,7 @@ export const array_of = <T>(size: number, fn: (i: number) => T): T[] =>
   Array(size)
     .fill(0)
     .map((_, i) => fn(i));
+
+export const set_string = (str: M.Str, val: string, pad = "\xFF") => {
+  return str.set(val.substring(0, str.raw.size).padEnd(str.raw.size, pad));
+};
