@@ -22,6 +22,7 @@ export const UITab = {
   Encryption: t("uitab_encryption"),
   TGLists: t("uitab_tg_lists"),
   Zones: t("uitab_zones"),
+  Spectrum: t("uitab_spectrum"),
 };
 
 export const modify_field = <F extends UI.Field.Any, R extends UI.Field.Any>(field: F, modifier: (field: F) => R): R =>
@@ -304,13 +305,15 @@ export const common_ui = {
     get: () => Boolean(ref.get()),
     set: (val) => ref.set(val ? 1 : 0),
   }),
-  pow_battery_save_ratio: (ref: _GetSetNumber): UI.Field.Select => ({
-    type: "select",
+  pow_battery_save_ratio: (ref: _GetSetNumber, config: { max?: number } = {}): UI.Field.Slider => ({
+    type: "slider",
     id: "bat_save_ratio",
     name: t("bat_save"),
     description: t("bat_save_ratio_tooltip"),
     tab: UITab.Power,
-    options: [t("off"), "1:1", "1:2", "1:3", "1:4"],
+    min: 0,
+    max: config.max ?? 4,
+    label: (val) => (val ? `1:${val}` : t("off")),
     get: () => ref.get(),
     set: (val) => ref.set(Number(val)),
   }),
@@ -391,6 +394,18 @@ export const common_ui = {
     set: (val) => ref.set(Number(val)),
   }),
 
+  rtone_inout: (ref: _GetSetNumber, config: { min?: number; max: number }): UI.Field.Text => ({
+    type: "text",
+    id: "rtone_input",
+    name: t("rtone"),
+    description: t("rtone_tooltip"),
+    tab: UITab.Exchange,
+    suffix: t("hz"),
+    get: () => ref.get().toString(),
+    set: (val) =>
+      ref.set(Math.min(config.max || Number.MAX_SAFE_INTEGER, Math.max(config.min || 0, Number.parseInt(val) || 0))),
+  }),
+
   sql: (ref: _GetSetNumber, config: { min: number; max: number }): UI.Field.Slider => ({
     type: "slider",
     id: "sql",
@@ -416,6 +431,15 @@ export const common_ui = {
     set: (val) => ref.set(Number(val)),
   }),
 
+  key_x_fn: (ref: _GetSetNumber, config: { key: string; functions: string[] }): UI.Field.Select => ({
+    type: "select",
+    id: "key_x_fn",
+    name: t("key_x_fn", { replace: { key: config.key } }),
+    tab: UITab.Control,
+    options: config.functions,
+    get: () => ref.get(),
+    set: (val) => ref.set(Number(val)),
+  }),
   key_side_fn: (ref: _GetSetNumber, config: { functions: string[] }): UI.Field.Select => ({
     type: "select",
     id: "side_key_fn",
@@ -458,6 +482,19 @@ export const common_ui = {
     id: "mic_gain",
     name: t("mic_gain"),
     description: t("mic_gain_tooltip"),
+    tab: UITab.Exchange,
+    min: config.min,
+    max: config.max,
+    label: (val) => String(val + 1),
+    get: () => ref.get(),
+    set: (val) => ref.set(Number(val)),
+  }),
+
+  spk_gain: (ref: _GetSetNumber, config: { min: number; max: number }): UI.Field.Slider => ({
+    type: "slider",
+    id: "spk_gain",
+    name: t("spk_gain"),
+    description: t("spk_gain_tooltip"),
     tab: UITab.Exchange,
     min: config.min,
     max: config.max,
@@ -638,5 +675,87 @@ export const common_ui = {
     description: t("unlock_scramble_tooltip"),
     get: () => Boolean(ref.get()),
     set: (val) => ref.set(Number(val)),
+  }),
+
+  spectrum_freq: (ref: _GetSetNumber, config: { min?: number; max?: number }): UI.Field.Text => ({
+    type: "text",
+    id: "spectrum_freq",
+    name: t("spectrum_freq"),
+    description: t("spectrum_freq_tooltip"),
+    tab: UITab.Spectrum,
+    suffix: t("mhz"),
+    get: () => (ref.get() / 1_000_000).toString(),
+    set: (val) =>
+      ref.set(
+        Math.max(
+          config.min || 0,
+          Math.min(config.max || Number.MAX_SAFE_INTEGER, 1_000_000 * Number.parseFloat(val) || 0)
+        )
+      ),
+  }),
+  spectrum_step: (ref: _GetSetNumber, config: { min?: number; max?: number }): UI.Field.Text => ({
+    type: "text",
+    id: "spectrum_step",
+    name: t("spectrum_step"),
+    description: t("spectrum_step_tooltip"),
+    tab: UITab.Spectrum,
+    suffix: t("khz"),
+    get: () => (ref.get() / 1_000).toFixed(3),
+    set: (val) =>
+      ref.set(
+        Math.max(config.min || 0, Math.min(config.max || Number.MAX_SAFE_INTEGER, 1_000 * Number.parseFloat(val) || 0))
+      ),
+  }),
+  spectrum_rssi_treshold: (ref: _GetSetNumber, config: { min: number; max: number }): UI.Field.Slider => ({
+    type: "slider",
+    id: "spectrum_rssi_treshold",
+    name: t("spectrum_rssi_treshold"),
+    description: t("spectrum_rssi_treshold_tooltip"),
+    tab: UITab.Spectrum,
+    get: () => ref.get(),
+    min: config.min,
+    max: config.max,
+    set: (val) => ref.set(val),
+    label: (val) => `${val} ${t("dbm")}`,
+  }),
+
+  dtmf_send_on: (ref: _GetSetNumber, config: { options: UI.PttIdOn[] }): UI.Field.Select => ({
+    type: "select",
+    id: "dtmf_send_on",
+    name: t("send_ptt_id"),
+    description: t("send_ptt_id_tooltip"),
+    tab: UITab.DTMF,
+    short: true,
+    options: config.options.map((opt) => {
+      if (opt === "Off") return t("off");
+      if (opt === "Begin") return t("begin");
+      if (opt === "End") return t("end");
+      if (opt === "BeginAndEnd") return t("begin_n_end");
+
+      return opt;
+    }),
+    get: () => ref.get(),
+    set: (val) => ref.set(val),
+  }),
+
+  dtmf_send_id: (ref: _GetSetNumber, config: { options: string[] }): UI.Field.Select => ({
+    type: "select",
+    id: "dtmf_send_id",
+    name: t("send_ptt_id"),
+    description: t("send_ptt_id_tooltip"),
+    tab: UITab.DTMF,
+    options: config.options,
+    get: () => ref.get(),
+    set: (val) => ref.set(val),
+  }),
+
+  dtmf_remote_control: (ref: _GetSetNumber): UI.Field.Switcher => ({
+    type: "switcher",
+    id: "dtmf_remote_control",
+    name: t("dtmf_remote_control"),
+    description: t("dtmf_remote_control_tooltip"),
+    tab: UITab.DTMF,
+    get: () => ref.get() !== 0,
+    set: (val) => ref.set(val ? 1 : 0),
   }),
 };

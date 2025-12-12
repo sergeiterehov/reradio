@@ -148,7 +148,7 @@ export namespace UI {
       get: () => number;
       set: (val: number) => void;
     };
-    export type Text = _Field<"text"> & { get: () => string; set: (val: string) => void };
+    export type Text = _Field<"text"> & { get: () => string; set: (val: string) => void; suffix?: string };
     export type Chars = _Field<"chars"> & {
       abc: string;
       pad: string;

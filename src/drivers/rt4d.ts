@@ -2,7 +2,7 @@ import type { UI } from "@/utils/ui";
 import { Radio, type RadioInfo } from "./radio";
 import { serial } from "@/utils/serial";
 import { Buffer } from "buffer";
-import { common_ui, UITab } from "@/utils/common_ui";
+import { common_ui, modify_field, UITab } from "@/utils/common_ui";
 import { array_of, create_mem_mapper, set_string, to_js, type M } from "@/utils/mem";
 import { CTCSS_TONES, DCS_CODES, DMR_ALL_CALL_ID, download_buffer, trim_string } from "@/utils/radio";
 import { t } from "i18next";
@@ -61,6 +61,8 @@ const DTMF = [
   "Monitor",
 ];
 
+const LOCK = [t("unlocked"), t("only_rx"), t("locked")];
+
 const STEP = ["0.25K", "1.25K", "2.5K", "5K", "6.25K", "10K", "12.5K", "20K", "25K", "50K", "100K", "500K", "1M", "5M"];
 
 const RANGE = [
@@ -78,17 +80,17 @@ const RANGE = [
 ];
 
 const KEY_FN = [
-  "None",
+  t("off"),
   "Analog CH Monitor",
-  "Power Switch",
+  t("fn_transmit_power"),
   "Dual Standby",
   "TX Priority",
-  "Scanning",
+  t("fn_scan"),
   "Backlight",
   "Analog Roger Beep",
-  "FM Radio",
+  t("fn_fm"),
   "Talkaround",
-  "Emergency Alarm",
+  t("fn_alarm"),
   "Freq Detect",
   "Remote CTC/DCS Decode",
   "Send Tone",
@@ -110,7 +112,7 @@ const KEY_FN = [
   "New SMS",
   "SMS Menu",
   "LCD Brightness",
-  "Analog VOX",
+  t("fn_vox"),
   "Zone Selection",
   "Promiscuos Mode",
   "Dual Slot On-off",
@@ -434,6 +436,51 @@ export class RT4DRadio extends Radio {
         freq_scan_end: m.u32(), // 18_00_000-999_999_999
       },
 
+      ...m.seek(0x1c060).skip(0, {}),
+
+      settings2: {
+        key_lock: m.u8(), // 0=off, 1=on, #0
+        main_range: m.u8(), // 0=a, 1=b, #0
+        dual_watch: m.u8(), // 0=off, 1=on, #0
+        dual_display: m.u8(), // 0=off, 1=on, #0
+        scan_dir: m.u8(), // 0=up, 1=down
+        step: m.u8(), // STEP[]
+        _unknown6: m.buf(2),
+        spec_freq: m.u32(),
+        spec_step: m.u32(),
+        spec_rssi: m.u8(),
+        _unknown17: m.u8(),
+        fm_ch: m.u8(), // 0=1...80, #0
+        fm_standby: m.u8(), // 0=off, 1=on, #0
+        mode_a: m.u8(), // 0=freq, 1=ch, 2=zone
+        mode_b: m.u8(), // 0=freq, 1=ch, 2=zone
+        display_a: m.u8(), // 0=ch, 1=freq, 2=alias
+        display_b: m.u8(), // 0=ch, 1=freq, 2=alias
+        zone_a: m.u8(), // index: 0-249
+        zone_b: m.u8(), // index: 0-249
+        ch_a: m.u16(), // index: 0-1999
+        ch_b: m.u16(), // index: 0-1999
+        second_ptt: m.u8(), // 0=off, 1=on, #0
+        keys: {
+          fs1_short: m.u8(), // KEY_FN[]
+          fs1_long: m.u8(),
+          fs2_short: m.u8(),
+          fs2_long: m.u8(),
+          alarm_short: m.u8(),
+          alarm_long: m.u8(),
+          pad_0: m.u8(),
+          pad_1: m.u8(),
+          pad_2: m.u8(),
+          pad_3: m.u8(),
+          pad_4: m.u8(),
+          pad_5: m.u8(),
+          pad_6: m.u8(),
+          pad_7: m.u8(),
+          pad_8: m.u8(),
+          pad_9: m.u8(),
+        },
+      },
+
       ...m.seek(0xd6000).skip(0, {}),
 
       // preset, draft, received, sent
@@ -487,12 +534,16 @@ export class RT4DRadio extends Radio {
     };
   }
 
+  protected _dmr_ui(field: UI.Field.Any) {
+    return modify_field(field, (f) => ({ ...f, id: `dmr_${f.id}`, name: `DMR ${f.name}` }));
+  }
+
   ui(): UI.Root {
     const mem = this._mem;
     if (!mem) return { fields: [] };
 
-    const { channels, contacts, tg_lists, zones, keys, settings, fm } = mem;
-    const { dtmf } = settings;
+    const { channels, contacts, tg_lists, zones, keys, settings, settings2, fm } = mem;
+    const { dtmf, lock_ranges } = settings;
     const { list: dtmf_list } = dtmf;
 
     return {
@@ -955,9 +1006,64 @@ export class RT4DRadio extends Radio {
           }
         ),
         common_ui.hello_msg_str_x(settings.start_text, { line: 0, pad: "\x00" }),
+        common_ui.voice_prompt(settings.voice_prompt),
+        common_ui.beep(settings.key_beep),
+        common_ui.backlight_brightness(settings.backlight_brightness, { min: 0, max: 4 }),
+        common_ui.backlight_timeout(settings.backlight_timer, {
+          min: 0,
+          max: TIMER.length - 1,
+          seconds: TIMER,
+          names: { 0: t("off") },
+        }),
+        common_ui.pow_battery_save_ratio(settings.save_mode, { max: 3 }),
+        common_ui.alarm_mode(settings.alarm, { options: [t("alarm_site"), t("alarm_tone"), t("alarm_both")] }),
+        common_ui.dual_watch(settings2.dual_watch),
+        common_ui.scan_mode(settings.scan_mode, { options: [t("scan_time"), t("scan_carrier"), t("scan_search")] }),
+        common_ui.key_side_short_x_fn(settings2.keys.fs1_short, { key: "1", functions: KEY_FN }),
+        common_ui.key_side_long_x_fn(settings2.keys.fs1_short, { key: "1", functions: KEY_FN }),
+        common_ui.key_side_short_x_fn(settings2.keys.fs2_short, { key: "2", functions: KEY_FN }),
+        common_ui.key_side_long_x_fn(settings2.keys.fs2_short, { key: "2", functions: KEY_FN }),
+        common_ui.key_x_fn(settings2.keys.pad_0, { key: "0", functions: KEY_FN }),
+        common_ui.key_x_fn(settings2.keys.pad_1, { key: "1", functions: KEY_FN }),
+        common_ui.key_x_fn(settings2.keys.pad_2, { key: "2", functions: KEY_FN }),
+        common_ui.key_x_fn(settings2.keys.pad_3, { key: "3", functions: KEY_FN }),
+        common_ui.key_x_fn(settings2.keys.pad_4, { key: "4", functions: KEY_FN }),
+        common_ui.key_x_fn(settings2.keys.pad_5, { key: "5", functions: KEY_FN }),
+        common_ui.key_x_fn(settings2.keys.pad_6, { key: "6", functions: KEY_FN }),
+        common_ui.key_x_fn(settings2.keys.pad_7, { key: "7", functions: KEY_FN }),
+        common_ui.key_x_fn(settings2.keys.pad_8, { key: "8", functions: KEY_FN }),
+        common_ui.key_x_fn(settings2.keys.pad_9, { key: "9", functions: KEY_FN }),
+        common_ui.rtone_inout(settings.tone, { min: 110, max: 20_000 }),
+        common_ui.roger_beep_select(settings.tx_beep_end, {
+          options: [t("off"), `${t("roger_beep_roger")} 1`, `${t("roger_beep_roger")} 2`, "Radio Name"],
+        }),
+        this._dmr_ui(
+          common_ui.roger_beep_select(settings.tx_beep_end, {
+            options: [t("off"), `${t("roger_beep_roger")} 1`, `${t("roger_beep_roger")} 2`],
+          })
+        ),
+        common_ui.sql(settings.sql, { min: 0, max: 10 }),
+        this._dmr_ui(common_ui.sql(settings.sql_dig, { min: 0, max: 10 })),
+        common_ui.mic_gain(settings.mic_gain, { min: 0, max: 31 }),
+        this._dmr_ui(common_ui.mic_gain(settings.mic_gain_dig, { min: 0, max: 24 })),
+        common_ui.spk_gain(settings.spk_gain, { min: 0, max: 63 }),
+        this._dmr_ui(common_ui.spk_gain(settings.spk_gain_dig, { min: 0, max: 24 })),
+        common_ui.spectrum_freq(
+          { get: () => settings2.spec_freq.get() * 10, set: (val) => settings2.spec_freq.set(val / 10) },
+          { min: 18_000_000, max: 999_999_999 }
+        ),
+        common_ui.spectrum_step(settings2.spec_step, { min: 10, max: 5_000_000 }),
+        common_ui.spectrum_rssi_treshold(settings2.spec_rssi, { min: 0, max: 255 }),
 
         // MARK: DTMF
 
+        common_ui.dtmf_remote_control(dtmf.remote_control),
+        common_ui.dtmf_send_on(dtmf.send_mode, { options: ["Off", "Begin", "End", "BeginAndEnd"] }),
+        {
+          ...common_ui.dtmf_send_id(dtmf.send_select, { options: DTMF.slice(0, 16) }),
+          name: t("id"),
+          description: undefined,
+        },
         {
           type: "table",
           id: "dtmf",
@@ -1015,6 +1121,48 @@ export class RT4DRadio extends Radio {
               name: t("name"),
               get: () => trim_string(fm[i].name.get()),
               set: (val) => set_string(fm[i].name, val, "\x00"),
+            },
+          ],
+        },
+
+        // MARK: Lock
+
+        {
+          type: "table",
+          id: "locks",
+          name: t("frequency_lock"),
+          tab: UITab.Unlock,
+          size: () => lock_ranges.length,
+          header: () => ({ state: { name: t("status") }, start: { name: t("begin") }, end: { name: t("end") } }),
+          get: (i) => ({
+            state: LOCK[lock_ranges[i].type.get()],
+            start: `${lock_ranges[i].start.get()} ${t("mhz")}`,
+            end: `${lock_ranges[i].end.get()} ${t("mhz")}`,
+          }),
+          set_ui: (i) => [
+            {
+              type: "select",
+              id: "state",
+              name: t("status"),
+              options: LOCK,
+              get: () => lock_ranges[i].type.get(),
+              set: (val) => lock_ranges[i].type.set(val),
+            },
+            {
+              type: "text",
+              id: "start",
+              name: t("begin"),
+              suffix: t("mhz"),
+              get: () => lock_ranges[i].start.get().toString(),
+              set: (val) => lock_ranges[i].start.set(Math.max(18, Math.min(1_000, Number.parseInt(val) || 0))),
+            },
+            {
+              type: "text",
+              id: "end",
+              name: t("end"),
+              suffix: t("mhz"),
+              get: () => lock_ranges[i].end.get().toString(),
+              set: (val) => lock_ranges[i].end.set(Math.max(18, Math.min(1_000, Number.parseInt(val) || 0))),
             },
           ],
         },

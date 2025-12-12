@@ -9,6 +9,8 @@ import { useTranslation } from "react-i18next";
 import { AnyField } from "./AnyField";
 import { TbTrash } from "react-icons/tb";
 
+const row_height = 37;
+
 type RowType = { [k in string]?: string };
 
 const columnHelper = createColumnHelper<RowType>();
@@ -48,12 +50,16 @@ export function TableField(props: { field: UI.Field.Table }) {
   })();
 
   const virtualizer = in_drawer
-    ? useVirtualizer({ count: rows.length, estimateSize: () => 37, getScrollElement: () => listRef.current })
+    ? useVirtualizer({
+        count: rows.length,
+        estimateSize: () => row_height,
+        getScrollElement: () => listRef.current,
+      })
     : useWindowVirtualizer({
         count: rows.length,
-        estimateSize: () => 37,
-        overscan: 5,
-        scrollMargin: listRef.current?.offsetTop || 0,
+        estimateSize: () => row_height,
+        overscan: 0,
+        // FIXME: плохо работает видимый диапазон
       });
 
   const radio = useStore(Store, (s) => s.radio);
@@ -75,7 +81,7 @@ export function TableField(props: { field: UI.Field.Table }) {
     <Drawer.Root lazyMount unmountOnExit size={in_drawer ? "sm" : "md"}>
       <Drawer.Context>
         {(drawer) => (
-          <Box ref={listRef}>
+          <Box ref={listRef} position="relative">
             <Table.Root native size="sm" variant="outline" style={{ display: "grid" }}>
               <thead style={{ position: "sticky", display: "grid", top: 0, zIndex: 1 }}>
                 {table.getHeaderGroups().map((headerGroup) => (
@@ -116,6 +122,8 @@ export function TableField(props: { field: UI.Field.Table }) {
                         transform: `translateY(${_row.start}px)`,
                       }}
                       onClick={() => {
+                        if (!field.set_ui) return;
+
                         setActiveIndex(_row.index);
                         drawer.setOpen(true);
                       }}
