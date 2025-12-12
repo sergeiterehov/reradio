@@ -3,7 +3,7 @@ import { Radio, type RadioInfo } from "./radio";
 import { serial } from "@/utils/serial";
 import { Buffer } from "buffer";
 import { common_ui, UITab } from "@/utils/common_ui";
-import { array_of, create_mem_mapper, to_js, type M } from "@/utils/mem";
+import { array_of, create_mem_mapper, set_string, to_js, type M } from "@/utils/mem";
 import { CTCSS_TONES, DCS_CODES, DMR_ALL_CALL_ID, download_buffer, trim_string } from "@/utils/radio";
 import { t } from "i18next";
 
@@ -37,6 +37,29 @@ const DELAY = [
 ];
 
 const ENC_TYPE: UI.DMREncryptionType[] = ["ARC", "AES-128", "AES-256"];
+
+const DTMF = [
+  "DTMF-1",
+  "DTMF-2",
+  "DTMF-3",
+  "DTMF-4",
+  "DTMF-5",
+  "DTMF-6",
+  "DTMF-7",
+  "DTMF-8",
+  "DTMF-9",
+  "DTMF-10",
+  "DTMF-11",
+  "DTMF-12",
+  "DTMF-13",
+  "DTMF-14",
+  "DTMF-15",
+  "DTMF-16",
+  "Stun",
+  "Wake",
+  "Kill",
+  "Monitor",
+];
 
 const STEP = ["0.25K", "1.25K", "2.5K", "5K", "6.25K", "10K", "12.5K", "20K", "25K", "50K", "100K", "500K", "1M", "5M"];
 
@@ -466,7 +489,9 @@ export class RT4DRadio extends Radio {
     const mem = this._mem;
     if (!mem) return { fields: [] };
 
-    const { channels, contacts, tg_lists, zones, keys } = mem;
+    const { channels, contacts, tg_lists, zones, keys, settings } = mem;
+    const { dtmf } = settings;
+    const { list: dtmf_list } = dtmf;
 
     return {
       fields: [
@@ -496,7 +521,7 @@ export class RT4DRadio extends Radio {
             get: (i) => trim_string(channels[i].name.get()) || `CH-${i + 1}`,
             set: (i, val) => {
               const name = channels[i].name;
-              name.set(val.slice(0, name.raw.size).padEnd(name.raw.size, "\x00"));
+              set_string(name, val, "\x00");
             },
           },
           freq: {
@@ -689,7 +714,7 @@ export class RT4DRadio extends Radio {
 
             c.type.set(val.type === "Group" ? CONTACT_GROUP : CONTACT_INDIVIDUAL);
             c.id.set(val.id);
-            c.name.set(val.name.substring(0, c.name.raw.size).padEnd(c.name.raw.size, "\xFF"));
+            set_string(c.name, val.name, "\x00");
           },
           delete: (i) => {
             if (i === 0) throw new Error("Protected contact");
@@ -706,9 +731,8 @@ export class RT4DRadio extends Radio {
           tab: UITab.Encryption,
           size: () => keys.length,
           header: () => ({
-            name: { name: t("name") },
             type: { name: t("encryption_type") },
-            key: { name: t("encryption_key") },
+            name: { name: t("name") },
           }),
           get: (i) => {
             const key = keys[i];
@@ -716,12 +740,8 @@ export class RT4DRadio extends Radio {
             if (type > 4) return {};
 
             return {
-              name: trim_string(key.name.get()),
               type: ENC_TYPE[type],
-              key: key.key
-                .get()
-                .slice(0, type === 0 ? 5 : type === 1 ? 16 : type === 2 ? 32 : 0)
-                .toString("hex"),
+              name: trim_string(key.name.get()),
             };
           },
           delete: (i) => keys[i].__raw.set(new Array(keys[i].__raw.size).fill(0xff)),
@@ -731,10 +751,7 @@ export class RT4DRadio extends Radio {
               id: "name",
               name: t("name"),
               get: () => trim_string(keys[i].name.get()),
-              set: (val) => {
-                const name = keys[i].name;
-                name.set(val.substring(0, name.raw.size).padEnd(name.raw.size, "\xff"));
-              },
+              set: (val) => set_string(keys[i].name, val, "\x00"),
             },
             {
               type: "select",
@@ -786,10 +803,7 @@ export class RT4DRadio extends Radio {
               id: "name",
               name: t("name"),
               get: () => trim_string(tg_lists[i_list].name.get()),
-              set: (val) => {
-                const name = tg_lists[i_list].name;
-                name.set(val.slice(0, name.raw.size).padEnd(name.raw.size, "\x00"));
-              },
+              set: (val) => set_string(tg_lists[i_list].name, val, "\x00"),
             },
             {
               type: "table",
@@ -856,10 +870,7 @@ export class RT4DRadio extends Radio {
               id: "name",
               name: t("name"),
               get: () => trim_string(zones[i_zone].name.get()),
-              set: (val) => {
-                const name = zones[i_zone].name;
-                name.set(val.slice(0, name.raw.size).padEnd(name.raw.size, "\x00"));
-              },
+              set: (val) => set_string(zones[i_zone].name, val, "\x00"),
             },
             {
               type: "table",
@@ -907,6 +918,29 @@ export class RT4DRadio extends Radio {
                   },
                 ];
               },
+            },
+          ],
+        },
+
+        {
+          type: "table",
+          id: "dtmf",
+          name: "DTMF",
+          tab: UITab.DTMF,
+          size: () => dtmf.list.length,
+          header: () => ({ fn: { name: "Function" }, code: { name: "Code" } }),
+          get: (i) => {
+            const d = dtmf_list[i];
+            return { fn: DTMF[i], code: trim_string(d.code.get()) };
+          },
+          set_ui: (i) => [
+            { type: "label", id: "fn", name: "Function", get: () => DTMF[i] },
+            {
+              type: "text",
+              id: "code",
+              name: "Code",
+              get: () => trim_string(dtmf_list[i].code.get()),
+              set: (val) => set_string(dtmf_list[i].code, val.replaceAll(/[^0-9]+/g, "")),
             },
           ],
         },
