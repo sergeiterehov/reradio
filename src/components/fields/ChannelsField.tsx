@@ -49,8 +49,6 @@ import { useWindowScroll } from "react-use";
 import { AnyField } from "./AnyField";
 import { DMR_ALL_CALL_ID } from "@/utils/radio";
 
-const cardSize = { width: 200, height: 80 };
-
 const SlotNames: { [K in UI.DMRSlot]: string } = {
   DualSlot: t("dmr_slot_dual"),
   "Slot-1": t("dmr_slot_1"),
@@ -723,7 +721,7 @@ function ChannelForm(props: { field: UI.Field.Channels; index: number }) {
 
 function ChannelMenuItems(props: { field: UI.Field.Channels; index: number }) {
   const { field, index } = props;
-  const { empty, channel, digital } = field;
+  const { empty, channel, digital, swap } = field;
 
   const selectionMode = useStore(Store, (s) => Boolean(s.selectedChannels.get(field.id)?.size));
 
@@ -780,7 +778,7 @@ function ChannelMenuItems(props: { field: UI.Field.Channels; index: number }) {
         <TbTransitionBottom />
         {t("replace_clipboard")}
       </Menu.Item>
-      {empty && empty_value && (
+      {empty && empty_value && swap && (
         <Menu.Item value="ripple_delete" onClick={() => Actions.rippleDelete(index, field)}>
           <TbArrowBarToLeft />
           {t("ripple_delete")}
@@ -893,8 +891,8 @@ function ChannelButton(props: {
             color={empty_value ? "fg.subtle" : undefined}
             p="3"
             fontFamily="monospace"
-            width={`${cardSize.width}px`}
-            height={`${cardSize.height}px`}
+            width="full"
+            height="full"
             textAlign="start"
             alignItems="start"
             onClick={(e) => {
@@ -944,7 +942,7 @@ function ChannelCard(props: { field: UI.Field.Channels; index: number }) {
       <Popover.Root lazyMount unmountOnExit>
         <Popover.Context>
           {(popoverCtx) => (
-            <Box {...(popoverCtx.getTriggerProps() as object)}>
+            <Box {...(popoverCtx.getTriggerProps() as object)} width="full" height="full">
               <ChannelButton
                 {...props}
                 buttonProps={{
@@ -1030,6 +1028,8 @@ export function ChannelsField(props: { field: UI.Field.Channels }) {
       {({ width }, container) => {
         const gap = 8;
         const overscroll = 100;
+
+        const cardSize = { width: Math.max(200, width / 3 - gap), height: 80 };
 
         const cardsPerRow = Math.max(1, Math.floor((width + gap) / (cardSize.width + gap)));
         const height = Math.ceil(field.size / cardsPerRow) * (cardSize.height + gap) - gap;

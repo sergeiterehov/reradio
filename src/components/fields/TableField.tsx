@@ -1,10 +1,10 @@
 import { Store } from "@/store";
 import { type UI } from "@/utils/ui";
-import { Box, Drawer, Fieldset, IconButton, Table } from "@chakra-ui/react";
+import { Box, Drawer, Fieldset, IconButton, Table, useDrawerContext } from "@chakra-ui/react";
 import { useRef, useState, useEffect } from "react";
 import { useStore } from "zustand";
 import { createColumnHelper, flexRender, getCoreRowModel, useReactTable } from "@tanstack/react-table";
-import { useWindowVirtualizer } from "@tanstack/react-virtual";
+import { useVirtualizer, useWindowVirtualizer } from "@tanstack/react-virtual";
 import { useTranslation } from "react-i18next";
 import { AnyField } from "./AnyField";
 import { TbTrash } from "react-icons/tb";
@@ -37,12 +37,24 @@ export function TableField(props: { field: UI.Field.Table }) {
 
   const { rows } = table.getRowModel();
 
-  const virtualizer = useWindowVirtualizer({
-    count: rows.length,
-    estimateSize: () => 37,
-    overscan: 5,
-    scrollMargin: listRef.current?.offsetTop || 0,
-  });
+  // FIXME: Сделать отдельный контекст для настройки окружения: level: 0=window, 1...=drawers
+  const in_drawer = (() => {
+    try {
+      useDrawerContext();
+      return true;
+    } catch {
+      return false;
+    }
+  })();
+
+  const virtualizer = in_drawer
+    ? useVirtualizer({ count: rows.length, estimateSize: () => 37, getScrollElement: () => listRef.current })
+    : useWindowVirtualizer({
+        count: rows.length,
+        estimateSize: () => 37,
+        overscan: 5,
+        scrollMargin: listRef.current?.offsetTop || 0,
+      });
 
   const radio = useStore(Store, (s) => s.radio);
 
@@ -60,7 +72,7 @@ export function TableField(props: { field: UI.Field.Table }) {
   }, [radio, field]);
 
   return (
-    <Drawer.Root lazyMount unmountOnExit>
+    <Drawer.Root lazyMount unmountOnExit size={in_drawer ? "sm" : "md"}>
       <Drawer.Context>
         {(drawer) => (
           <Box ref={listRef}>
@@ -68,12 +80,13 @@ export function TableField(props: { field: UI.Field.Table }) {
               <thead style={{ position: "sticky", display: "grid", top: 0, zIndex: 1 }}>
                 {table.getHeaderGroups().map((headerGroup) => (
                   <tr key={headerGroup.id} style={{ display: "flex", width: "100%" }}>
-                    {headerGroup.headers.map((header) => (
+                    {headerGroup.headers.map((header, _, headers) => (
                       <th
                         key={header.id}
                         style={{
                           display: "flex",
                           width: header.getSize(),
+                          flexGrow: header === headers.at(-1) ? 1 : undefined,
                         }}
                       >
                         {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
@@ -107,8 +120,15 @@ export function TableField(props: { field: UI.Field.Table }) {
                         drawer.setOpen(true);
                       }}
                     >
-                      {row.getVisibleCells().map((cell) => (
-                        <td key={cell.id} style={{ display: "flex", width: cell.column.getSize() }}>
+                      {row.getVisibleCells().map((cell, _, cells) => (
+                        <td
+                          key={cell.id}
+                          style={{
+                            display: "flex",
+                            width: cell.column.getSize(),
+                            flexGrow: cell === cells.at(-1) ? 1 : undefined,
+                          }}
+                        >
                           {flexRender(cell.column.columnDef.cell, cell.getContext())}
                         </td>
                       ))}

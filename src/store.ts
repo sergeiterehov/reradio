@@ -5,7 +5,6 @@ import type { Radio } from "./drivers/radio";
 import { Library } from "./drivers/library";
 import YaMetrika from "./YaMetrika";
 import type { UI } from "./utils/ui";
-import { moveChannel } from "./utils/radio";
 import { clipboardReplaceChannel, clipboardWriteChannels } from "./utils/serialize";
 import { serial } from "./utils/serial";
 
@@ -213,15 +212,17 @@ export const Store = createStore<Store>()(
           }
         }
 
-        for (let i = to; i > from; i -= 1) {
-          moveChannel(channels, i - 1, i);
+        if (channels.swap) {
+          for (let i = to; i > from; i -= 1) {
+            channels.swap(i - 1, i);
+          }
         }
 
         channels.empty?.delete(from);
       },
 
       rippleDelete: (index, channels) => {
-        if (!channels.empty) return;
+        if (!channels.empty || !channels.swap) return;
 
         if (!channels.empty.get(index)) return;
 
@@ -239,7 +240,7 @@ export const Store = createStore<Store>()(
         target += 1;
 
         for (let i = from; i <= to; i += 1) {
-          moveChannel(channels, i, target);
+          channels.swap(i, target);
           target += 1;
         }
 

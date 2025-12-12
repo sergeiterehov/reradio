@@ -466,12 +466,17 @@ export class RT4DRadio extends Radio {
     const mem = this._mem;
     if (!mem) return { fields: [] };
 
-    const { channels, contacts, tg_lists, keys } = mem;
+    const { channels, contacts, tg_lists, zones, keys } = mem;
 
     return {
       fields: [
         {
           ...common_ui.channels({ size: channels.length }),
+          swap: (a, b) => {
+            const t = channels[a].__raw.get();
+            channels[a].__raw.set(channels[b].__raw.get());
+            channels[b].__raw.set(t);
+          },
           empty: {
             get: (i) => channels[i].type.get() > 1,
             delete: (i) => channels[i].type.set(0xff),
@@ -660,7 +665,7 @@ export class RT4DRadio extends Radio {
 
             return extra;
           },
-        },
+        } as UI.Field.Channels,
 
         {
           ...common_ui.contacts({ size: contacts.length }),
@@ -762,6 +767,145 @@ export class RT4DRadio extends Radio {
                   .slice(0, length)
                   .copy(buf);
                 key.key.set(buf);
+              },
+            },
+          ],
+        },
+
+        {
+          type: "table",
+          id: "tg_lists",
+          name: t("tg_lists"),
+          tab: UITab.TGLists,
+          size: () => tg_lists.length,
+          header: () => ({ name: { name: t("name") } }),
+          get: (i) => ({ name: trim_string(tg_lists[i].name.get()) }),
+          set_ui: (i_list) => [
+            {
+              type: "text",
+              id: "name",
+              name: t("name"),
+              get: () => trim_string(tg_lists[i_list].name.get()),
+              set: (val) => {
+                const name = tg_lists[i_list].name;
+                name.set(val.slice(0, name.raw.size).padEnd(name.raw.size, "\x00"));
+              },
+            },
+            {
+              type: "table",
+              id: "groups",
+              name: t("dmr_groups"),
+              size: () => tg_lists[i_list].contacts.length,
+              header: () => ({ name: { name: t("contact_name") }, id: { name: t("id") } }),
+              get: (i_contact) => {
+                const contact_index = tg_lists[i_list].contacts[i_contact].get();
+                if (contact_index >= contacts.length) return {};
+
+                const contact = contacts[contact_index];
+                if (contact.type.get() !== CONTACT_GROUP) return {};
+
+                return { name: trim_string(contact.name.get()), id: contact.id.get().toString() };
+              },
+              delete: (i_group) => {
+                tg_lists[i_list].contacts[i_group].set(0xffff);
+              },
+              set_ui: (i_group) => {
+                const contact_indexes: number[] = [];
+                const contact_options: string[] = [];
+                for (let ic = 1; ic < contacts.length; ic += 1) {
+                  const contact = contacts[ic];
+                  const type = contact.type.get();
+                  if (type > 2) break;
+                  if (type !== CONTACT_GROUP) continue;
+
+                  contact_indexes.push(ic);
+                  contact_options.push(trim_string(contact.name.get()));
+                }
+
+                if (tg_lists[i_list].contacts[i_group].get() === 0xffff) {
+                  contact_indexes.unshift(0xffff);
+                  contact_options.unshift(t("off"));
+                }
+
+                return [
+                  {
+                    type: "select",
+                    id: "name",
+                    name: t("contact_name"),
+                    options: contact_options,
+                    get: () => contact_indexes.indexOf(tg_lists[i_list].contacts[i_group].get()),
+                    set: (val) => tg_lists[i_list].contacts[i_group].set(contact_indexes[val]),
+                  },
+                ];
+              },
+            },
+          ],
+        },
+
+        {
+          type: "table",
+          id: "zones",
+          name: t("zones"),
+          tab: UITab.Zones,
+          size: () => zones.length,
+          header: () => ({ name: { name: t("name") } }),
+          get: (i) => ({ name: trim_string(zones[i].name.get()) }),
+          set_ui: (i_zone) => [
+            {
+              type: "text",
+              id: "name",
+              name: t("name"),
+              get: () => trim_string(zones[i_zone].name.get()),
+              set: (val) => {
+                const name = zones[i_zone].name;
+                name.set(val.slice(0, name.raw.size).padEnd(name.raw.size, "\x00"));
+              },
+            },
+            {
+              type: "table",
+              id: "channels",
+              name: t("channels"),
+              size: () => zones[i_zone].channels.length,
+              header: () => ({ name: { num: { name: t("channel_number") }, name: t("contact_name") } }),
+              get: (i_contact) => {
+                const ch_index = zones[i_zone].channels[i_contact].get();
+                if (ch_index >= channels.length) return {};
+
+                const ch = channels[ch_index];
+                if (ch.type.get() > 1) return {};
+
+                return { num: (ch_index + 1).toString(), name: trim_string(ch.name.get()) };
+              },
+              delete: (i_group) => {
+                zones[i_zone].channels[i_group].set(0xffff);
+              },
+              set_ui: (i_channel) => {
+                const ch_indexes: number[] = [];
+                const ch_options: string[] = [];
+                for (let ic = 0; ic < channels.length; ic += 1) {
+                  const ch = channels[ic];
+                  const type = ch.type.get();
+                  if (type > 1) continue;
+
+                  ch_indexes.push(ic);
+                  ch_options.push(`${ic + 1}. ${trim_string(ch.name.get())}`);
+                }
+
+                if (zones[i_zone].channels[i_channel].get() === 0xffff) {
+                  ch_indexes.unshift(0xffff);
+                  ch_options.unshift(t("off"));
+                }
+
+                return [
+                  {
+                    type: "select",
+                    id: "name",
+                    name: t("channel"),
+                    options: ch_options,
+                    get: () => ch_indexes.indexOf(zones[i_zone].channels[i_channel].get()),
+                    set: (val) => zones[i_zone].channels[i_channel].set(ch_indexes[val]),
+                  },
+                ];
               },
             },
           ],

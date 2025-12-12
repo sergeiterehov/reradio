@@ -1,5 +1,4 @@
 import type { Buffer } from "buffer";
-import type { UI } from "./ui";
 
 export const DMR_ALL_CALL_ID = 16_777_215;
 
@@ -43,48 +42,4 @@ export function download_buffer(img: Buffer) {
 
   URL.revokeObjectURL(url);
   document.body.removeChild(a);
-}
-
-export function moveChannel(channels: UI.Field.Channels, from: number, to: number) {
-  if (channels.empty?.get(from) && !channels.empty.get(to)) {
-    channels.empty.delete(to);
-    return;
-  }
-
-  if (channels.empty?.get(to)) channels.empty.init(to);
-
-  channels.digital?.set?.(to, channels.digital.get(from));
-
-  channels.channel.set?.(to, channels.channel.get(from));
-  channels.bcl?.set(to, channels.bcl.get(from));
-  channels.freq?.set(to, channels.freq.get(from));
-  channels.offset?.set(to, channels.offset.get(from));
-  channels.power?.set(to, channels.power.get(from));
-  channels.scan?.set(to, channels.scan.get(from));
-
-  if (channels.digital?.get(from)) {
-    channels.dmr_slot?.set(to, channels.dmr_slot.get(from));
-    channels.dmr_color_code?.set(to, channels.dmr_color_code.get(from));
-    channels.dmr_encryption?.set(to, channels.dmr_encryption.get(from));
-    channels.dmr_contact?.set(to, channels.dmr_contact.get(from));
-    channels.dmr_rx_list?.set(to, channels.dmr_rx_list.get(from));
-    channels.dmr_id?.set(to, channels.dmr_id.get(from));
-  } else {
-    channels.mode?.set(to, channels.mode.get(from));
-    channels.ptt_id?.set(to, channels.ptt_id.get(from));
-    channels.squelch_rx?.set(to, channels.squelch_rx.get(from));
-    channels.squelch_tx?.set(to, channels.squelch_tx.get(from));
-  }
-
-  if (channels.extra) {
-    const extra_to_map = new Map(channels.extra(to).map((field) => [field.id, field]));
-
-    for (const extra_from of channels.extra(from)) {
-      const extra_to = extra_to_map.get(extra_from.id);
-      if (!extra_to) continue;
-      if (!("set" in extra_to) || !("get" in extra_from)) continue;
-
-      extra_to.set(extra_from.get() as never);
-    }
-  }
 }

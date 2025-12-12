@@ -22,8 +22,6 @@ import { DMR_ALL_CALL_ID } from "@/utils/radio";
 import { useRadioOn } from "../useRadioOn";
 import { useState } from "react";
 
-const cardSize = { width: 200, height: 40 };
-
 let idLastFormat: "10" | "HEX" = "10";
 
 function ContactDetails(props: { field: UI.Field.Contacts; index: number }) {
@@ -210,6 +208,8 @@ export function ContactsField(props: { field: UI.Field.Contacts }) {
       {({ width }, container) => {
         const gap = 8;
         const overscroll = 100;
+
+        const cardSize = { width: Math.max(200, width / 3 - gap), height: 50 };
 
         const cardsPerRow = Math.max(1, Math.floor((width + gap) / (cardSize.width + gap)));
         const height = Math.ceil(length / cardsPerRow) * (cardSize.height + gap) - gap;

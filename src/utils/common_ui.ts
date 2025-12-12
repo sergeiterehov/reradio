@@ -20,6 +20,8 @@ export const UITab = {
   Firmware: t("uitab_firmware"),
   Contacts: t("uitab_contacts"),
   Encryption: t("uitab_encryption"),
+  TGLists: t("uitab_tg_lists"),
+  Zones: t("uitab_zones"),
 };
 
 export const modify_field = <F extends UI.Field.Any, R extends UI.Field.Any>(field: F, modifier: (field: F) => R): R =>

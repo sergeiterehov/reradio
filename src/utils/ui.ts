@@ -35,7 +35,7 @@ export namespace UI {
     export type Channels = _Field<"channels"> & {
       size: number;
       channel: { get: (i: number) => string; set?: (i: number, val: string) => void };
-      extra?: (i: number) => Field.Any[];
+      swap?: (a: number, b: number) => void;
       empty?: {
         get: (i: number) => boolean;
         init: (i: number) => void;
@@ -123,6 +123,7 @@ export namespace UI {
         get: (i: number) => { key_index: number };
         set: (i: number, val: { key_index: number }) => void;
       };
+      extra?: (i: number) => Field.Any[];
     };
 
     export type Contacts = _Field<"contacts"> & {
