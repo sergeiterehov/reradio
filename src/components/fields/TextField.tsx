@@ -1,11 +1,14 @@
 import type { UI } from "@/utils/ui";
-import { Field, Input } from "@chakra-ui/react";
+import { Field, Input, InputGroup } from "@chakra-ui/react";
 import { useRadioOn } from "../useRadioOn";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 export function TextField(props: { field: UI.Field.Text }) {
   const { field } = props;
   const value = useRadioOn(field.get);
+
+  const { t } = useTranslation();
 
   const [text, setText] = useState(String(value));
   useEffect(() => setText(String(value)), [value]);
@@ -13,18 +16,20 @@ export function TextField(props: { field: UI.Field.Text }) {
   return (
     <Field.Root>
       <Field.Label>{field.name}</Field.Label>
-      <Input
-        placeholder="Empty"
-        value={text}
-        onChange={(e) => setText(e.currentTarget.value)}
-        onBlur={() => {
-          try {
-            field.set(text);
-          } finally {
-            setText(String(field.get()));
-          }
-        }}
-      />
+      <InputGroup endElement={field.suffix}>
+        <Input
+          placeholder={t("empty")}
+          value={text}
+          onChange={(e) => setText(e.currentTarget.value)}
+          onBlur={() => {
+            try {
+              field.set(text);
+            } finally {
+              setText(String(field.get()));
+            }
+          }}
+        />
+      </InputGroup>
       <Field.HelperText>{field.description}</Field.HelperText>
     </Field.Root>
   );

@@ -15,9 +15,9 @@ export function SliderField(props: { field: UI.Field.Slider }) {
         value={[Number(value)]}
         onValueChange={(e) => field.set(e.value[0])}
       >
-        <HStack justify="space-between">
-          <Slider.Label>{field.name}</Slider.Label>
-          <Text>{field.label ? field.label(Number(value)) : String(value)}</Text>
+        <HStack justify="space-between" overflow="hidden">
+          <Slider.Label truncate>{field.name}</Slider.Label>
+          <Text whiteSpace="nowrap">{field.label ? field.label(Number(value)) : String(value)}</Text>
         </HStack>
         <Slider.Control>
           <Slider.Track>

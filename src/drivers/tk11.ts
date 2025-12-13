@@ -373,6 +373,19 @@ export class TK11Radio extends QuanshengBaseRadio {
             get: (i) => trim_string(mem.channels[i].name.get()),
             set: (i, val) => mem.channels[i].name.set(val.substring(0, 16).padEnd(16, "\x00")),
           },
+          swap: (a, b) => {
+            if (a >= mem.channels.length || b >= mem.channels.length) return;
+            {
+              const t = mem.channels[a].__raw.get();
+              mem.channels[a].__raw.set(mem.channels[b].__raw.get());
+              mem.channels[b].__raw.set(t);
+            }
+            {
+              const t = mem.channels_usage[a].__raw.get();
+              mem.channels_usage[a].__raw.set(mem.channels_usage[b].__raw.get());
+              mem.channels_usage[b].__raw.set(t);
+            }
+          },
           empty: {
             get: (i) => mem.channels_usage[i].flag.get() === 0xff || mem.channels[i].rx_freq.get() === 0,
             delete: (i) => mem.channels_usage[i].flag.set(0xff),
