@@ -433,7 +433,7 @@ export const common_ui = {
 
   key_x_fn: (ref: _GetSetNumber, config: { key: string; functions: string[] }): UI.Field.Select => ({
     type: "select",
-    id: "key_x_fn",
+    id: `key_${config.key}_fn`,
     name: t("key_x_fn", { replace: { key: config.key } }),
     tab: UITab.Control,
     options: config.functions,

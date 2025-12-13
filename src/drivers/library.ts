@@ -82,7 +82,6 @@ export class Demo_RTRT4DRadio extends RT4DRadio {
 }
 
 export const Library: (typeof Radio)[] = [
-  Demo_RTRT4DRadio,
   BF888Radio,
   BFC50Radio,
   UV5RRadio,
@@ -103,4 +102,5 @@ export const Library: (typeof Radio)[] = [
   Demo_UV5RMiniRadio,
   Demo_UVK5Radio,
   Demo_TK11Radio,
+  Demo_RTRT4DRadio,
 ];
