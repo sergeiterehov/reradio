@@ -919,11 +919,13 @@ function ChannelButton(props: {
           </Button>
         )}
       </Menu.Context>
-      <Menu.Positioner>
-        <Menu.Content>
-          <ChannelMenuItems index={index} field={field} />
-        </Menu.Content>
-      </Menu.Positioner>
+      <Portal>
+        <Menu.Positioner>
+          <Menu.Content>
+            <ChannelMenuItems index={index} field={field} />
+          </Menu.Content>
+        </Menu.Positioner>
+      </Portal>
     </Menu.Root>
   );
 }

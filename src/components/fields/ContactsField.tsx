@@ -175,21 +175,23 @@ function ContactCard(props: { field: UI.Field.Contacts; index: number }) {
           </Popover.Positioner>
         </Portal>
       </Popover.Root>
-      <Menu.Positioner>
-        <Menu.Content>
-          {field.delete && (
-            <Menu.Item
-              value="delete"
-              color="fg.error"
-              _hover={{ bg: "bg.error", color: "fg.error" }}
-              onClick={() => field.delete?.(index)}
-            >
-              <TbTrash />
-              Delete
-            </Menu.Item>
-          )}
-        </Menu.Content>
-      </Menu.Positioner>
+      <Portal>
+        <Menu.Positioner>
+          <Menu.Content>
+            {field.delete && (
+              <Menu.Item
+                value="delete"
+                color="fg.error"
+                _hover={{ bg: "bg.error", color: "fg.error" }}
+                onClick={() => field.delete?.(index)}
+              >
+                <TbTrash />
+                Delete
+              </Menu.Item>
+            )}
+          </Menu.Content>
+        </Menu.Positioner>
+      </Portal>
     </Menu.Root>
   );
 }
