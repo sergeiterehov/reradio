@@ -15,6 +15,50 @@ MARK: TODO:
 - Добавить отправку на станцию
 */
 
+const TIMEOUT_WRITE = 5_000;
+
+const PROG_CMD = Buffer.from([0x34, 0x52, 0x05, 0x10, 0x9b]);
+const PROG_ACK = Buffer.from([0x06]);
+const END_CMD = Buffer.from([0x34, 0x52, 0x05, 0xee, 0x79]);
+
+const ADDR_CFG = 0x2000;
+const ADDR_CH = 0x4000;
+const ADDR_VFO = 0x1c000;
+const ADDR_CFG_2 = 0x1c060;
+const ADDR_ZONE = 0x1e000;
+const ADDR_CONTACT = 0x5e000;
+const ADDR_TGLIST = 0xc6000;
+const ADDR_ENCRYPT = 0xd0000;
+const ADDR_SMS_PRESET = 0xd6000;
+const ADDR_SMS_DRAFT = 0xd7000;
+const ADDR_SMS_INBOX = 0xde000;
+const ADDR_SMS_OUTBOX = 0xe7000;
+const ADDR_FM = 0xf0000;
+
+const READ = [
+  { offset: ADDR_CFG, size: 1 },
+  { offset: ADDR_CH, size: 48 },
+  { offset: ADDR_VFO, size: 1 },
+  { offset: ADDR_ZONE, size: 128 },
+  { offset: ADDR_CONTACT, size: 208 },
+  { offset: ADDR_TGLIST, size: 20 },
+  { offset: ADDR_ENCRYPT, size: 12 },
+  { offset: ADDR_SMS_PRESET, size: 100 },
+  { offset: ADDR_FM, size: 4 },
+];
+const WRITE = [
+  { cmd: 144, offset: ADDR_CFG, size: 1 },
+  { cmd: 145, offset: ADDR_CH, size: 48 },
+  { cmd: 146, offset: ADDR_VFO, size: 1 },
+  { cmd: 147, offset: ADDR_ZONE, size: 128 },
+  { cmd: 148, offset: ADDR_CONTACT, size: 208 },
+  { cmd: 149, offset: ADDR_TGLIST, size: 20 },
+  { cmd: 150, offset: ADDR_ENCRYPT, size: 12 },
+  { cmd: 151, offset: ADDR_SMS_PRESET, size: 4 }, // only drafts is editable
+  { cmd: 152, offset: ADDR_FM, size: 4 },
+];
+const MEM_SIZE = 1024 * 1024;
+
 const TYPE_DIGITAL = 0;
 const TYPE_ANALOG = 1;
 
@@ -142,50 +186,6 @@ export class RT4DRadio extends Radio {
     model: "RT-4D V3",
   };
 
-  protected readonly _TIMEOUT_WRITE = 5_000;
-
-  protected readonly _PROG_CMD = Buffer.from([0x34, 0x52, 0x05, 0x10, 0x9b]);
-  protected readonly _PROG_ACK = Buffer.from([0x06]);
-  protected readonly _END_CMD = Buffer.from([0x34, 0x52, 0x05, 0xee, 0x79]);
-
-  protected readonly _ADDR_CFG = 0x2000;
-  protected readonly _ADDR_CH = 0x4000;
-  protected readonly _ADDR_VFO = 0x1c000;
-  protected readonly _ADDR_CFG_2 = 0x1c060;
-  protected readonly _ADDR_ZONE = 0x1e000;
-  protected readonly _ADDR_CONTACT = 0x5e000;
-  protected readonly _ADDR_TGLIST = 0xc6000;
-  protected readonly _ADDR_ENCRYPT = 0xd0000;
-  protected readonly _ADDR_SMS_PRESET = 0xd6000;
-  protected readonly _ADDR_SMS_DRAFT = 0xd7000;
-  protected readonly _ADDR_SMS_INBOX = 0xde000;
-  protected readonly _ADDR_SMS_OUTBOX = 0xe7000;
-  protected readonly _ADDR_FM = 0xf0000;
-
-  protected readonly _RANGES = [
-    { start: 8, end: 8 },
-    { start: 16, end: 63 },
-    { start: 112, end: 112 },
-    { start: 120, end: 147 },
-    { start: 376, end: 583 },
-    { start: 792, end: 811 },
-    { start: 831, end: 843 },
-    { start: 856, end: 955 },
-    { start: 960, end: 963 },
-  ];
-  protected readonly _WRITE_RANGES = [
-    { cmd: 144, offset: this._ADDR_CFG, size: 1 },
-    { cmd: 145, offset: this._ADDR_CH, size: 48 },
-    { cmd: 146, offset: this._ADDR_VFO, size: 1 },
-    { cmd: 147, offset: this._ADDR_ZONE, size: 128 },
-    { cmd: 148, offset: this._ADDR_CONTACT, size: 208 },
-    { cmd: 149, offset: this._ADDR_TGLIST, size: 20 },
-    { cmd: 150, offset: this._ADDR_ENCRYPT, size: 12 },
-    { cmd: 151, offset: this._ADDR_SMS_PRESET, size: 4 },
-    { cmd: 152, offset: this._ADDR_FM, size: 4 },
-  ];
-  protected readonly _MEM_SIZE = 1024 * 1024;
-
   protected _img?: Buffer;
   protected _mem?: ReturnType<typeof this._parse_v3>;
 
@@ -195,7 +195,7 @@ export class RT4DRadio extends Radio {
     const m = create_mem_mapper(img, this.dispatch_ui);
 
     return {
-      ...m.seek(this._ADDR_CH).skip(0, {}),
+      ...m.seek(ADDR_CH).skip(0, {}),
 
       channels: array_of(1024, () =>
         m.struct(() => ({
@@ -241,10 +241,10 @@ export class RT4DRadio extends Radio {
         }))
       ),
 
-      ...m.seek(this._ADDR_VFO).skip(0, {}),
+      ...m.seek(ADDR_VFO).skip(0, {}),
       // TODO: VFO A,B like channel
 
-      ...m.seek(this._ADDR_CONTACT).skip(0, {}),
+      ...m.seek(ADDR_CONTACT).skip(0, {}),
 
       contacts: array_of(10_000, () =>
         m.struct(() => ({
@@ -254,7 +254,7 @@ export class RT4DRadio extends Radio {
         }))
       ),
 
-      ...m.seek(this._ADDR_TGLIST).skip(0, {}),
+      ...m.seek(ADDR_TGLIST).skip(0, {}),
 
       tg_lists: array_of(250, () =>
         m.struct(() => ({
@@ -263,7 +263,7 @@ export class RT4DRadio extends Radio {
         }))
       ),
 
-      ...m.seek(this._ADDR_ENCRYPT).skip(0, {}),
+      ...m.seek(ADDR_ENCRYPT).skip(0, {}),
 
       keys: array_of(256, () =>
         m.struct(() => ({
@@ -274,7 +274,7 @@ export class RT4DRadio extends Radio {
         }))
       ),
 
-      ...m.seek(this._ADDR_ZONE).skip(0, {}),
+      ...m.seek(ADDR_ZONE).skip(0, {}),
 
       zones: array_of(250, () =>
         m.struct(() => ({
@@ -284,7 +284,7 @@ export class RT4DRadio extends Radio {
         }))
       ),
 
-      ...m.seek(this._ADDR_FM).skip(0, {}),
+      ...m.seek(ADDR_FM).skip(0, {}),
 
       fm: array_of(80, () =>
         m.struct(() => ({
@@ -315,7 +315,7 @@ export class RT4DRadio extends Radio {
         }))
       ),
 
-      ...m.seek(this._ADDR_CFG).skip(0, {}),
+      ...m.seek(ADDR_CFG).skip(0, {}),
 
       settings: {
         _unknown0: m.buf(16),
@@ -471,7 +471,7 @@ export class RT4DRadio extends Radio {
         freq_scan_end: m.u32(), // 18_00_000-999_999_999
       },
 
-      ...m.seek(this._ADDR_CFG_2).skip(0, {}),
+      ...m.seek(ADDR_CFG_2).skip(0, {}),
 
       settings2: {
         key_lock: m.u8(), // 0=off, 1=on, #0
@@ -516,7 +516,7 @@ export class RT4DRadio extends Radio {
         },
       },
 
-      ...m.seek(this._ADDR_SMS_PRESET).skip(0, {}),
+      ...m.seek(ADDR_SMS_PRESET).skip(0, {}),
 
       // preset, draft, received, sent
       sms: array_of(16 + 128 + 128 + 128, () =>
@@ -1208,20 +1208,20 @@ export class RT4DRadio extends Radio {
   // MARK: Serial
 
   protected async _prog_mode_on() {
-    await serial.write(this._PROG_CMD);
+    await serial.write(PROG_CMD);
 
     const prog_ack = await serial.read(1);
-    if (!prog_ack.equals(this._PROG_ACK)) throw new Error("Prog mode not ack");
+    if (!prog_ack.equals(PROG_ACK)) throw new Error("Prog mode not ack");
   }
 
   protected async _prog_mode_off() {
-    await serial.write(this._END_CMD);
+    await serial.write(END_CMD);
   }
 
-  protected async _read_block(addr: number) {
+  protected async _read_block(number: number) {
     const cmd = Buffer.alloc(4);
     cmd.writeUInt8(0x52, 0);
-    cmd.writeUInt16BE(addr, 1);
+    cmd.writeUInt16BE(number, 1);
     cmd.writeUInt8(checksum(cmd.slice(0, 3)), 3);
 
     await serial.write(cmd);
@@ -1235,17 +1235,17 @@ export class RT4DRadio extends Radio {
     return data;
   }
 
-  protected async _write_block(cmd_code: number, addr: number, data: Buffer) {
+  protected async _write_block(cmd_code: number, number: number, data: Buffer) {
     const cmd = Buffer.alloc(1028);
     cmd.writeUInt8(cmd_code, 0);
-    cmd.writeUInt16BE(addr, 1);
+    cmd.writeUInt16BE(number, 1);
     data.copy(cmd, 3);
     cmd.writeUInt8(checksum(cmd.slice(0, 1027)), 1027);
 
     await serial.write(cmd);
 
-    const res = await serial.read(1, { timeout: this._TIMEOUT_WRITE });
-    if (!res.equals(this._PROG_ACK)) throw new Error("Unexpected response code");
+    const res = await serial.read(1, { timeout: TIMEOUT_WRITE });
+    if (!res.equals(PROG_ACK)) throw new Error("Unexpected response code");
   }
 
   async load(snapshot: Buffer) {
@@ -1273,16 +1273,19 @@ export class RT4DRadio extends Radio {
 
     this.dispatch_progress(0.1);
 
-    const img = Buffer.alloc(this._MEM_SIZE);
+    const img = Buffer.alloc(MEM_SIZE);
 
-    for (const range of this._RANGES) {
-      for (let i = range.start; i <= range.end; i += 1) {
-        const block = await this._read_block(i);
+    for (const range of READ) {
+      const start_number = range.offset / 1024;
 
-        const addr = i * 1024;
+      for (let i = 0; i <= range.size; i += 1) {
+        const block_number = start_number + i;
+        const block = await this._read_block(block_number);
+
+        const addr = block_number * 1024;
         block.copy(img, addr);
 
-        this.dispatch_progress(0.1 + 0.8 * ((addr + 1024) / this._MEM_SIZE));
+        this.dispatch_progress(0.1 + 0.8 * ((addr + 1024) / MEM_SIZE));
       }
     }
 
@@ -1309,17 +1312,17 @@ export class RT4DRadio extends Radio {
 
     img.writeUInt8(0xff, 14);
     img.writeUInt8(0xff, 15);
-    cfg_block.slice(960, 1024).copy(img, this._ADDR_CFG + 960);
+    cfg_block.slice(960, 1024).copy(img, ADDR_CFG + 960);
 
     this.dispatch_progress(0.1);
 
-    for (const range of this._WRITE_RANGES) {
+    for (const range of WRITE) {
       for (let i = 0; i < range.size; i += 1) {
         const offset = range.offset + i * 1024;
         const block = img.slice(offset, offset + 1024);
         await this._write_block(range.cmd, i, block);
 
-        this.dispatch_progress(0.1 + 0.8 * ((offset + 1024) / this._MEM_SIZE));
+        this.dispatch_progress(0.1 + 0.8 * ((offset + 1024) / MEM_SIZE));
       }
     }
 
