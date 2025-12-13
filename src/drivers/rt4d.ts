@@ -142,6 +142,8 @@ export class RT4DRadio extends Radio {
     model: "RT-4D V3",
   };
 
+  protected readonly _TIMEOUT_WRITE = 5_000;
+
   protected readonly _PROG_CMD = Buffer.from([0x34, 0x52, 0x05, 0x10, 0x9b]);
   protected readonly _PROG_ACK = Buffer.from([0x06]);
   protected readonly _END_CMD = Buffer.from([0x34, 0x52, 0x05, 0xee, 0x79]);
@@ -172,14 +174,15 @@ export class RT4DRadio extends Radio {
     { start: 960, end: 963 },
   ];
   protected readonly _WRITE_RANGES = [
-    { cmd: 145, offset: this._ADDR_CH, start: 1, end: 48 },
-    { cmd: 146, offset: this._ADDR_VFO, start: 49, end: 49 },
-    { cmd: 147, offset: this._ADDR_ZONE, start: 50, end: 177 },
-    { cmd: 148, offset: this._ADDR_CONTACT, start: 178, end: 385 },
-    { cmd: 149, offset: this._ADDR_TGLIST, start: 386, end: 405 },
-    { cmd: 150, offset: this._ADDR_ENCRYPT, start: 406, end: 417 },
-    { cmd: 151, offset: this._ADDR_SMS_PRESET, start: 418, end: 421 },
-    { cmd: 152, offset: this._ADDR_FM, start: 422, end: 425 },
+    { cmd: 144, offset: this._ADDR_CFG, size: 1 },
+    { cmd: 145, offset: this._ADDR_CH, size: 48 },
+    { cmd: 146, offset: this._ADDR_VFO, size: 1 },
+    { cmd: 147, offset: this._ADDR_ZONE, size: 128 },
+    { cmd: 148, offset: this._ADDR_CONTACT, size: 208 },
+    { cmd: 149, offset: this._ADDR_TGLIST, size: 20 },
+    { cmd: 150, offset: this._ADDR_ENCRYPT, size: 12 },
+    { cmd: 151, offset: this._ADDR_SMS_PRESET, size: 4 },
+    { cmd: 152, offset: this._ADDR_FM, size: 4 },
   ];
   protected readonly _MEM_SIZE = 1024 * 1024;
 
@@ -1241,7 +1244,7 @@ export class RT4DRadio extends Radio {
 
     await serial.write(cmd);
 
-    const res = await serial.read(1);
+    const res = await serial.read(1, { timeout: this._TIMEOUT_WRITE });
     if (!res.equals(this._PROG_ACK)) throw new Error("Unexpected response code");
   }
 
@@ -1301,11 +1304,18 @@ export class RT4DRadio extends Radio {
 
     await this._prog_mode_on();
 
+    await this._read_block(0); // initial block
+    const cfg_block = await this._read_block(8);
+
+    img.writeUInt8(0xff, 14);
+    img.writeUInt8(0xff, 15);
+    cfg_block.slice(960, 1024).copy(img, this._ADDR_CFG + 960);
+
     this.dispatch_progress(0.1);
 
     for (const range of this._WRITE_RANGES) {
-      for (let i = range.start; i <= range.end; i += 1) {
-        const offset = range.offset + (i - range.start) * 1024;
+      for (let i = 0; i < range.size; i += 1) {
+        const offset = range.offset + i * 1024;
         const block = img.slice(offset, offset + 1024);
         await this._write_block(range.cmd, i, block);
 
