@@ -223,6 +223,7 @@ export class BF888Radio extends Radio {
 
   override async write() {
     if (!this._img) throw new Error("No data");
+    const img = Buffer.from(this._img);
 
     this.dispatch_progress(0);
 
@@ -233,7 +234,7 @@ export class BF888Radio extends Radio {
     this.dispatch_progress(0.1);
 
     for (let addr = 0; addr < MEM_SIZE; addr += BLOCK_SIZE) {
-      await this._write_block(addr, this._img.slice(addr, addr + BLOCK_SIZE));
+      await this._write_block(addr, img.slice(addr, addr + BLOCK_SIZE));
       this.dispatch_progress(0.1 + 0.8 * (addr / MEM_SIZE));
     }
 

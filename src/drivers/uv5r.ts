@@ -413,10 +413,10 @@ export class UV5RRadio extends Radio {
   }
 
   override async write() {
-    this.dispatch_progress(0);
+    if (!this._img) throw new Error("No data");
+    const img = Buffer.from(this._img);
 
-    const img = this._img;
-    if (!img) throw new Error("No data");
+    this.dispatch_progress(0);
 
     await serial.begin({ baudRate: 9600 });
     await serial.clear();

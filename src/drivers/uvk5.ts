@@ -530,8 +530,8 @@ export class UVK5Radio extends QuanshengBaseRadio {
   }
 
   override async write() {
-    const img = this._img;
-    if (!img) throw new Error("No image");
+    if (!this._img) throw new Error("No data");
+    const img = Buffer.from(this._img);
 
     this.dispatch_progress(0);
 

@@ -1373,10 +1373,8 @@ export class RT4DRadio extends Radio {
   }
 
   async write() {
-    const _img = this._img;
-    if (!_img) throw new Error("Image is empty");
-
-    const img = Buffer.from(_img);
+    if (!this._img) throw new Error("No data");
+    const img = Buffer.from(this._img);
 
     this.dispatch_progress(0);
 
