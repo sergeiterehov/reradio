@@ -1234,7 +1234,7 @@ export class RT4DRadio extends Radio {
 
   protected async _write_block(cmd_code: number, addr: number, data: Buffer) {
     const cmd = Buffer.alloc(1028);
-    cmd.writeUInt8(0, cmd_code);
+    cmd.writeUInt8(cmd_code, 0);
     cmd.writeUInt16BE(addr, 1);
     data.copy(cmd, 3);
     cmd.writeUInt8(checksum(cmd.slice(0, 1027)), 1027);
@@ -1299,7 +1299,7 @@ export class RT4DRadio extends Radio {
 
     for (const range of this._WRITE_RANGES) {
       for (let i = range.start; i <= range.end; i += 1) {
-        const offset = range.offset + i * 1024;
+        const offset = range.offset + (i - range.start) * 1024;
         const block = img.slice(offset, offset + 1024);
         await this._write_block(range.cmd, i, block);
 
