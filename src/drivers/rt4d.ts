@@ -3,7 +3,7 @@ import { Radio, type RadioInfo } from "./radio";
 import { serial } from "@/utils/serial";
 import { Buffer } from "buffer";
 import { common_ui, modify_field, UITab } from "@/utils/common_ui";
-import { array_of, create_mem_mapper, set_string, to_js, type M } from "@/utils/mem";
+import { array_of, create_mem_mapper, set_string, type M } from "@/utils/mem";
 import { CTCSS_TONES, DCS_CODES, DMR_ALL_CALL_ID, trim_string } from "@/utils/radio";
 import { t } from "i18next";
 
@@ -695,7 +695,7 @@ export class RT4DRadio extends Radio {
             set: (i, val) => channels[i].contact.set(val),
           },
           dmr_rx_list: {
-            lists: [
+            lists: () => [
               t("off"),
               ...(() => {
                 const list: string[] = [];
@@ -1034,9 +1034,9 @@ export class RT4DRadio extends Radio {
         common_ui.dual_watch(settings2.dual_watch),
         common_ui.scan_mode(settings.scan_mode, { options: [t("scan_time"), t("scan_carrier"), t("scan_search")] }),
         common_ui.key_side_short_x_fn(settings2.keys.fs1_short, { key: "1", functions: KEY_FN }),
-        common_ui.key_side_long_x_fn(settings2.keys.fs1_short, { key: "1", functions: KEY_FN }),
+        common_ui.key_side_long_x_fn(settings2.keys.fs1_long, { key: "1", functions: KEY_FN }),
         common_ui.key_side_short_x_fn(settings2.keys.fs2_short, { key: "2", functions: KEY_FN }),
-        common_ui.key_side_long_x_fn(settings2.keys.fs2_short, { key: "2", functions: KEY_FN }),
+        common_ui.key_side_long_x_fn(settings2.keys.fs2_long, { key: "2", functions: KEY_FN }),
         common_ui.key_x_fn(settings2.keys.pad_0, { key: "0", functions: KEY_FN }),
         common_ui.key_x_fn(settings2.keys.pad_1, { key: "1", functions: KEY_FN }),
         common_ui.key_x_fn(settings2.keys.pad_2, { key: "2", functions: KEY_FN }),
@@ -1052,7 +1052,7 @@ export class RT4DRadio extends Radio {
           options: [t("off"), `${t("roger_beep_roger")} 1`, `${t("roger_beep_roger")} 2`, "Radio Name"],
         }),
         this._dmr_ui(
-          common_ui.roger_beep_select(settings.tx_beep_end, {
+          common_ui.roger_beep_select(settings.tx_beep_end_dig, {
             options: [t("off"), `${t("roger_beep_roger")} 1`, `${t("roger_beep_roger")} 2`],
           })
         ),
@@ -1208,8 +1208,6 @@ export class RT4DRadio extends Radio {
         }
       }
     }
-
-    console.log(to_js(zones));
   }
 
   protected _resolve_channels_swap(a: number, b: number) {
@@ -1375,8 +1373,10 @@ export class RT4DRadio extends Radio {
   }
 
   async write() {
-    const img = this._img;
-    if (!img) throw new Error("Image is empty");
+    const _img = this._img;
+    if (!_img) throw new Error("Image is empty");
+
+    const img = Buffer.from(_img);
 
     this.dispatch_progress(0);
 

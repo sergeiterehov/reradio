@@ -484,7 +484,7 @@ function ChannelForm(props: { field: UI.Field.Channels; index: number }) {
                     value={value}
                     onChange={(e) => dmr_rx_list.set(index, Number(e.currentTarget.value))}
                   >
-                    {dmr_rx_list.lists.map((opt, i_opt) => (
+                    {dmr_rx_list.lists().map((opt, i_opt) => (
                       <option key={i_opt} value={i_opt}>
                         {opt}
                       </option>

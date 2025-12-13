@@ -100,7 +100,7 @@ export namespace UI {
         set: (i: number, val: DMR_ID) => void;
       };
       dmr_rx_list?: {
-        lists: string[];
+        lists: () => string[];
         get: (i: number) => number;
         set: (i: number, i_group: number) => void;
       };
