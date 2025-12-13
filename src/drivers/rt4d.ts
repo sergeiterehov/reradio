@@ -1259,6 +1259,10 @@ export class RT4DRadio extends Radio {
   async read() {
     this.dispatch_progress(0);
 
+    this._img = undefined;
+    this._mem = undefined;
+    this.dispatch_ui_change();
+
     await serial.begin({ baudRate: 115_200 });
     await serial.clear();
 
@@ -1280,6 +1284,8 @@ export class RT4DRadio extends Radio {
     }
 
     await this._prog_mode_off();
+
+    await this.load(img);
 
     this.dispatch_progress(1);
   }
