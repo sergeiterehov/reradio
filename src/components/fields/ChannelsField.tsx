@@ -18,6 +18,7 @@ import {
   Switch,
   Menu,
   type ButtonProps,
+  Slider,
 } from "@chakra-ui/react";
 import { RadioWatch } from "../RadioWatch";
 import { useRadioOn } from "../useRadioOn";
@@ -31,21 +32,28 @@ import {
   TbHelp,
   TbLayoutSidebarRightExpand,
   TbMenu2,
+  TbRadio,
   TbTextSpellcheck,
   TbTransitionBottom,
   TbTrash,
 } from "react-icons/tb";
 import { Tooltip } from "../ui/tooltip";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { RADIO_FREQUENCY_BANDS } from "@/bands";
 import { useTranslation } from "react-i18next";
 import { t } from "i18next";
 import { Actions, Store } from "@/store";
 import { useStore } from "zustand";
-import { MeasureBox } from "../ui/MeasureBox";
-import { useWindowScroll } from "react-use";
+import { useMeasure } from "react-use";
+import { AnyField } from "./AnyField";
+import { DMR_ALL_CALL_ID } from "@/utils/radio";
+import { useWindowVirtualizer } from "@tanstack/react-virtual";
 
-const cardSize = { width: 200, height: 80 };
+const SlotNames: { [K in UI.DMRSlot]: string } = {
+  DualSlot: t("dmr_slot_dual"),
+  "Slot-1": t("dmr_slot_1"),
+  "Slot-2": t("dmr_slot_2"),
+};
 
 function SquelchForm(props: {
   config: NonNullable<UI.Field.Channels["squelch_rx"]>;
@@ -81,7 +89,7 @@ function SquelchForm(props: {
           >
             {config.options.map((opt, i_opt) => (
               <option key={i_opt} value={opt}>
-                {opt}
+                {opt === "Off" ? t("off") : opt}
               </option>
             ))}
           </NativeSelect.Field>
@@ -233,9 +241,28 @@ function SquelchTxRx(props: {
 
 function ChannelForm(props: { field: UI.Field.Channels; index: number }) {
   const { field, index } = props;
-  const { freq, offset, mode, squelch_rx, squelch_tx, power, scan, bcl, ptt_id } = field;
+  const {
+    freq,
+    offset,
+    mode,
+    squelch_rx,
+    squelch_tx,
+    power,
+    scan,
+    bcl,
+    ptt_id,
+    digital,
+    dmr_encryption,
+    dmr_slot,
+    dmr_color_code,
+    dmr_contact,
+    dmr_rx_list,
+    dmr_id,
+  } = field;
 
   const { t } = useTranslation();
+
+  const is_digital = useRadioOn(() => digital?.get(index));
 
   return (
     <Fieldset.Root>
@@ -339,7 +366,7 @@ function ChannelForm(props: { field: UI.Field.Channels; index: number }) {
             )}
           </RadioWatch>
         )}
-        {mode && (
+        {!is_digital && mode && (
           <RadioWatch on={() => mode.get(index)}>
             {(value) => (
               <Field.Root>
@@ -361,7 +388,200 @@ function ChannelForm(props: { field: UI.Field.Channels; index: number }) {
             )}
           </RadioWatch>
         )}
-        <SquelchTxRx tx={squelch_tx} rx={squelch_rx} index={index} />
+        {!is_digital && <SquelchTxRx tx={squelch_tx} rx={squelch_rx} index={index} />}
+        {is_digital && dmr_id && (
+          <RadioWatch on={() => dmr_id.get(index)}>
+            {(value) => (
+              <Field.Root>
+                <Field.Label>
+                  {t("dmr_id")}
+                  <Tooltip content={t("dmr_id_tooltip")}>
+                    <TbHelp />
+                  </Tooltip>
+                </Field.Label>
+                <HStack width="full">
+                  <NativeSelect.Root>
+                    <NativeSelect.Field
+                      value={value.from}
+                      onChange={(e) => {
+                        const from = e.currentTarget.value as UI.DMR_IDFrom;
+                        if (from === "Radio") {
+                          dmr_id.set(index, { from });
+                        } else {
+                          dmr_id.set(index, { from, id: 1 });
+                        }
+                      }}
+                    >
+                      <option value="Radio">{t("id_from_radio")}</option>
+                      <option value="Channel">{t("id")}</option>
+                    </NativeSelect.Field>
+                    <NativeSelect.Indicator />
+                  </NativeSelect.Root>
+                  {value.from === "Channel" && (
+                    <Field.Root>
+                      <NumberInput.Root
+                        asChild
+                        value={String(value.id)}
+                        onValueChange={(e) => dmr_id.set(index, { from: "Channel", id: e.valueAsNumber })}
+                        min={1}
+                        max={16_777_215}
+                      >
+                        <NumberInput.Input />
+                      </NumberInput.Root>
+                    </Field.Root>
+                  )}
+                </HStack>
+              </Field.Root>
+            )}
+          </RadioWatch>
+        )}
+        {is_digital && dmr_contact && (
+          <RadioWatch on={() => dmr_contact.get(index)}>
+            {(value) => (
+              <Field.Root>
+                <Field.Label>
+                  {t("dmr_call_contact")}
+                  <Tooltip content={t("dmr_call_contact_tooltip")}>
+                    <TbHelp />
+                  </Tooltip>
+                </Field.Label>
+                <NativeSelect.Root>
+                  <NativeSelect.Field
+                    value={value}
+                    onChange={(e) => dmr_contact.set(index, Number(e.currentTarget.value))}
+                  >
+                    {dmr_contact.contacts().map((opt, i_opt) => (
+                      <option key={i_opt} value={i_opt}>
+                        {(() => {
+                          if (opt.type === "Group" && opt.id === DMR_ALL_CALL_ID) return t("all_call");
+
+                          const num = `${opt.type === "Group" ? "TG " : ""}${opt.id}`;
+                          if (!opt.name) return num;
+
+                          return `${opt.name} (${num})`;
+                        })()}
+                      </option>
+                    ))}
+                  </NativeSelect.Field>
+                  <NativeSelect.Indicator />
+                </NativeSelect.Root>
+              </Field.Root>
+            )}
+          </RadioWatch>
+        )}
+        {is_digital && dmr_rx_list && (
+          <RadioWatch on={() => dmr_rx_list.get(index)}>
+            {(value) => (
+              <Field.Root>
+                <Field.Label>
+                  {t("dmr_rx_list")}
+                  <Tooltip content={t("dmr_rx_list_tooltip")}>
+                    <TbHelp />
+                  </Tooltip>
+                </Field.Label>
+                <NativeSelect.Root>
+                  <NativeSelect.Field
+                    value={value}
+                    onChange={(e) => dmr_rx_list.set(index, Number(e.currentTarget.value))}
+                  >
+                    {dmr_rx_list.lists().map((opt, i_opt) => (
+                      <option key={i_opt} value={i_opt}>
+                        {opt}
+                      </option>
+                    ))}
+                  </NativeSelect.Field>
+                  <NativeSelect.Indicator />
+                </NativeSelect.Root>
+              </Field.Root>
+            )}
+          </RadioWatch>
+        )}
+        {is_digital && dmr_encryption && (
+          <RadioWatch on={() => dmr_encryption.get(index).key_index}>
+            {(key_index) => (
+              <Field.Root>
+                <Field.Label>
+                  {t("dmr_encryption_key")}
+                  <Tooltip content={t("dmr_encryption_key_tooltip")}>
+                    <TbHelp />
+                  </Tooltip>
+                </Field.Label>
+                <NativeSelect.Root>
+                  <NativeSelect.Field
+                    value={key_index}
+                    onChange={(e) => dmr_encryption.set(index, { key_index: Number(e.currentTarget.value) })}
+                  >
+                    {dmr_encryption.keys().map((opt, i_opt) => (
+                      <option key={i_opt} value={i_opt}>
+                        {(() => {
+                          if (opt.type === "Off") return t("off");
+
+                          return `${opt.name} (${opt.type})`;
+                        })()}
+                      </option>
+                    ))}
+                  </NativeSelect.Field>
+                  <NativeSelect.Indicator />
+                </NativeSelect.Root>
+              </Field.Root>
+            )}
+          </RadioWatch>
+        )}
+        {is_digital && dmr_slot && (
+          <RadioWatch on={() => dmr_slot.get(index)}>
+            {(value) => (
+              <Field.Root>
+                <Field.Label>
+                  {t("dmr_slot")}
+                  <Tooltip content={t("dmr_slot_tooltip")}>
+                    <TbHelp />
+                  </Tooltip>
+                </Field.Label>
+                <SegmentGroup.Root
+                  size={dmr_slot.options.length > 4 ? "xs" : undefined}
+                  value={dmr_slot.options[value]}
+                  onValueChange={(e) => dmr_slot.set(index, dmr_slot.options.indexOf(e.value as UI.DMRSlot))}
+                >
+                  <SegmentGroup.Indicator />
+                  <SegmentGroup.Items
+                    items={dmr_slot.options.map((slot) => ({ value: slot, label: SlotNames[slot] || slot }))}
+                  />
+                </SegmentGroup.Root>
+              </Field.Root>
+            )}
+          </RadioWatch>
+        )}
+        {is_digital && dmr_color_code && (
+          <RadioWatch on={() => dmr_color_code.get(index)}>
+            {(value) => (
+              <Field.Root>
+                <Slider.Root
+                  w="full"
+                  min={0}
+                  max={15}
+                  value={[value]}
+                  onValueChange={(e) => dmr_color_code.set(index, e.value[0])}
+                >
+                  <HStack justify="space-between">
+                    <Slider.Label>{t("dmr_color_code")}</Slider.Label>
+                    <Tooltip content={t("dmr_color_code_tooltip")}>
+                      <TbHelp />
+                    </Tooltip>
+                    <Text flexGrow={1} textAlign="end">
+                      {value}
+                    </Text>
+                  </HStack>
+                  <Slider.Control>
+                    <Slider.Track>
+                      <Slider.Range />
+                    </Slider.Track>
+                    <Slider.Thumbs />
+                  </Slider.Control>
+                </Slider.Root>
+              </Field.Root>
+            )}
+          </RadioWatch>
+        )}
         {power && (
           <RadioWatch on={() => power.get(index)}>
             {(value) => (
@@ -417,7 +637,7 @@ function ChannelForm(props: { field: UI.Field.Channels; index: number }) {
             )}
           </RadioWatch>
         )}
-        {ptt_id && (
+        {!is_digital && ptt_id && (
           <RadioWatch on={() => ptt_id.get(index)}>
             {(value) => (
               <Stack>
@@ -490,6 +710,9 @@ function ChannelForm(props: { field: UI.Field.Channels; index: number }) {
             )}
           </RadioWatch>
         )}
+        {field.extra?.(index).map((extra_field, extra_index) => (
+          <AnyField key={extra_index} field={extra_field} />
+        ))}
       </Fieldset.Content>
       <Box height={100} />
     </Fieldset.Root>
@@ -498,7 +721,7 @@ function ChannelForm(props: { field: UI.Field.Channels; index: number }) {
 
 function ChannelMenuItems(props: { field: UI.Field.Channels; index: number }) {
   const { field, index } = props;
-  const { empty, channel } = field;
+  const { empty, channel, digital, swap } = field;
 
   const selectionMode = useStore(Store, (s) => Boolean(s.selectedChannels.get(field.id)?.size));
 
@@ -555,11 +778,21 @@ function ChannelMenuItems(props: { field: UI.Field.Channels; index: number }) {
         <TbTransitionBottom />
         {t("replace_clipboard")}
       </Menu.Item>
-      {empty && empty_value && (
+      {empty && empty_value && swap && (
         <Menu.Item value="ripple_delete" onClick={() => Actions.rippleDelete(index, field)}>
           <TbArrowBarToLeft />
           {t("ripple_delete")}
         </Menu.Item>
+      )}
+      {!empty_value && digital?.set && (
+        <RadioWatch on={() => digital.get(index)}>
+          {(is_digital) => (
+            <Menu.Item value="toggle_digital" onClick={() => Actions.setChannelDigital(!is_digital, index, field)}>
+              <TbRadio />
+              {is_digital ? t("switch_to_analogue") : t("switch_to_digital")}
+            </Menu.Item>
+          )}
+        </RadioWatch>
       )}
       {empty && !empty_value && (
         <Menu.Item
@@ -578,12 +811,12 @@ function ChannelMenuItems(props: { field: UI.Field.Channels; index: number }) {
 
 function Channel(props: { field: UI.Field.Channels; index: number }) {
   const { field, index } = props;
-  const { freq, offset, mode, channel, squelch_rx } = field;
+  const { digital, freq, offset, mode, channel, squelch_rx, dmr_slot, dmr_color_code } = field;
 
   const channel_value = useRadioOn(() => channel.get(index));
+  const is_digital = useRadioOn(() => digital?.get(index));
   const freq_value = useRadioOn(() => freq?.get(index));
   const offset_value = useRadioOn(() => offset?.get(index));
-  const mode_value = useRadioOn(() => (mode ? mode.options[mode.get(index)] : undefined));
   const squelch_rx_value = useRadioOn(() => squelch_rx?.get(index));
 
   return (
@@ -592,23 +825,44 @@ function Channel(props: { field: UI.Field.Channels; index: number }) {
         <Box fontWeight="bolder" fontSize="lg">
           {freq_value ? freq_value / 1_000_000 : "-"}
         </Box>
-        {mode_value ? <Box>{mode_value}</Box> : null}
+        {is_digital ? (
+          <Box>DMR</Box>
+        ) : (
+          <RadioWatch on={() => mode && mode.options[mode.get(index)]}>
+            {(mode_value) => (mode_value ? <Box>{mode_value}</Box> : null)}
+          </RadioWatch>
+        )}
         {offset_value ? <Box>{`${offset_value > 0 ? "+" : ""}${offset_value / 1_000_000}`}</Box> : null}
         <Box fontSize="2xs" textOverflow="ellipsis" overflow="hidden" flexGrow="1" textAlign="end">
           {channel_value}
         </Box>
       </HStack>
-      <Box>
-        {(() => {
-          if (!squelch_rx_value || squelch_rx_value.mode === "Off") return t("no_squelch");
+      {is_digital ? (
+        <Box>
+          <RadioWatch
+            on={() => ({
+              slot: dmr_slot ? dmr_slot.options[dmr_slot.get(index)] : undefined,
+              cc: dmr_color_code?.get(index),
+            })}
+          >
+            {({ slot, cc }) => {
+              return [slot && SlotNames[slot], cc !== undefined && `CC-${cc}`].filter(Boolean).join(", ");
+            }}
+          </RadioWatch>
+        </Box>
+      ) : (
+        <Box>
+          {(() => {
+            if (!squelch_rx_value || squelch_rx_value.mode === "Off") return t("no_squelch");
 
-          if (squelch_rx_value.mode === "CTCSS") return `CTCSS ${squelch_rx_value.freq}`;
-          if (squelch_rx_value.mode === "DCS")
-            return `DCS D${squelch_rx_value.code.toString().padStart(3, "0")}${squelch_rx_value.polarity}`;
+            if (squelch_rx_value.mode === "CTCSS") return `CTCSS ${squelch_rx_value.freq}`;
+            if (squelch_rx_value.mode === "DCS")
+              return `DCS D${squelch_rx_value.code.toString().padStart(3, "0")}${squelch_rx_value.polarity}`;
 
-          return "?";
-        })()}
-      </Box>
+            return "?";
+          })()}
+        </Box>
+      )}
     </Stack>
   );
 }
@@ -637,9 +891,10 @@ function ChannelButton(props: {
             color={empty_value ? "fg.subtle" : undefined}
             p="3"
             fontFamily="monospace"
-            width={`${cardSize.width}px`}
-            height={`${cardSize.height}px`}
+            width="full"
+            height="full"
             textAlign="start"
+            alignItems={empty_value ? undefined : "start"}
             onClick={(e) => {
               if (selectionMode) {
                 if (e.shiftKey) {
@@ -664,11 +919,13 @@ function ChannelButton(props: {
           </Button>
         )}
       </Menu.Context>
-      <Menu.Positioner>
-        <Menu.Content>
-          <ChannelMenuItems index={index} field={field} />
-        </Menu.Content>
-      </Menu.Positioner>
+      <Portal>
+        <Menu.Positioner>
+          <Menu.Content>
+            <ChannelMenuItems index={index} field={field} />
+          </Menu.Content>
+        </Menu.Positioner>
+      </Portal>
     </Menu.Root>
   );
 }
@@ -687,7 +944,7 @@ function ChannelCard(props: { field: UI.Field.Channels; index: number }) {
       <Popover.Root lazyMount unmountOnExit>
         <Popover.Context>
           {(popoverCtx) => (
-            <Box {...(popoverCtx.getTriggerProps() as object)}>
+            <Box {...(popoverCtx.getTriggerProps() as object)} width="full" height="full">
               <ChannelButton
                 {...props}
                 buttonProps={{
@@ -766,49 +1023,62 @@ function ChannelCard(props: { field: UI.Field.Channels; index: number }) {
 export function ChannelsField(props: { field: UI.Field.Channels }) {
   const { field } = props;
 
-  useWindowScroll();
+  const [measureRef, { width }] = useMeasure();
+  const listRef = useRef<HTMLDivElement>(null);
+
+  const gap = 8;
+
+  const length = useRadioOn(() => {
+    if (!field.empty) return field.size;
+
+    for (let i = field.size - 1; i >= 0; i -= 1) {
+      if (!field.empty.get(i)) return Math.min(field.size, i + 2);
+    }
+
+    return 1;
+  });
+
+  const cardSize = { width: Math.max(200, width / 3 - gap), height: 80 };
+  const cardsPerRow = Math.max(1, Math.floor((width + gap) / (cardSize.width + gap)));
+
+  const virtualizer = useWindowVirtualizer({
+    count: Math.ceil(length / cardsPerRow),
+    estimateSize: () => cardSize.height,
+    scrollMargin: listRef.current?.offsetTop,
+    overscan: 1,
+    gap,
+  });
 
   return (
-    <MeasureBox display="flex" width="full">
-      {({ width }, container) => {
-        const gap = 8;
-        const overscroll = 100;
-
-        const cardsPerRow = Math.max(1, Math.floor((width + gap) / (cardSize.width + gap)));
-        const height = Math.ceil(field.size / cardsPerRow) * (cardSize.height + gap) - gap;
-
-        const containerRect = container.getBoundingClientRect();
-
-        return (
-          <Box position="relative" height={height}>
-            {Array(field.size)
-              .fill(0)
-              .map((_, i) => {
-                const row = Math.floor(i / cardsPerRow);
-                const top = row * (cardSize.height + gap);
-                const bottom = top + cardSize.height;
-
-                if (bottom < -containerRect.top - overscroll) return null;
-                if (top > -containerRect.top + window.innerHeight + overscroll) return null;
+    <Box ref={measureRef} width="full">
+      <Box ref={listRef} position="relative" style={{ height: virtualizer.getTotalSize() }}>
+        {virtualizer.getVirtualItems().map((row) => {
+          return (
+            <HStack
+              key={row.index}
+              style={{
+                position: "absolute",
+                width: "100%",
+                height: row.size,
+                top: 0,
+                left: 0,
+                transform: `translateY(${row.start - listRef.current!.offsetTop}px)`,
+              }}
+            >
+              {new Array(cardsPerRow).fill(0).map((_, c) => {
+                const index = row.index * cardsPerRow + c;
+                if (index >= length) return null;
 
                 return (
-                  <div
-                    key={i}
-                    style={{
-                      position: "absolute",
-                      width: cardSize.width,
-                      height: cardSize.height,
-                      top: Math.floor(i / cardsPerRow) * (cardSize.height + gap),
-                      left: (i % cardsPerRow) * (cardSize.width + gap),
-                    }}
-                  >
-                    <ChannelCard field={field} index={i} />
-                  </div>
+                  <Box key={index} style={{ width: cardSize.width, height: cardSize.height }}>
+                    <ChannelCard field={field} index={index} />
+                  </Box>
                 );
               })}
-          </Box>
-        );
-      }}
-    </MeasureBox>
+            </HStack>
+          );
+        })}
+      </Box>
+    </Box>
   );
 }

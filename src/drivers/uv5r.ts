@@ -161,6 +161,11 @@ export class UV5RRadio extends Radio {
         {
           ...common_ui.channels({ size: memory.length }),
           channel: { get: (i) => names[i].name.get().replaceAll("\xFF", "").trimEnd() || `CH-${i}` },
+          swap: (a, b) => {
+            const t = memory[a].__raw.get();
+            memory[a].__raw.set(memory[b].__raw.get());
+            memory[b].__raw.set(t);
+          },
           empty: {
             get: (i) => memory[i].rxfreq.raw.get()[0] === 0xff,
             delete: (i) => {
@@ -408,10 +413,10 @@ export class UV5RRadio extends Radio {
   }
 
   override async write() {
-    this.dispatch_progress(0);
+    if (!this._img) throw new Error("No data");
+    const img = Buffer.from(this._img);
 
-    const img = this._img;
-    if (!img) throw new Error("No data");
+    this.dispatch_progress(0);
 
     await serial.begin({ baudRate: 9600 });
     await serial.clear();

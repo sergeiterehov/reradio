@@ -296,6 +296,11 @@ export class UV5RMiniRadio extends Radio {
               name.set(val.substring(0, size).padEnd(size, "\xFF"));
             },
           },
+          swap: (a, b) => {
+            const t = channels[a].__raw.get();
+            channels[a].__raw.set(channels[b].__raw.get());
+            channels[b].__raw.set(t);
+          },
           empty: {
             get: (i) => channels[i].__raw.get()[0] === 0xff,
             delete: (i) => channels[i].__raw.set(new Array(channels[i].__raw.size).fill(0xff)),
@@ -550,8 +555,8 @@ export class UV5RMiniRadio extends Radio {
   }
 
   override async write() {
-    const img = this._img;
-    if (!img) throw new Error("No image");
+    if (!this._img) throw new Error("No data");
+    const img = Buffer.from(this._img);
 
     this.dispatch_progress(0);
 

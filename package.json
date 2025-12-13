@@ -12,6 +12,8 @@
   "dependencies": {
     "@chakra-ui/react": "^3.28.0",
     "@emotion/react": "^11.14.0",
+    "@tanstack/react-table": "^8.21.3",
+    "@tanstack/react-virtual": "^3.13.13",
     "@types/w3c-web-serial": "^1.0.8",
     "@types/yandex-metrika-tag": "^2.0.7",
     "buffer": "^6.0.3",

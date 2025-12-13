@@ -7,6 +7,7 @@ import { UVK5ProgRadio, UVK5Radio } from "./uvk5";
 import { BFC50Radio } from "./bfc50";
 import { TK11Radio } from "./tk11";
 import { UV5RMiniRadio } from "./uv5r_mini";
+import { RT4DRadio } from "./rt4d";
 
 export class Demo_UVK5Radio extends UVK5Radio {
   static Info = {
@@ -68,6 +69,18 @@ export class Demo_UV5RMiniRadio extends UV5RMiniRadio {
   }
 }
 
+export class Demo_RTRT4DRadio extends RT4DRadio {
+  static Info = {
+    ...RT4DRadio.Info,
+    vendor: `Demo - ${RT4DRadio.Info.vendor}`,
+  };
+
+  constructor() {
+    super();
+    import("../images/Radtel_RT-4D_v3.img?hex").then(({ default: img }) => this.load(Buffer.from(img, "hex")));
+  }
+}
+
 export const Library: (typeof Radio)[] = [
   BF888Radio,
   BFC50Radio,
@@ -81,6 +94,7 @@ export const Library: (typeof Radio)[] = [
   UVK5ProgRadio,
   TK11Radio,
   T18Radio,
+  RT4DRadio,
   RB18Radio,
   RB618Radio,
   Demo_BF888Radio,
@@ -88,4 +102,5 @@ export const Library: (typeof Radio)[] = [
   Demo_UV5RMiniRadio,
   Demo_UVK5Radio,
   Demo_TK11Radio,
+  Demo_RTRT4DRadio,
 ];

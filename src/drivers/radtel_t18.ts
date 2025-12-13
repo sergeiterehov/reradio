@@ -146,12 +146,13 @@ export abstract class BaseT18ProtocolRadio extends Radio {
   }
 
   async write() {
+    if (!this._img) throw new Error("No data");
+    const img = Buffer.from(this._img);
+
     this.dispatch_progress(0);
 
     await serial.begin({ baudRate: 9600 });
     await serial.clear();
-
-    if (!this._img) throw new Error("No data read");
 
     const { _memSize, _blockSize } = this;
 
@@ -160,7 +161,7 @@ export abstract class BaseT18ProtocolRadio extends Radio {
     this.dispatch_progress(0.1);
 
     for (let addr = 0; addr < _memSize; addr += _blockSize) {
-      const block = this._img.slice(addr, addr + _blockSize);
+      const block = img.slice(addr, addr + _blockSize);
 
       await this._writeBlock(block, addr);
 

@@ -221,7 +221,7 @@ export class UVK5Radio extends QuanshengBaseRadio {
       },
 
       ...m.seek(0xf50).skip(0, {}),
-      channelname: array_of(200, () => ({ name: m.str(16) })),
+      channelname: array_of(200, () => m.struct(() => ({ name: m.str(16) }))),
 
       ...m.seek(0x1c00).skip(0, {}),
       dtmfcontact: array_of(16, () => ({
@@ -308,6 +308,24 @@ export class UVK5Radio extends QuanshengBaseRadio {
 
               return trim_string(channelname.at(i)?.name.get() || "") || `CH-${i + 1}`;
             },
+          },
+          swap: (a, b) => {
+            if (a >= channelname.length || b >= channelname.length) return;
+            {
+              const t = channels[a].__raw.get();
+              channels[a].__raw.set(channels[b].__raw.get());
+              channels[b].__raw.set(t);
+            }
+            {
+              const t = channelname[a].__raw.get();
+              channelname[a].__raw.set(channelname[b].__raw.get());
+              channelname[b].__raw.set(t);
+            }
+            {
+              const t = channel_attributes[a].__raw.get();
+              channel_attributes[a].__raw.set(channel_attributes[b].__raw.get());
+              channel_attributes[b].__raw.set(t);
+            }
           },
           empty: {
             get: (i) => {
@@ -512,8 +530,8 @@ export class UVK5Radio extends QuanshengBaseRadio {
   }
 
   override async write() {
-    const img = this._img;
-    if (!img) throw new Error("No image");
+    if (!this._img) throw new Error("No data");
+    const img = Buffer.from(this._img);
 
     this.dispatch_progress(0);
 
