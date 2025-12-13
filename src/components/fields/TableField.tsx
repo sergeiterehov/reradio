@@ -1,10 +1,10 @@
 import { Store } from "@/store";
 import { type UI } from "@/utils/ui";
-import { Box, Drawer, Fieldset, IconButton, Table, useDrawerContext } from "@chakra-ui/react";
-import { useRef, useState, useEffect } from "react";
+import { Drawer, Fieldset, IconButton, Table } from "@chakra-ui/react";
+import { useRef, useState, useEffect, createContext, useContext } from "react";
 import { useStore } from "zustand";
 import { createColumnHelper, flexRender, getCoreRowModel, useReactTable } from "@tanstack/react-table";
-import { useVirtualizer, useWindowVirtualizer } from "@tanstack/react-virtual";
+import { observeWindowOffset, observeWindowRect, useVirtualizer, windowScroll } from "@tanstack/react-virtual";
 import { useTranslation } from "react-i18next";
 import { AnyField } from "./AnyField";
 import { TbTrash } from "react-icons/tb";
@@ -15,12 +15,14 @@ type RowType = { [k in string]?: string };
 
 const columnHelper = createColumnHelper<RowType>();
 
+const NestedContext = createContext(false);
+
 export function TableField(props: { field: UI.Field.Table }) {
   const { field } = props;
 
   const { t } = useTranslation();
 
-  const listRef = useRef<HTMLElement | null>(null);
+  const listRef = useRef<HTMLTableSectionElement | null>(null);
 
   const [activeIndex, setActiveIndex] = useState(0);
   const [data, setData] = useState<RowType[]>([]);
@@ -39,28 +41,24 @@ export function TableField(props: { field: UI.Field.Table }) {
 
   const { rows } = table.getRowModel();
 
-  // FIXME: Сделать отдельный контекст для настройки окружения: level: 0=window, 1...=drawers
-  const in_drawer = (() => {
-    try {
-      useDrawerContext();
-      return true;
-    } catch {
-      return false;
-    }
-  })();
+  const nested = useContext(NestedContext);
 
-  const virtualizer = in_drawer
-    ? useVirtualizer({
-        count: rows.length,
-        estimateSize: () => row_height,
-        getScrollElement: () => listRef.current,
-      })
-    : useWindowVirtualizer({
-        count: rows.length,
-        estimateSize: () => row_height,
-        overscan: 0,
-        // FIXME: плохо работает видимый диапазон
-      });
+  const virtualizer = useVirtualizer({
+    count: rows.length,
+    estimateSize: () => row_height,
+    scrollMargin: listRef.current?.offsetTop,
+    // TODO: Прокидывать реф через контекст. Пока можем отображаться в window или drawer.
+    getScrollElement: () => document.querySelector(".chakra-drawer__body"),
+
+    ...(!nested &&
+      ({
+        getScrollElement: () => (typeof document !== "undefined" ? window : null),
+        initialOffset: () => (typeof document !== "undefined" ? window.scrollY : 0),
+        observeElementRect: observeWindowRect,
+        observeElementOffset: observeWindowOffset,
+        scrollToFn: windowScroll,
+      } as object)),
+  });
 
   const radio = useStore(Store, (s) => s.radio);
 
@@ -78,74 +76,80 @@ export function TableField(props: { field: UI.Field.Table }) {
   }, [radio, field]);
 
   return (
-    <Drawer.Root lazyMount unmountOnExit size={in_drawer ? "sm" : "md"}>
+    <Drawer.Root lazyMount unmountOnExit size={nested ? "sm" : "md"}>
       <Drawer.Context>
         {(drawer) => (
-          <Box ref={listRef} position="relative">
-            <Table.Root native size="sm" variant="outline" style={{ display: "grid" }}>
-              <thead style={{ position: "sticky", display: "grid", top: 0, zIndex: 1 }}>
-                {table.getHeaderGroups().map((headerGroup) => (
-                  <tr key={headerGroup.id} style={{ display: "flex", width: "100%" }}>
-                    {headerGroup.headers.map((header, _, headers) => (
-                      <th
-                        key={header.id}
-                        style={{
-                          display: "flex",
-                          width: header.getSize(),
-                          flexGrow: header === headers.at(-1) ? 1 : undefined,
-                        }}
-                      >
-                        {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
-                      </th>
-                    ))}
-                  </tr>
-                ))}
-              </thead>
-              <tbody
-                style={{
-                  position: "relative",
-                  display: "grid",
-                  height: `${virtualizer.getTotalSize()}px`,
-                }}
-              >
-                {virtualizer.getVirtualItems().map((_row) => {
-                  const row = rows[_row.index];
-                  return (
-                    <tr
-                      key={row.id}
-                      aria-selected={drawer.open && activeIndex === _row.index}
+          <Table.Root native size="sm" variant="outline" style={{ display: "grid" }}>
+            <thead
+              style={{
+                position: "sticky",
+                display: "grid",
+                top: nested ? "calc(0px - var(--chakra-spacing-2))" : 0,
+                zIndex: 1,
+              }}
+            >
+              {table.getHeaderGroups().map((headerGroup) => (
+                <tr key={headerGroup.id} style={{ display: "flex", width: "100%" }}>
+                  {headerGroup.headers.map((header, _, headers) => (
+                    <th
+                      key={header.id}
                       style={{
                         display: "flex",
-                        position: "absolute",
-                        height: `${_row.size}px`,
-                        width: "100%",
-                        transform: `translateY(${_row.start}px)`,
-                      }}
-                      onClick={() => {
-                        if (!field.set_ui) return;
-
-                        setActiveIndex(_row.index);
-                        drawer.setOpen(true);
+                        width: header.getSize(),
+                        flexGrow: header === headers.at(-1) ? 1 : undefined,
                       }}
                     >
-                      {row.getVisibleCells().map((cell, _, cells) => (
-                        <td
-                          key={cell.id}
-                          style={{
-                            display: "flex",
-                            width: cell.column.getSize(),
-                            flexGrow: cell === cells.at(-1) ? 1 : undefined,
-                          }}
-                        >
-                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                        </td>
-                      ))}
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </Table.Root>
-          </Box>
+                      {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+                    </th>
+                  ))}
+                </tr>
+              ))}
+            </thead>
+            <tbody
+              ref={listRef}
+              style={{
+                position: "relative",
+                display: "grid",
+                height: `${virtualizer.getTotalSize()}px`,
+              }}
+            >
+              {virtualizer.getVirtualItems().map((_row) => {
+                const row = rows[_row.index];
+                return (
+                  <tr
+                    key={row.id}
+                    aria-selected={drawer.open && activeIndex === _row.index}
+                    style={{
+                      display: "flex",
+                      position: "absolute",
+                      height: `${_row.size}px`,
+                      width: "100%",
+                      transform: `translateY(${_row.start - listRef.current!.offsetTop}px)`,
+                    }}
+                    onClick={() => {
+                      if (!field.set_ui) return;
+
+                      setActiveIndex(_row.index);
+                      drawer.setOpen(true);
+                    }}
+                  >
+                    {row.getVisibleCells().map((cell, _, cells) => (
+                      <td
+                        key={cell.id}
+                        style={{
+                          display: "flex",
+                          width: cell.column.getSize(),
+                          flexGrow: cell === cells.at(-1) ? 1 : undefined,
+                        }}
+                      >
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </td>
+                    ))}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </Table.Root>
         )}
       </Drawer.Context>
       <Drawer.Positioner>
@@ -172,12 +176,14 @@ export function TableField(props: { field: UI.Field.Table }) {
               </Drawer.Context>
             )}
           </Drawer.Header>
-          <Drawer.Body>
+          <Drawer.Body position="relative">
             <Fieldset.Root>
               <Fieldset.Content>
-                {field.set_ui?.(activeIndex).map((_field) => (
-                  <AnyField key={_field.id} field={_field} />
-                ))}
+                <NestedContext.Provider value={true}>
+                  {field.set_ui?.(activeIndex).map((_field) => (
+                    <AnyField key={_field.id} field={_field} />
+                  ))}
+                </NestedContext.Provider>
               </Fieldset.Content>
             </Fieldset.Root>
           </Drawer.Body>
