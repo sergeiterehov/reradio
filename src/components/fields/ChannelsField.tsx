@@ -38,16 +38,16 @@ import {
   TbTrash,
 } from "react-icons/tb";
 import { Tooltip } from "../ui/tooltip";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { RADIO_FREQUENCY_BANDS } from "@/bands";
 import { useTranslation } from "react-i18next";
 import { t } from "i18next";
 import { Actions, Store } from "@/store";
 import { useStore } from "zustand";
-import { MeasureBox } from "../ui/MeasureBox";
-import { useWindowScroll } from "react-use";
+import { useMeasure } from "react-use";
 import { AnyField } from "./AnyField";
 import { DMR_ALL_CALL_ID } from "@/utils/radio";
+import { useWindowVirtualizer } from "@tanstack/react-virtual";
 
 const SlotNames: { [K in UI.DMRSlot]: string } = {
   DualSlot: t("dmr_slot_dual"),
@@ -894,7 +894,7 @@ function ChannelButton(props: {
             width="full"
             height="full"
             textAlign="start"
-            alignItems="start"
+            alignItems={empty_value ? undefined : "start"}
             onClick={(e) => {
               if (selectionMode) {
                 if (e.shiftKey) {
@@ -1021,51 +1021,62 @@ function ChannelCard(props: { field: UI.Field.Channels; index: number }) {
 export function ChannelsField(props: { field: UI.Field.Channels }) {
   const { field } = props;
 
-  useWindowScroll();
+  const [measureRef, { width }] = useMeasure();
+  const listRef = useRef<HTMLDivElement>(null);
+
+  const gap = 8;
+
+  const length = useRadioOn(() => {
+    if (!field.empty) return field.size;
+
+    for (let i = field.size - 1; i >= 0; i -= 1) {
+      if (!field.empty.get(i)) return Math.min(field.size, i + 2);
+    }
+
+    return 1;
+  });
+
+  const cardSize = { width: Math.max(200, width / 3 - gap), height: 80 };
+  const cardsPerRow = Math.max(1, Math.floor((width + gap) / (cardSize.width + gap)));
+
+  const virtualizer = useWindowVirtualizer({
+    count: Math.ceil(length / cardsPerRow),
+    estimateSize: () => cardSize.height,
+    scrollMargin: listRef.current?.offsetTop,
+    overscan: 1,
+    gap,
+  });
 
   return (
-    <MeasureBox display="flex" width="full">
-      {({ width }, container) => {
-        const gap = 8;
-        const overscroll = 100;
-
-        const cardSize = { width: Math.max(200, width / 3 - gap), height: 80 };
-
-        const cardsPerRow = Math.max(1, Math.floor((width + gap) / (cardSize.width + gap)));
-        const height = Math.ceil(field.size / cardsPerRow) * (cardSize.height + gap) - gap;
-
-        const containerRect = container.getBoundingClientRect();
-
-        return (
-          <Box position="relative" height={height}>
-            {Array(field.size)
-              .fill(0)
-              .map((_, i) => {
-                const row = Math.floor(i / cardsPerRow);
-                const top = row * (cardSize.height + gap);
-                const bottom = top + cardSize.height;
-
-                if (bottom < -containerRect.top - overscroll) return null;
-                if (top > -containerRect.top + window.innerHeight + overscroll) return null;
+    <Box ref={measureRef} width="full">
+      <Box ref={listRef} position="relative" style={{ height: virtualizer.getTotalSize() }}>
+        {virtualizer.getVirtualItems().map((row) => {
+          return (
+            <HStack
+              key={row.index}
+              style={{
+                position: "absolute",
+                width: "100%",
+                height: row.size,
+                top: 0,
+                left: 0,
+                transform: `translateY(${row.start - listRef.current!.offsetTop}px)`,
+              }}
+            >
+              {new Array(cardsPerRow).fill(0).map((_, c) => {
+                const index = row.index * cardsPerRow + c;
+                if (index >= length) return null;
 
                 return (
-                  <div
-                    key={i}
-                    style={{
-                      position: "absolute",
-                      width: cardSize.width,
-                      height: cardSize.height,
-                      top: Math.floor(i / cardsPerRow) * (cardSize.height + gap),
-                      left: (i % cardsPerRow) * (cardSize.width + gap),
-                    }}
-                  >
-                    <ChannelCard field={field} index={i} />
-                  </div>
+                  <Box key={index} style={{ width: cardSize.width, height: cardSize.height }}>
+                    <ChannelCard field={field} index={index} />
+                  </Box>
                 );
               })}
-          </Box>
-        );
-      }}
-    </MeasureBox>
+            </HStack>
+          );
+        })}
+      </Box>
+    </Box>
   );
 }

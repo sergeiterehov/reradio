@@ -11,16 +11,17 @@ import {
   NativeSelect,
   NumberInput,
   Popover,
+  Portal,
   SegmentGroup,
 } from "@chakra-ui/react";
-import { useWindowScroll } from "react-use";
-import { MeasureBox } from "../ui/MeasureBox";
+import { useMeasure } from "react-use";
 import { TbHelp, TbTrash, TbUsersGroup, TbUserSquareRounded } from "react-icons/tb";
 import { useTranslation } from "react-i18next";
 import { Tooltip } from "../ui/tooltip";
 import { DMR_ALL_CALL_ID } from "@/utils/radio";
 import { useRadioOn } from "../useRadioOn";
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { useWindowVirtualizer } from "@tanstack/react-virtual";
 
 let idLastFormat: "10" | "HEX" = "10";
 
@@ -163,14 +164,16 @@ function ContactCard(props: { field: UI.Field.Contacts; index: number }) {
             </Menu.Context>
           )}
         </Popover.Context>
-        <Popover.Positioner>
-          <Popover.Content>
-            <Popover.Arrow />
-            <Popover.Body>
-              <ContactDetails {...props} index={index} />
-            </Popover.Body>
-          </Popover.Content>
-        </Popover.Positioner>
+        <Portal>
+          <Popover.Positioner>
+            <Popover.Content>
+              <Popover.Arrow />
+              <Popover.Body>
+                <ContactDetails {...props} index={index} />
+              </Popover.Body>
+            </Popover.Content>
+          </Popover.Positioner>
+        </Portal>
       </Popover.Root>
       <Menu.Positioner>
         <Menu.Content>
@@ -194,7 +197,10 @@ function ContactCard(props: { field: UI.Field.Contacts; index: number }) {
 export function ContactsField(props: { field: UI.Field.Contacts }) {
   const { field } = props;
 
-  useWindowScroll();
+  const [measureRef, { width }] = useMeasure();
+  const listRef = useRef<HTMLDivElement>(null);
+
+  const gap = 8;
 
   const length = useRadioOn(() => {
     for (let i = field.size; i > 1; i -= 1) {
@@ -203,51 +209,47 @@ export function ContactsField(props: { field: UI.Field.Contacts }) {
     return field.size;
   });
 
+  const cardSize = { width: Math.max(200, width / 3 - gap), height: 50 };
+  const cardsPerRow = Math.max(1, Math.floor((width + gap) / (cardSize.width + gap)));
+
+  const virtualizer = useWindowVirtualizer({
+    count: Math.ceil(length / cardsPerRow),
+    estimateSize: () => cardSize.height,
+    scrollMargin: listRef.current?.offsetTop,
+    overscan: 1,
+    gap,
+  });
+
   return (
-    <MeasureBox display="flex" width="full">
-      {({ width }, container) => {
-        const gap = 8;
-        const overscroll = 100;
-
-        const cardSize = { width: Math.max(200, width / 3 - gap), height: 50 };
-
-        const cardsPerRow = Math.max(1, Math.floor((width + gap) / (cardSize.width + gap)));
-        const height = Math.ceil(length / cardsPerRow) * (cardSize.height + gap) - gap;
-
-        const containerRect = container.getBoundingClientRect();
-
-        const nodes: React.ReactNode[] = [];
-
-        for (let i = 0; i < length; i += 1) {
-          const row = Math.floor(i / cardsPerRow);
-          const top = row * (cardSize.height + gap);
-          const bottom = top + cardSize.height;
-
-          if (bottom < -containerRect.top - overscroll) continue;
-          if (top > -containerRect.top + window.innerHeight + overscroll) break;
-
-          nodes.push(
-            <div
-              key={i}
+    <Box ref={measureRef} width="full">
+      <Box ref={listRef} position="relative" style={{ height: virtualizer.getTotalSize() }}>
+        {virtualizer.getVirtualItems().map((row) => {
+          return (
+            <HStack
+              key={row.index}
               style={{
                 position: "absolute",
-                width: cardSize.width,
-                height: cardSize.height,
-                top: Math.floor(i / cardsPerRow) * (cardSize.height + gap),
-                left: (i % cardsPerRow) * (cardSize.width + gap),
+                width: "100%",
+                height: row.size,
+                top: 0,
+                left: 0,
+                transform: `translateY(${row.start - listRef.current!.offsetTop}px)`,
               }}
             >
-              <ContactCard field={field} index={i} />
-            </div>
-          );
-        }
+              {new Array(cardsPerRow).fill(0).map((_, c) => {
+                const index = row.index * cardsPerRow + c;
+                if (index >= length) return null;
 
-        return (
-          <Box position="relative" height={height}>
-            {nodes}
-          </Box>
-        );
-      }}
-    </MeasureBox>
+                return (
+                  <Box key={index} style={{ width: cardSize.width, height: cardSize.height }}>
+                    <ContactCard field={field} index={index} />
+                  </Box>
+                );
+              })}
+            </HStack>
+          );
+        })}
+      </Box>
+    </Box>
   );
 }
