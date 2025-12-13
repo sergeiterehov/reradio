@@ -317,11 +317,10 @@ export class UV5RMiniRadio extends Radio {
             max: 519_999_999,
             get: (i) => channels[i].rxfreq.get() * 10,
             set: (i, val) => {
-              const rx = channels[i].rxfreq.get();
-              const tx = channels[i].txfreq.get();
+              const offset = channels[i].txfreq.get() - channels[i].rxfreq.get();
 
               channels[i].rxfreq.set(val / 10);
-              if (rx === tx) channels[i].txfreq.set(val / 10);
+              channels[i].txfreq.set(channels[i].rxfreq.get() + offset);
             },
           },
           offset: {

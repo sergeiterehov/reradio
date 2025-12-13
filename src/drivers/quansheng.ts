@@ -80,7 +80,7 @@ export class QuanshengBaseRadio extends Radio {
     xor_firmware_arr_mut,
   };
 
-  _baudRate = 38_400;
+  protected _baudRate = 38_400;
 
   protected readonly _SESSION_ID = Buffer.from([0x6a, 0x39, 0x57, 0x64]);
 

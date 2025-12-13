@@ -640,7 +640,7 @@ export class TK11Radio extends QuanshengBaseRadio {
     this._img = undefined;
     this.dispatch_ui_change();
 
-    await serial.begin({ baudRate: 9600 });
+    await serial.begin({ baudRate: this._baudRate });
     await serial.clear({ timeout: 1_000 });
 
     const info = await this._hello();
@@ -684,7 +684,7 @@ export class TK11Radio extends QuanshengBaseRadio {
 
     this.dispatch_progress(0);
 
-    await serial.begin({ baudRate: 9600 });
+    await serial.begin({ baudRate: this._baudRate });
     await serial.clear({ timeout: 1_000 });
 
     const info = await this._hello();
