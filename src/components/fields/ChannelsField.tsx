@@ -389,7 +389,7 @@ function ChannelForm(props: { field: UI.Field.Channels; index: number }) {
           </RadioWatch>
         )}
         {!is_digital && <SquelchTxRx tx={squelch_tx} rx={squelch_rx} index={index} />}
-        {dmr_id && (
+        {is_digital && dmr_id && (
           <RadioWatch on={() => dmr_id.get(index)}>
             {(value) => (
               <Field.Root>
@@ -551,7 +551,7 @@ function ChannelForm(props: { field: UI.Field.Channels; index: number }) {
             )}
           </RadioWatch>
         )}
-        {dmr_color_code && (
+        {is_digital && dmr_color_code && (
           <RadioWatch on={() => dmr_color_code.get(index)}>
             {(value) => (
               <Field.Root>
