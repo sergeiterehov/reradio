@@ -94,13 +94,13 @@ function serializeChannel(index: number, channels: UI.Field.Channels): Serialize
     serialized.dmr_slot = channels.dmr_slot ? channels.dmr_slot.options[channels.dmr_slot.get(index)] : undefined;
     serialized.dmr_color_code = channels.dmr_color_code?.get(index);
     serialized.dmr_contact_id = channels.dmr_contact
-      ? channels.dmr_contact.contacts[channels.dmr_contact.get(index)].id
+      ? channels.dmr_contact.contacts()[channels.dmr_contact.get(index)].id
       : undefined;
     serialized.dmr_rx_list_name = channels.dmr_rx_list
-      ? channels.dmr_rx_list.lists[channels.dmr_rx_list.get(index)]
+      ? channels.dmr_rx_list.lists()[channels.dmr_rx_list.get(index)]
       : undefined;
     serialized.dmr_encryption_name = channels.dmr_encryption
-      ? channels.dmr_encryption.keys.at(channels.dmr_encryption.get(index).key_index)?.name
+      ? channels.dmr_encryption.keys().at(channels.dmr_encryption.get(index).key_index)?.name
       : undefined;
     serialized.dmr_id_from = dmr_id?.from;
     serialized.dmr_id_id = dmr_id && "id" in dmr_id ? dmr_id?.id : undefined;
@@ -135,7 +135,7 @@ function serializeChannel(index: number, channels: UI.Field.Channels): Serialize
   const extras = channels.extra?.(index);
   for (const extra of extras || []) {
     if ("get" in extra && "set" in extra) {
-      serialized[`${extra_prefix}${extra.id}`] = JSON.stringify(extra.get());
+      serialized[`${extra_prefix}${extra.id}`] = JSON.stringify((extra.get as () => unknown)());
     }
   }
 
@@ -168,11 +168,11 @@ function replaceChannel(data: SerializedChannel, index: number, channels: UI.Fie
       channels.dmr_color_code.set(index, data.dmr_color_code);
     }
     if (data.dmr_contact_id !== undefined && channels.dmr_contact) {
-      const i = channels.dmr_contact.contacts.findIndex((c) => c.id === data.dmr_contact_id);
+      const i = channels.dmr_contact.contacts().findIndex((c) => c.id === data.dmr_contact_id);
       if (i !== -1) channels.dmr_contact.set(index, i);
     }
     if (data.dmr_rx_list_name !== undefined && channels.dmr_rx_list) {
-      const i = channels.dmr_rx_list.lists.indexOf(data.dmr_rx_list_name);
+      const i = channels.dmr_rx_list.lists().indexOf(data.dmr_rx_list_name);
       if (i !== -1) channels.dmr_rx_list.set(index, i);
     }
     if (data.dmr_id_from !== undefined && channels.dmr_id) {
@@ -188,7 +188,7 @@ function replaceChannel(data: SerializedChannel, index: number, channels: UI.Fie
       }
     }
     if (data.dmr_encryption_name !== undefined && channels.dmr_encryption) {
-      const i = channels.dmr_encryption.keys.findIndex((k) => k.name === data.dmr_encryption_name);
+      const i = channels.dmr_encryption.keys().findIndex((k) => k.name === data.dmr_encryption_name);
       if (i !== -1) channels.dmr_encryption.set(index, { key_index: i });
     }
   } else {
@@ -243,7 +243,7 @@ function replaceChannel(data: SerializedChannel, index: number, channels: UI.Fie
 
         try {
           const value = JSON.parse(json_extra);
-          field.set(value as never);
+          (field.set as (val: unknown) => void)(value as never);
         } catch {
           // ignore
         }
