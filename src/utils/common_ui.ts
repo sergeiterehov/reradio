@@ -1,7 +1,7 @@
 import { t } from "i18next";
 import type { M } from "./mem";
 import type { UI } from "./ui";
-import { DCS_CODES, trim_string } from "./radio";
+import { DCS_CODES, DMR_ALL_CALL_ID, trim_string } from "./radio";
 
 type _GetSetNumber = { get(): number; set(val: number): void };
 
@@ -629,6 +629,18 @@ export const common_ui = {
     options: ["Off", "A", "B"],
     get: () => ref.get(),
     set: (val) => ref.set(Number(val)),
+  }),
+
+  dmr_radio_id: (ref: _GetSetNumber): UI.Field.Text => ({
+    type: "text",
+    id: "dmr_radio_id",
+    name: t("dmr_radio_id"),
+    description: t("dmr_id_tooltip"),
+    tab: UITab.System,
+    suffix: "HEX",
+    get: () => ref.get().toString(16),
+    set: (val) =>
+      ref.set(Math.max(1, Math.min(DMR_ALL_CALL_ID - 1, Number.parseInt(val.replaceAll(/[^0-9a-f]+/g, ""), 16)))),
   }),
 
   unlock_tx350: (ref: _GetSetNumber): UI.Field.Switcher => ({

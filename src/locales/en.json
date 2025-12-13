@@ -63,6 +63,7 @@
     "dmr_groups": "Groups",
     "dmr_id": "ID",
     "dmr_id_tooltip": "Unique identifier for your radio in DMR networks.",
+    "dmr_radio_id": "DMR Radio ID",
     "dmr_rx_list": "RX Group List",
     "dmr_rx_list_tooltip": "Group list defining which contacts or talkgroups your radio will receive in DMR mode. Multiple contacts can be included in a single list.",
     "dmr_slot": "DMR Slot",

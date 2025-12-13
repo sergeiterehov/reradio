@@ -1052,6 +1052,7 @@ export class RT4DRadio extends Radio {
         }),
         common_ui.pow_battery_save_ratio(settings.save_mode, { max: 3 }),
         common_ui.alarm_mode(settings.alarm, { options: [t("alarm_site"), t("alarm_tone"), t("alarm_both")] }),
+        common_ui.dmr_radio_id(settings.radio_id),
         common_ui.dual_watch(settings2.dual_watch),
         common_ui.scan_mode(settings.scan_mode, { options: [t("scan_time"), t("scan_carrier"), t("scan_search")] }),
         common_ui.key_side_short_x_fn(settings2.keys.fs1_short, { key: "1", functions: KEY_FN }),
