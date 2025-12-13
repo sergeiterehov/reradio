@@ -4,8 +4,16 @@ import { serial } from "@/utils/serial";
 import { Buffer } from "buffer";
 import { common_ui, modify_field, UITab } from "@/utils/common_ui";
 import { array_of, create_mem_mapper, set_string, to_js, type M } from "@/utils/mem";
-import { CTCSS_TONES, DCS_CODES, DMR_ALL_CALL_ID, download_buffer, trim_string } from "@/utils/radio";
+import { CTCSS_TONES, DCS_CODES, DMR_ALL_CALL_ID, trim_string } from "@/utils/radio";
 import { t } from "i18next";
+
+/*
+MARK: TODO:
+- Пересмотреть настройки основной группы
+- При изменении канала, группы, контакта, зоны, ключа... нужно разрешать зависимости
+- Починить скролл на таблице
+- Добавить отправку на станцию
+*/
 
 const TYPE_DIGITAL = 0;
 const TYPE_ANALOG = 1;
@@ -138,6 +146,20 @@ export class RT4DRadio extends Radio {
   protected readonly _PROG_ACK = Buffer.from([0x06]);
   protected readonly _END_CMD = Buffer.from([0x34, 0x52, 0x05, 0xee, 0x79]);
 
+  protected readonly _ADDR_CFG = 0x2000;
+  protected readonly _ADDR_CH = 0x4000;
+  protected readonly _ADDR_VFO = 0x1c000;
+  protected readonly _ADDR_CFG_2 = 0x1c060;
+  protected readonly _ADDR_ZONE = 0x1e000;
+  protected readonly _ADDR_CONTACT = 0x5e000;
+  protected readonly _ADDR_TGLIST = 0xc6000;
+  protected readonly _ADDR_ENCRYPT = 0xd0000;
+  protected readonly _ADDR_SMS_PRESET = 0xd6000;
+  protected readonly _ADDR_SMS_DRAFT = 0xd7000;
+  protected readonly _ADDR_SMS_INBOX = 0xde000;
+  protected readonly _ADDR_SMS_OUTBOX = 0xe7000;
+  protected readonly _ADDR_FM = 0xf0000;
+
   protected readonly _RANGES = [
     { start: 8, end: 8 },
     { start: 16, end: 63 },
@@ -148,6 +170,16 @@ export class RT4DRadio extends Radio {
     { start: 831, end: 843 },
     { start: 856, end: 955 },
     { start: 960, end: 963 },
+  ];
+  protected readonly _WRITE_RANGES = [
+    { cmd: 145, offset: this._ADDR_CH, start: 1, end: 48 },
+    { cmd: 146, offset: this._ADDR_VFO, start: 49, end: 49 },
+    { cmd: 147, offset: this._ADDR_ZONE, start: 50, end: 177 },
+    { cmd: 148, offset: this._ADDR_CONTACT, start: 178, end: 385 },
+    { cmd: 149, offset: this._ADDR_TGLIST, start: 386, end: 405 },
+    { cmd: 150, offset: this._ADDR_ENCRYPT, start: 406, end: 417 },
+    { cmd: 151, offset: this._ADDR_SMS_PRESET, start: 418, end: 421 },
+    { cmd: 152, offset: this._ADDR_FM, start: 422, end: 425 },
   ];
   protected readonly _MEM_SIZE = 1024 * 1024;
 
@@ -160,7 +192,7 @@ export class RT4DRadio extends Radio {
     const m = create_mem_mapper(img, this.dispatch_ui);
 
     return {
-      ...m.seek(0x4000).skip(0, {}),
+      ...m.seek(this._ADDR_CH).skip(0, {}),
 
       channels: array_of(1024, () =>
         m.struct(() => ({
@@ -206,10 +238,10 @@ export class RT4DRadio extends Radio {
         }))
       ),
 
-      ...m.seek(0x1c000).skip(0, {}),
+      ...m.seek(this._ADDR_VFO).skip(0, {}),
       // TODO: VFO A,B like channel
 
-      ...m.seek(0x5e000).skip(0, {}),
+      ...m.seek(this._ADDR_CONTACT).skip(0, {}),
 
       contacts: array_of(10_000, () =>
         m.struct(() => ({
@@ -219,7 +251,7 @@ export class RT4DRadio extends Radio {
         }))
       ),
 
-      ...m.seek(0xc6000).skip(0, {}),
+      ...m.seek(this._ADDR_TGLIST).skip(0, {}),
 
       tg_lists: array_of(250, () =>
         m.struct(() => ({
@@ -228,7 +260,7 @@ export class RT4DRadio extends Radio {
         }))
       ),
 
-      ...m.seek(0xd0000).skip(0, {}),
+      ...m.seek(this._ADDR_ENCRYPT).skip(0, {}),
 
       keys: array_of(256, () =>
         m.struct(() => ({
@@ -239,7 +271,7 @@ export class RT4DRadio extends Radio {
         }))
       ),
 
-      ...m.seek(0x1e000).skip(0, {}),
+      ...m.seek(this._ADDR_ZONE).skip(0, {}),
 
       zones: array_of(250, () =>
         m.struct(() => ({
@@ -249,7 +281,7 @@ export class RT4DRadio extends Radio {
         }))
       ),
 
-      ...m.seek(0xf0000).skip(0, {}),
+      ...m.seek(this._ADDR_FM).skip(0, {}),
 
       fm: array_of(80, () =>
         m.struct(() => ({
@@ -280,7 +312,7 @@ export class RT4DRadio extends Radio {
         }))
       ),
 
-      ...m.seek(0x2000).skip(0, {}),
+      ...m.seek(this._ADDR_CFG).skip(0, {}),
 
       settings: {
         _unknown0: m.buf(16),
@@ -436,7 +468,7 @@ export class RT4DRadio extends Radio {
         freq_scan_end: m.u32(), // 18_00_000-999_999_999
       },
 
-      ...m.seek(0x1c060).skip(0, {}),
+      ...m.seek(this._ADDR_CFG_2).skip(0, {}),
 
       settings2: {
         key_lock: m.u8(), // 0=off, 1=on, #0
@@ -481,7 +513,7 @@ export class RT4DRadio extends Radio {
         },
       },
 
-      ...m.seek(0xd6000).skip(0, {}),
+      ...m.seek(this._ADDR_SMS_PRESET).skip(0, {}),
 
       // preset, draft, received, sent
       sms: array_of(16 + 128 + 128 + 128, () =>
@@ -1172,6 +1204,17 @@ export class RT4DRadio extends Radio {
 
   // MARK: Serial
 
+  protected async _prog_mode_on() {
+    await serial.write(this._PROG_CMD);
+
+    const prog_ack = await serial.read(1);
+    if (!prog_ack.equals(this._PROG_ACK)) throw new Error("Prog mode not ack");
+  }
+
+  protected async _prog_mode_off() {
+    await serial.write(this._END_CMD);
+  }
+
   protected async _read_block(addr: number) {
     const cmd = Buffer.alloc(4);
     cmd.writeUInt8(0x52, 0);
@@ -1187,6 +1230,19 @@ export class RT4DRadio extends Radio {
     const data = res.slice(3, 3 + 1024);
 
     return data;
+  }
+
+  protected async _write_block(cmd_code: number, addr: number, data: Buffer) {
+    const cmd = Buffer.alloc(1028);
+    cmd.writeUInt8(0, cmd_code);
+    cmd.writeUInt16BE(addr, 1);
+    data.copy(cmd, 3);
+    cmd.writeUInt8(checksum(cmd.slice(0, 1027)), 1027);
+
+    await serial.write(cmd);
+
+    const res = await serial.read(1);
+    if (!res.equals(this._PROG_ACK)) throw new Error("Unexpected response code");
   }
 
   async load(snapshot: Buffer) {
@@ -1206,10 +1262,7 @@ export class RT4DRadio extends Radio {
     await serial.begin({ baudRate: 115_200 });
     await serial.clear();
 
-    await serial.write(this._PROG_CMD);
-
-    const prog_ack = await serial.read(1);
-    if (!prog_ack.equals(this._PROG_ACK)) throw new Error("Prog mode not ack");
+    await this._prog_mode_on();
 
     this.dispatch_progress(0.1);
 
@@ -1226,9 +1279,35 @@ export class RT4DRadio extends Radio {
       }
     }
 
-    await serial.write(this._END_CMD);
+    await this._prog_mode_off();
 
-    download_buffer(img);
+    this.dispatch_progress(1);
+  }
+
+  async write() {
+    const img = this._img;
+    if (!img) throw new Error("Image is empty");
+
+    this.dispatch_progress(0);
+
+    await serial.begin({ baudRate: 115_200 });
+    await serial.clear();
+
+    await this._prog_mode_on();
+
+    this.dispatch_progress(0.1);
+
+    for (const range of this._WRITE_RANGES) {
+      for (let i = range.start; i <= range.end; i += 1) {
+        const offset = range.offset + i * 1024;
+        const block = img.slice(offset, offset + 1024);
+        await this._write_block(range.cmd, i, block);
+
+        this.dispatch_progress(0.1 + 0.8 * ((offset + 1024) / this._MEM_SIZE));
+      }
+    }
+
+    await this._prog_mode_off();
 
     this.dispatch_progress(1);
   }
