@@ -9,10 +9,8 @@ import { t } from "i18next";
 
 /*
 MARK: TODO:
-- Пересмотреть настройки основной группы
 - При изменении канала, группы, контакта, зоны, ключа... нужно разрешать зависимости
 - Починить скролл на таблице
-- Добавить отправку на станцию
 */
 
 const TIMEOUT_WRITE = 5_000;
@@ -194,55 +192,57 @@ export class RT4DRadio extends Radio {
   protected _parse_v3(img: Buffer) {
     const m = create_mem_mapper(img, this.dispatch_ui);
 
+    const map_channel = () =>
+      m.struct(() => ({
+        ...m.bitmap({
+          type: 2, // 0=digital, 1=analog, empty
+          rxtx: 2, // 0=rx+tx, 1=rx, 2=tx, #0
+          id_select: 1, // 0=radio, 1=channel
+          dmr_mode: 1, // 0=single-slot, 1=dual-slot
+          dmr_slot: 1, // 0=1, 1=2
+          dmr_monit: 1, // 0=off, 1=on
+        }),
+        ...m.bitmap({
+          color_code: 4,
+          scramble: 4, // 0=off, [1..8], #0
+        }),
+        ...m.bitmap({
+          power: 2, // 0=low, 1=hight, #0
+          tot: 6, // TIMER[], #0
+        }),
+        ...m.bitmap({
+          scan_skip: 1,
+          call_priority: 2, // 0=allow-tx, 1=channel-free, 2=color-code-idle
+          tx_priority: 2, // 0=allow-tx, 1=channel-free, 2=subtone-free
+          tail_tone: 3, //  0=off, 1=55hz, 2=120-deg-shift, 3=180-deg-shift, 4=240-deg-shift, #0
+        }),
+        ...m.bitmap({
+          band: 2, // 0=wide, 1=narrow, #0
+          amfm: 2, // 0=fm, 1=am, 2=ssb, #0
+          ctdc: 3, // 0=normal, 1=enc1, 2=enc2, 3=mute-code, #0
+          _unknown7: 1,
+        }),
+        rx_freq: m.u32(),
+        tx_freq: m.u32(),
+        rx_tone: m.u16(),
+        tx_tone: m.u16(),
+        contact: m.u16(), // index, #0
+        rx_tg_list: m.u8(), // 0=none, number[], #0
+        encryption: m.u16(), // 0=none, number[], #0
+        ch_dmr_id: m.u32(),
+        mute_code: m.u32(),
+        _unknown30: m.buf(2),
+        name: m.str(16),
+      }));
+
     return {
       ...m.seek(ADDR_CH).skip(0, {}),
 
-      channels: array_of(1024, () =>
-        m.struct(() => ({
-          ...m.bitmap({
-            type: 2, // 0=digital, 1=analog, empty
-            rxtx: 2, // 0=rx+tx, 1=rx, 2=tx, #0
-            id_select: 1, // 0=radio, 1=channel
-            dmr_mode: 1, // 0=single-slot, 1=dual-slot
-            dmr_slot: 1, // 0=1, 1=2
-            dmr_monit: 1, // 0=off, 1=on
-          }),
-          ...m.bitmap({
-            color_code: 4,
-            scramble: 4, // 0=off, [1..8], #0
-          }),
-          ...m.bitmap({
-            power: 2, // 0=low, 1=hight, #0
-            tot: 6, // TIMER[], #0
-          }),
-          ...m.bitmap({
-            scan_skip: 1,
-            call_priority: 2, // 0=allow-tx, 1=channel-free, 2=color-code-idle
-            tx_priority: 2, // 0=allow-tx, 1=channel-free, 2=subtone-free
-            tail_tone: 3, //  0=off, 1=55hz, 2=120-deg-shift, 3=180-deg-shift, 4=240-deg-shift, #0
-          }),
-          ...m.bitmap({
-            band: 2, // 0=wide, 1=narrow, #0
-            amfm: 2, // 0=fm, 1=am, 2=ssb, #0
-            ctdc: 3, // 0=normal, 1=enc1, 2=enc2, 3=mute-code, #0
-            _unknown7: 1,
-          }),
-          rx_freq: m.u32(),
-          tx_freq: m.u32(),
-          rx_tone: m.u16(),
-          tx_tone: m.u16(),
-          contact: m.u16(), // index, #0
-          rx_tg_list: m.u8(), // 0=none, number[], #0
-          encryption: m.u16(), // 0=none, number[], #0
-          ch_dmr_id: m.u32(),
-          mute_code: m.u32(),
-          _unknown30: m.buf(2),
-          name: m.str(16),
-        }))
-      ),
+      channels: array_of(1024, map_channel),
 
       ...m.seek(ADDR_VFO).skip(0, {}),
-      // TODO: VFO A,B like channel
+
+      vfo_ab: array_of(2, map_channel),
 
       ...m.seek(ADDR_CONTACT).skip(0, {}),
 
@@ -278,9 +278,10 @@ export class RT4DRadio extends Radio {
 
       zones: array_of(250, () =>
         m.struct(() => ({
-          ab_channels: array_of(2, () => m.u16()), // TODO: really AB (original name - bufZoneCH)?
+          a_channel: m.u16(), // index of zones channel
+          b_channel: m.u16(), // index of zones channel
           name: m.str(16),
-          channels: array_of(250, () => m.u16()),
+          channels: array_of(250, () => m.u16()), // indexes
         }))
       ),
 
@@ -346,71 +347,26 @@ export class RT4DRadio extends Radio {
         alarm: m.u8(), // 0=local, 1=remote, 2=both
         apo: m.u8(), // auto power off: 0=off, 1=on
         apo_seconds: m.u32(),
-        alarms: array_of(4, () => ({
-          mode: m.u8(), // 0=off, 1=once, 2=everyday
-          hour: m.u8(),
-          minute: m.u8(),
-        })),
-        _unknown122: m.buf(4),
+        _unknown110: m.buf(16),
         tx_priority: m.u8(), // 0=edit, 1=busy
         main_ptt: m.u8(), // 0=ch-a, 1=ch-main
-        step: m.u8(), // STEP[]
-        _unknown129: m.buf(2),
-        main_range: m.u8(), // 0=a, 1=b
-        ranges: array_of(2, () => ({
-          mode: m.u8(), // 0=freq, 1=ch, 2=zone
-          display: m.u8(), // 0=ch, 1=freq, 2=alias
-          zone: m.u8(), // index: 0-249
-          ch: m.u16(), // index: 0-1999
-        })),
+        _unknown128: m.buf(14),
         lock_ranges: array_of(4, () => ({
           type: m.u8(), // 0=rx-tx, 1=rx, 2=lock
           start: m.u16(),
           end: m.u16(),
         })),
-        scan_direction: m.u8(), // 0=up, 1=down
+        _unknown162: m.buf(1),
         scan_mode: m.u8(), // 0=to, 1=co, 2=se
         scan_return: m.u8(), // 0=original-ch, 1=current-ch
         scan_dwell: m.u8(), // 0-30
-        _unknown166: m.buf(4),
-        keys: {
-          fs1_short: m.u8(), // KEY_FN[]
-          fs1_long: m.u8(),
-          fs2_short: m.u8(),
-          fs2_long: m.u8(),
-          alarm_short: m.u8(),
-          alarm_long: m.u8(),
-          pad_0: m.u8(),
-          pad_1: m.u8(),
-          pad_2: m.u8(),
-          pad_3: m.u8(),
-          pad_4: m.u8(),
-          pad_5: m.u8(),
-          pad_6: m.u8(),
-          pad_7: m.u8(),
-          pad_8: m.u8(),
-          pad_9: m.u8(),
-        },
-        gps_sw: m.u8(), // 0=off, 1=on
-        gps_baud: m.u8(), // 4800,9600,14400,19200,38400,56000,57600,115200,128000,256000
-        utc: m.u8(), // "UTC 0", "UTC+1", "UTC+2", "UTC+3", "UTC+3.5", "UTC+4", "UTC+5", "UTC+5.5", "UTC+6", "UTC+7", "UTC+8", "UTC+9", "UTC+10", "UTC+11", "UTC+12", "UTC-1", "UTC-2", "UTC-3", "UTC-4", "UTC-5", "UTC-6", "UTC-7", "UTC-8", "UTC-9", "UTC-10", "UTC-11", "UTC-12"
-        auto_gps_time: m.u8(), // 0=off, 1=on
-        gps_record_sw: m.u8(), // 0=off, 1=on
-        gps_record: m.u16(),
-        bt_sw: m.u8(), // 0=off, 1=on
-        bt_name: m.str(16),
-        bt_pin: m.str(16),
-        bt_pin_sw: m.u8(), // 0=off, on
-        bt_mode: m.u8(), // 0=audio, 1=programming
-        bt_mic: m.u8(), // 0=off, on
-        bt_spk: m.u8(), // 0=off, on
-        bt_mic_gain: m.u8(),
-        bt_spk_gain: m.u8(),
-        second_ptt: m.u8(), // 0=off, on
+        scan_interval: m.u8(), // [0..30], #0
+        _unknown167: m.buf(2),
+        refresh: m.u8(), // [0,100...2000], #0
+        _unknown170: m.buf(63),
         contrast: m.u8(), // 5..25
-        freq_input: m.u8(), // 0=xxx_xxx, xxx_xxx.xx
-        dual_display: m.u8(), // 0=dual, single
-        _unknown236: m.buf(20),
+        freq_6or8: m.u8(), // 0=xxx_xxx, xxx_xxx.xx
+        _unknown235: m.buf(21),
 
         // Analog +256
         tone: m.u16(), // 110-20_000
@@ -423,15 +379,18 @@ export class RT4DRadio extends Radio {
         tx_beep_end: m.u8(), // 0=off, 1=1, 2=2, 3=mdc1200, 4=gps
         _unknown269: m.buf(3),
         detect_range: m.u8(), // RANGE[]
-        detect_delay: m.u16(), // DELAY[]
-        _unknown275: m.buf(1),
+        detect_delay: m.u8(), // DELAY[]
+        _unknown274: m.buf(1),
+        noaa: m.u8(), // 0=0ff, 1=on, #0
         glitch: m.u8(), // 0-10, 0
-        _unknown277: m.buf(107),
+        tone_timer: m.u8(), // 0..120
+        _unknown278: m.buf(106),
 
         // Digital +384
         radio_id: m.u32(),
         remote_control: m.u8(), // 0=off, 1=on
-        _unknown389: m.buf(2),
+        tx_denoise: m.u8(), // 0-4
+        rx_denoise: m.u8(), // 0-4
         mic_gain_dig: m.u8(), // 0-24
         spk_gain_dig: m.u8(), // 0-24
         _unknown393: m.buf(4),
@@ -441,7 +400,11 @@ export class RT4DRadio extends Radio {
         single_call_timer: m.u16(), // 0-9999
         sql_dig: m.u8(), // 0-10
         group_display: m.u8(), // 0=caller, 1=group
-        _unknown405: m.buf(107),
+        _unknown405: m.buf(1),
+        sms_format: m.u8(), // 0=hytera, 1=motorola, #0
+        sms_font: m.u8(), // 0=unicode, 1=gbk, #0
+        called_keep: m.u8(), // 0..4
+        _unknown409: m.buf(103),
 
         // DTMF +512
         dtmf: {
@@ -454,7 +417,7 @@ export class RT4DRadio extends Radio {
           encode_gain: m.u8(), // 0-127
           decode_th: m.u8(), // 0-63
           remote_control: m.u8(), // 0=off, 1=on
-          calibrate: m.u8(), // 0=off, 1=on
+          _unknown521: m.buf(1),
           // 1-16, stun, wake, kill, monitor
           list: array_of(20, () =>
             m.struct(() => ({
@@ -469,6 +432,7 @@ export class RT4DRadio extends Radio {
         sms_beep: m.u8(), // 0=off, 1=on
         freq_scan_start: m.u32(), // 18_00_000-999_999_999
         freq_scan_end: m.u32(), // 18_00_000-999_999_999
+        carrier_led: m.u8(), // 0=off, 1=on
       },
 
       ...m.seek(ADDR_CFG_2).skip(0, {}),
@@ -1254,8 +1218,6 @@ export class RT4DRadio extends Radio {
 
     this._img = snapshot;
     this._mem = mem;
-
-    console.log(to_js(mem)); // FIXME: remove
 
     this.dispatch_ui_change();
   }
