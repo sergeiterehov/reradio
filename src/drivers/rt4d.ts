@@ -7,11 +7,6 @@ import { array_of, create_mem_mapper, set_string, to_js, type M } from "@/utils/
 import { CTCSS_TONES, DCS_CODES, DMR_ALL_CALL_ID, trim_string } from "@/utils/radio";
 import { t } from "i18next";
 
-/*
-MARK: TODO:
-- При изменении канала, группы, контакта, зоны, ключа... нужно разрешать зависимости
-*/
-
 const TIMEOUT_WRITE = 5_000;
 
 const PROG_CMD = Buffer.from([0x34, 0x52, 0x05, 0x10, 0x9b]);
@@ -554,10 +549,15 @@ export class RT4DRadio extends Radio {
             const t = channels[a].__raw.get();
             channels[a].__raw.set(channels[b].__raw.get());
             channels[b].__raw.set(t);
+            this._resolve_channels_swap(a, b);
           },
           empty: {
             get: (i) => channels[i].type.get() > 1,
-            delete: (i) => channels[i].type.set(0xff),
+            delete: (i) => {
+              const ch = channels[i];
+              ch.__raw.set(new Array(ch.__raw.size).fill(0xff));
+              this._resolve_channel_deleted(i);
+            },
             init: (i) => {
               const ch = channels[i];
               ch.__raw.set(new Array(ch.__raw.size).fill(0x00));
@@ -834,16 +834,22 @@ export class RT4DRadio extends Radio {
           set: (i, val) => {
             if (i === 0) throw new Error("Protected contact");
             const c = contacts[i];
+            const type = val.type === "Group" ? CONTACT_GROUP : CONTACT_INDIVIDUAL;
 
-            c.type.set(val.type === "Group" ? CONTACT_GROUP : CONTACT_INDIVIDUAL);
+            c.type.set(type);
             c.id.set(val.id);
             set_string(c.name, val.name, "\x00");
+
+            this._resolve_contact_type_changed(i, type);
           },
           delete: (i) => {
             if (i === 0) throw new Error("Protected contact");
             const c = contacts[i];
+            const type = c.type.get();
 
             c.__raw.set(new Array(c.__raw.size).fill(0xff));
+
+            this._resolve_contact_deleted(i, type);
           },
         } as UI.Field.Contacts,
 
@@ -869,7 +875,10 @@ export class RT4DRadio extends Radio {
               name: trim_string(key.name.get()),
             };
           },
-          delete: (i) => keys[i].__raw.set(new Array(keys[i].__raw.size).fill(0xff)),
+          delete: (i) => {
+            keys[i].__raw.set(new Array(keys[i].__raw.size).fill(0xff));
+            this._resolve_key_deleted(i);
+          },
           set_ui: (i) => [
             {
               type: "text",
@@ -936,7 +945,13 @@ export class RT4DRadio extends Radio {
               type: "table",
               id: "groups",
               name: t("dmr_groups"),
-              size: () => tg_lists[i_list].contacts.length,
+              size: () => {
+                const contact_refs = tg_lists[i_list].contacts;
+                for (let i = 0; i < contact_refs.length - 1; i += 1) {
+                  if (contact_refs[i].get() === 0xffff) return i + 1;
+                }
+                return contact_refs.length;
+              },
               header: () => ({ name: { name: t("contact_name") }, id: { name: t("id") } }),
               get: (i_contact) => {
                 const contact_index = tg_lists[i_list].contacts[i_contact].get();
@@ -1167,6 +1182,107 @@ export class RT4DRadio extends Radio {
         },
       ],
     };
+  }
+
+  // MARK: Resolvers
+
+  protected _resolve_channel_deleted(index: number) {
+    const { zones } = this._mem!;
+
+    for (const zone of zones) {
+      const { channels } = zone;
+      const { length } = channels;
+      for (let i = 0; i < length; i += 1) {
+        const ch = channels[i].get();
+        if (ch === 0xffff) break;
+        if (ch === index) {
+          channels[i].set(0xffff);
+          // shift
+          for (let j = i + 1; j < length; j += 1) {
+            const ch_next = channels[j].get();
+            channels[j - 1].set(ch_next);
+            if (ch_next === 0xffff) break;
+          }
+          channels[length - 1].set(0xffff);
+          break;
+        }
+      }
+    }
+
+    console.log(to_js(zones));
+  }
+
+  protected _resolve_channels_swap(a: number, b: number) {
+    const { zones } = this._mem!;
+
+    for (const zone of zones) {
+      const { channels } = zone;
+      const { length } = channels;
+      let found = false;
+
+      for (let i = 0; i < length; i += 1) {
+        const ch = channels[i].get();
+        if (ch === 0xffff) break;
+        if (ch === a || ch === b) {
+          channels[i].set(ch === a ? b : a);
+
+          if (found) break;
+          found = true;
+        }
+      }
+    }
+  }
+
+  protected _resolve_contact_deleted(index: number, type: number) {
+    const { channels } = this._mem!;
+
+    if (type === CONTACT_GROUP) {
+      this._resolve_contact_group_deleted(index);
+    }
+
+    for (const channel of channels) {
+      if (channel.type.get() > 1) continue;
+      if (channel.contact.get() === index) channel.contact.set(0); // call all
+    }
+  }
+
+  protected _resolve_contact_group_deleted(index: number) {
+    const { tg_lists } = this._mem!;
+
+    for (const list of tg_lists) {
+      const { contacts } = list;
+      const { length } = contacts;
+      for (let i = 0; i < length; i += 1) {
+        const con = contacts[i].get();
+        if (con === 0xffff) break;
+        if (con === index) {
+          contacts[i].set(0xffff);
+          // shift
+          for (let j = i + 1; j < length; j += 1) {
+            const con_next = contacts[j].get();
+            contacts[j - 1].set(con_next);
+            if (con_next === 0xffff) break;
+          }
+          contacts[length - 1].set(0xffff);
+          break;
+        }
+      }
+    }
+  }
+
+  protected _resolve_contact_type_changed(index: number, type: number) {
+    if (type === CONTACT_INDIVIDUAL) {
+      this._resolve_contact_group_deleted(index);
+    }
+  }
+
+  protected _resolve_key_deleted(index: number) {
+    const { channels } = this._mem!;
+
+    for (const channel of channels) {
+      if (channel.type.get() > 1) continue;
+      if (channel.encryption.get() === index + 1) channel.encryption.set(0); // None
+    }
   }
 
   // MARK: Serial
