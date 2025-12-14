@@ -126,7 +126,7 @@ const RANGE = [
 const KEY_FN = [
   t("off"),
   t("fn_monitor"),
-  t("fn_transmit_power"),,
+  t("fn_transmit_power"),
   "Dual Standby",
   "TX Priority",
   t("fn_scan"),
