@@ -561,7 +561,7 @@ const MAX_FLASH_SIZE = 0x10000;
 export class UVK5ProgRadio extends QuanshengBaseRadio {
   static Info: RadioInfo = {
     vendor: "Quansheng",
-    model: "UV-K5 Firmware Programmer",
+    model: "UV-K5 Firmware",
   };
 
   private _file?: File;
