@@ -51,11 +51,12 @@ Until an international developer community emerges, the source code will remain 
 Все драйвера находятся в папке `src/drivers`. Посмотри, как реализованы другие простые станции, чтобы понять принцип разработки. Хороший пример - Baofeng BF-888 `src/drivers/bf888.ts`.
 
 Есть несколько обязательных элементов драйвера:
-- `static Info` - информация о станции;
-- `ui()` - описание интерфейса настроек;
-- `async load(snapshot)` - загрузка образа настроек из файла;
-- `async read()` - чтение настроек из станции;
-- `async write()` - загрузка настроек в станцию.
+- `static Info` - информация о станции
+- `ui()` - описание интерфейса настроек
+- `async read()` - чтение настроек из станции
+- `async write()` - загрузка настроек в станцию
+- `async upload(): {snapshot, version}` - выгрузка образа настроек
+- `async load(snapshot, version)` - загрузка образа настроек из файла
 
 ### React
 

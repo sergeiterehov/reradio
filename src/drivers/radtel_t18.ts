@@ -111,6 +111,11 @@ export abstract class BaseT18ProtocolRadio extends Radio {
     this.dispatch_ui_change();
   }
 
+  override async upload() {
+    if (!this._img) throw new Error("No data");
+    return { version: 0, snapshot: Buffer.from(this._img) };
+  }
+
   async read() {
     this.dispatch_progress(0);
 
@@ -176,6 +181,7 @@ export abstract class BaseT18ProtocolRadio extends Radio {
 
 export class T18Radio extends BaseT18ProtocolRadio {
   static Info: RadioInfo = {
+    id: "t18",
     vendor: "Radtel",
     model: "T18",
   };
@@ -284,6 +290,7 @@ export class T18Radio extends BaseT18ProtocolRadio {
 
 export class RB18Radio extends T18Radio {
   static Info: RadioInfo = {
+    id: "rb18",
     vendor: "Retevis",
     model: "RB18",
   };
@@ -298,6 +305,7 @@ export class RB18Radio extends T18Radio {
 
 export class RB618Radio extends RB18Radio {
   static Info: RadioInfo = {
+    id: "rb618",
     vendor: "Retevis",
     model: "RB618",
   };

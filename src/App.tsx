@@ -1,5 +1,5 @@
 import { useStore } from "zustand";
-import { ButtonGroup, Fieldset, HStack, Icon, IconButton, Link, Stack, Tabs, Text } from "@chakra-ui/react";
+import { ButtonGroup, Fieldset, HStack, Icon, IconButton, Link, Skeleton, Stack, Tabs, Text } from "@chakra-ui/react";
 import { TbBrandGithub, TbDeviceMobileSearch, TbDeviceMobileUp, TbRadar2 } from "react-icons/tb";
 import { Actions, Store } from "./store";
 import { AnyField } from "./components/fields/AnyField";
@@ -12,10 +12,27 @@ import { TaskProgress } from "./components/TaskProgress";
 import { Tooltip } from "./components/ui/tooltip";
 import type { UI } from "@/utils/ui";
 import { useTranslation } from "react-i18next";
+import { Share } from "./components/Share";
+
+const urlRegex = /^#s\/(?<id>[a-zA-Z_0-9]+)$/;
 
 function App() {
   const radio = useStore(Store, (s) => s.radio);
+  const sharing = useStore(Store, (s) => s.sharing);
   const active_task = useStore(Store, (s) => s.task !== undefined);
+
+  useEffect(() => {
+    if (!import.meta.env.VITE_CLOUD_API) return;
+
+    const hash = window.location.hash;
+    if (!hash) return;
+    const match = urlRegex.exec(hash);
+    if (!match) return;
+    const { id } = match.groups!;
+    if (!id) return;
+
+    Actions.fetchSharedSnapshot(id);
+  }, []);
 
   const { t } = useTranslation();
 
@@ -85,6 +102,7 @@ function App() {
                 <TbDeviceMobileUp />
               </IconButton>
             </Tooltip>
+            {import.meta.env.VITE_CLOUD_API && ui && ui.fields.length > 0 && <Share />}
           </ButtonGroup>
           <TaskProgress />
           <IconButton asChild rounded="full" variant="ghost">
@@ -96,7 +114,32 @@ function App() {
         {(() => {
           const fields = ui?.fields.filter((f) => f.type !== "none");
 
-          if (!fields?.length) return <Hello />;
+          if (!fields?.length) {
+            if (sharing?.loading) {
+              return (
+                <HStack gap="5" alignItems="start">
+                  <Stack width={200} gap="5">
+                    <Skeleton height="8" width="90%" />
+                    <Skeleton height="8" width="60%" />
+                    <Skeleton height="8" width="80%" />
+                    <Skeleton height="8" width="40%" />
+                  </Stack>
+                  <HStack flex="1" gap="2" flexWrap="wrap">
+                    <Skeleton width="30%" height="80px" />
+                    <Skeleton width="30%" height="80px" />
+                    <Skeleton width="30%" height="80px" />
+                    <Skeleton width="30%" height="80px" />
+                    <Skeleton width="30%" height="80px" />
+                    <Skeleton width="30%" height="80px" />
+                    <Skeleton width="30%" height="80px" />
+                    <Skeleton width="30%" height="80px" />
+                  </HStack>
+                </HStack>
+              );
+            }
+
+            return <Hello />;
+          }
 
           const tabs = [...new Set(fields.map((f) => f.tab))];
 

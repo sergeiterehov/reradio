@@ -18,6 +18,7 @@ const ACK = Buffer.from([0x06]);
 
 export class UV5RRadio extends Radio {
   static Info: RadioInfo = {
+    id: "uv5r",
     vendor: "Baofeng",
     model: "UV-5R",
   };
@@ -375,6 +376,11 @@ export class UV5RRadio extends Radio {
     this.dispatch_ui_change();
   }
 
+  override async upload() {
+    if (!this._img) throw new Error("No data");
+    return { version: 0, snapshot: Buffer.from(this._img) };
+  }
+
   override async read() {
     this.dispatch_progress(0);
 
@@ -440,6 +446,7 @@ export class UV5RRadio extends Radio {
 
 export class UV82Radio extends UV5RRadio {
   static override Info: RadioInfo = {
+    id: "uv82",
     vendor: "Baofeng",
     model: "UV-82 (5 watt)",
   };
@@ -450,6 +457,7 @@ export class UV82Radio extends UV5RRadio {
 
 export class UV82HPRadio extends UV82Radio {
   static override Info: RadioInfo = {
+    id: "uv82hp",
     vendor: "Baofeng",
     model: "UV-82HP (8 watt)",
   };
@@ -463,6 +471,7 @@ export class UV82HPRadio extends UV82Radio {
 
 export class UV16ProRadio extends UV5RRadio {
   static override Info: RadioInfo = {
+    id: "uv16pro",
     vendor: "Baofeng",
     model: "UV-16 Pro",
   };
@@ -471,8 +480,9 @@ export class UV16ProRadio extends UV5RRadio {
   protected readonly HAS_RTONE = true;
 }
 
-export class UV16Pro8Radio extends UV16ProRadio {
+export class UV16ProHPRadio extends UV16ProRadio {
   static override Info: RadioInfo = {
+    id: "uv16prohp",
     vendor: "Baofeng",
     model: "UV-16 Pro (8 watt)",
   };

@@ -70,6 +70,7 @@ const _FOOTER = Buffer.from([0xdc, 0xba]);
 
 export class QuanshengBaseRadio extends Radio {
   static Info: RadioInfo = {
+    id: "",
     vendor: "Quansheng",
     model: "Unknown QUANSHENG Based",
   };

@@ -7,13 +7,18 @@ import YaMetrika from "./YaMetrika";
 import type { UI } from "./utils/ui";
 import { clipboardReplaceChannel, clipboardWriteChannels } from "./utils/serialize";
 import { serial } from "./utils/serial";
+import { Buffer } from "buffer";
 
 enableMapSet();
+
+type FetchState<T> = { loading: true } | { loading: false; result: T } | { loading: false; error: unknown };
 
 export type Store = {
   radio: Radio;
   task?: string;
   progress?: number;
+
+  sharing?: FetchState<string>;
 
   /** <channel_field_id, index[]> */
   selectedChannels: Map<string, Set<number>>;
@@ -24,6 +29,9 @@ export type Store = {
     upload: () => void;
 
     changeRadio: (RadioClass: typeof Radio) => void;
+
+    fetchSharedLink: () => void;
+    fetchSharedSnapshot: (id: string) => void;
 
     setChannelSelection: (index: number, selected: boolean, channels: UI.Field.Channels) => void;
     toggleChannelSelection: (index: number, channels: UI.Field.Channels) => void;
@@ -50,6 +58,13 @@ export const Store = createStore<Store>()(
 
     const _clearTask = () => set({ task: undefined, progress: undefined });
 
+    const _clear_sharing = () => {
+      if (!import.meta.env.VITE_CLOUD_API) return;
+
+      set({ sharing: undefined });
+      window.location.hash = "";
+    };
+
     const _useSelection = (index: number, channels: UI.Field.Channels): { indexes: number[]; multiselect: boolean } => {
       const indexes = get().selectedChannels.get(channels.id);
       _actions.clearChannelSelection(channels);
@@ -63,12 +78,15 @@ export const Store = createStore<Store>()(
 
     const _actions: Store["_actions"] = {
       download: async () => {
-        const { radio, task } = get();
+        const { radio, task, sharing } = get();
+
+        if (sharing?.loading) return;
 
         if (task !== undefined) return;
 
         YaMetrika.richGoal(YaMetrika.Goal.TryReadFromRadio, { ...radio.info });
 
+        _clear_sharing();
         set({ task: "Downloading" });
         try {
           try {
@@ -84,7 +102,9 @@ export const Store = createStore<Store>()(
       },
 
       upload: async () => {
-        const { radio, task } = get();
+        const { radio, task, sharing } = get();
+
+        if (sharing?.loading) return;
 
         if (task !== undefined) return;
 
@@ -109,11 +129,88 @@ export const Store = createStore<Store>()(
 
         if (task) return;
 
+        _clear_sharing();
+
         const newRadio = new RadioClass();
         _unsubscribe_progress();
         _unsubscribe_progress = newRadio.subscribe_progress(_handleProgress);
 
         set({ radio: newRadio });
+      },
+
+      fetchSharedLink: async () => {
+        if (!import.meta.env.VITE_CLOUD_API) return;
+
+        const { radio, sharing } = get();
+
+        if (sharing) return;
+
+        set({ sharing: { loading: true } });
+
+        try {
+          const { snapshot, version } = await radio.upload();
+          const formData = new FormData();
+          formData.append("file", new Blob([snapshot]));
+          formData.append("meta", JSON.stringify({ radio_id: radio.info.id, radio_version: version }));
+          const res = await fetch(`${import.meta.env.VITE_CLOUD_API}/upload`, { method: "POST", body: formData });
+
+          if (res.status !== 200) {
+            try {
+              const data = await res.json();
+              if (data && "error" in data && typeof data.error === "string") {
+                throw new Error(data.error);
+              }
+            } catch {
+              throw new Error(res.statusText);
+            }
+          }
+
+          const data: { id: string } = await res.json();
+
+          const hash = `#s/${data.id}`;
+          const link = `${window.location.origin}${hash}`;
+
+          set({ sharing: { loading: false, result: link } });
+          window.location.hash = hash;
+        } catch (error) {
+          set({ sharing: { loading: false, error } });
+        }
+      },
+
+      fetchSharedSnapshot: async (id) => {
+        if (!import.meta.env.VITE_CLOUD_API) return;
+
+        set({ sharing: { loading: true } });
+        try {
+          const res_metadata = await fetch(`${import.meta.env.VITE_CLOUD_API}/metadata/${id}`, { method: "GET" });
+          if (res_metadata.status !== 200) throw new Error(res_metadata.statusText);
+
+          const meta: {
+            version: number;
+            radio_id: string;
+            radio_version: number;
+            create_at: number;
+            gz_level: number;
+          } = await res_metadata.json();
+
+          const RadioClass = Library.find((R) => R.Info.id === meta.radio_id);
+          if (!RadioClass) throw new Error("Radio driver not found");
+
+          const res_snapshot = await fetch(`${import.meta.env.VITE_CLOUD_API}/file/${id}`, { method: "GET" });
+          if (res_metadata.status !== 200) throw new Error(res_metadata.statusText);
+
+          const snapshot = Buffer.from(await res_snapshot.bytes());
+
+          const newRadio = new RadioClass();
+          _unsubscribe_progress();
+          _unsubscribe_progress = newRadio.subscribe_progress(_handleProgress);
+
+          set({ radio: newRadio, sharing: { loading: false, result: id } });
+          await newRadio.load(snapshot, meta.version);
+        } catch (e) {
+          set({ sharing: { loading: false, error: e } });
+          throw e;
+        }
       },
 
       clearChannelSelection: (channels) => {

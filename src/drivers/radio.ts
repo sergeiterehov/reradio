@@ -4,12 +4,14 @@ import type { UI } from "@/utils/ui";
 type FnProgress = (k: number, step?: string) => void;
 
 export type RadioInfo = {
+  id: string;
   vendor: string;
   model: string;
 };
 
 export class Radio {
   static Info: RadioInfo = {
+    id: "none",
     vendor: "Noname",
     model: "Noname",
   };
@@ -59,7 +61,11 @@ export class Radio {
     throw new Error("Not implemented");
   }
 
-  async load(snapshot: Buffer) {
+  async load(snapshot: Buffer, version: number) {
+    throw new Error("Not implemented");
+  }
+
+  async upload(): Promise<{ snapshot: Buffer; version: number }> {
     throw new Error("Not implemented");
   }
 
