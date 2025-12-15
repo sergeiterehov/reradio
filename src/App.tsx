@@ -1,6 +1,6 @@
 import { useStore } from "zustand";
-import { ButtonGroup, Fieldset, HStack, Icon, IconButton, Link, Skeleton, Stack, Tabs, Text } from "@chakra-ui/react";
-import { TbBrandGithub, TbDeviceMobileSearch, TbDeviceMobileUp, TbRadar2 } from "react-icons/tb";
+import { ButtonGroup, Fieldset, HStack, Icon, IconButton, Skeleton, Stack, Tabs, Text } from "@chakra-ui/react";
+import { TbDeviceMobileSearch, TbDeviceMobileUp, TbRadar2 } from "react-icons/tb";
 import { Actions, Store } from "./store";
 import { AnyField } from "./components/fields/AnyField";
 import { RadioSelector } from "./components/RadioSelector";
@@ -77,7 +77,7 @@ function App() {
   }, [t]);
 
   return (
-    <Stack alignItems="center">
+    <Stack alignItems="center" minW={600}>
       <Toaster />
       <ChromeOnly />
       <Stack gap="3" maxW="920px" width="100%">
@@ -105,11 +105,6 @@ function App() {
             {import.meta.env.VITE_CLOUD_API && ui && ui.fields.length > 0 && <Share />}
           </ButtonGroup>
           <TaskProgress />
-          <IconButton asChild rounded="full" variant="ghost">
-            <Link href="https://github.com/sergeiterehov/reradio" target="_blank" rel="noopener noreferrer">
-              <TbBrandGithub />
-            </Link>
-          </IconButton>
         </HStack>
         {(() => {
           const fields = ui?.fields.filter((f) => f.type !== "none");

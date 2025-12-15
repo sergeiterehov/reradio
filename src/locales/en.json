@@ -1,5 +1,6 @@
 {
   "translation": {
+    "about_short": "Program analog and DMR radios directly from your browser.",
     "alarm": "Alarm",
     "alarm_both": "Speaker + radio",
     "alarm_code": "Code - transmit",
@@ -113,7 +114,6 @@
     "hello_msg_str_x": "Hello text, line {{line}}",
     "hello_msg_str_x_tooltip": "Text displayed on the screen when the radio is turned on.",
     "hello_picture": "Picture",
-    "hello_steps": "Select your model, read, change, write, enjoy!",
     "hello_text": "Hello text",
     "hello_voltage": "Voltage",
     "high_no_tx": "High voltage inhibit transmit",

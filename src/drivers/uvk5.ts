@@ -568,7 +568,7 @@ export class UVK5ProgRadio extends QuanshengBaseRadio {
   static Info: RadioInfo = {
     id: "uvk5_prog",
     vendor: "Quansheng",
-    model: "UV-K5 Firmware Programmer",
+    model: "UV-K5 Firmware",
   };
 
   private _file?: File;
