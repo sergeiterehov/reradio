@@ -118,6 +118,8 @@
     "hello_voltage": "Voltage",
     "high_no_tx": "High voltage inhibit transmit",
     "high_no_tx_tooltip": "Blocks transmission if battery voltage is abnormally high (rarely used).",
+    "history": "History",
+    "history_is_empty": "Here, images of the latest read settings will be displayed, so you can always return to a certain point in the past.",
     "hz": "Hz",
     "id": "ID",
     "id_from_radio": "Radio ID",

@@ -23,6 +23,18 @@ export default defineConfig([
       "@typescript-eslint/no-namespace": "off",
       "@typescript-eslint/no-unused-vars": "warn",
       "no-control-regex": "off",
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        {
+          "args": "all",
+          "argsIgnorePattern": "^_",
+          "caughtErrors": "all",
+          "caughtErrorsIgnorePattern": "^_",
+          "destructuredArrayIgnorePattern": "^_",
+          "varsIgnorePattern": "^_",
+          "ignoreRestSiblings": true
+        }
+      ]
     }
   },
 ])

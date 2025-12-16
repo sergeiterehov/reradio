@@ -730,7 +730,7 @@ function ChannelMenuItems(props: { field: UI.Field.Channels; index: number }) {
   return (
     <>
       {!empty_value && (
-        <Menu.Item value="open" disabled={empty_value} onClick={() => Actions.openChannel(field, index)}>
+        <Menu.Item value="open" disabled={empty_value} onClick={() => Actions.openChannel(index, field)}>
           <TbLayoutSidebarRightExpand />
           {t("open")}
         </Menu.Item>
@@ -905,7 +905,7 @@ function ChannelButton(props: {
               } else if (e.shiftKey) {
                 Actions.setChannelSelection(index, true, field);
               } else if (!empty_value) {
-                Actions.openChannel(field, index);
+                Actions.openChannel(index, field);
               } else {
                 return;
               }

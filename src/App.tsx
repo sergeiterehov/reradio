@@ -14,27 +14,16 @@ import type { UI } from "@/utils/ui";
 import { useTranslation } from "react-i18next";
 import { Share } from "./components/Share";
 
-const urlRegex = /^#s\/(?<id>[a-zA-Z_0-9]+)$/;
-
 function App() {
   const radio = useStore(Store, (s) => s.radio);
-  const sharing = useStore(Store, (s) => s.sharing);
-  const active_task = useStore(Store, (s) => s.task !== undefined);
-
-  useEffect(() => {
-    if (!import.meta.env.VITE_CLOUD_API) return;
-
-    const hash = window.location.hash;
-    if (!hash) return;
-    const match = urlRegex.exec(hash);
-    if (!match) return;
-    const { id } = match.groups!;
-    if (!id) return;
-
-    Actions.fetchSharedSnapshot(id);
-  }, []);
+  const init = useStore(Store, (s) => s.init);
+  const task = useStore(Store, (s) => s.task);
 
   const { t } = useTranslation();
+
+  useEffect(() => {
+    Actions.init();
+  }, []);
 
   const [ui, setUI] = useState<UI.Root>();
   useEffect(() => {
@@ -93,12 +82,12 @@ function App() {
           <RadioSelector />
           <ButtonGroup variant="surface">
             <Tooltip content={t("download_from_radio")}>
-              <IconButton disabled={active_task} colorPalette="blue" rounded="full" onClick={() => Actions.download()}>
+              <IconButton disabled={Boolean(task)} colorPalette="blue" rounded="full" onClick={() => Actions.read()}>
                 <TbDeviceMobileSearch />
               </IconButton>
             </Tooltip>
             <Tooltip content={t("upload_to_radio")}>
-              <IconButton disabled={active_task} colorPalette="green" rounded="full" onClick={() => Actions.upload()}>
+              <IconButton disabled={Boolean(task)} colorPalette="green" rounded="full" onClick={() => Actions.write()}>
                 <TbDeviceMobileUp />
               </IconButton>
             </Tooltip>
@@ -109,32 +98,30 @@ function App() {
         {(() => {
           const fields = ui?.fields.filter((f) => f.type !== "none");
 
-          if (!fields?.length) {
-            if (sharing?.loading) {
-              return (
-                <HStack gap="5" alignItems="start">
-                  <Stack width={200} gap="5">
-                    <Skeleton height="8" width="90%" />
-                    <Skeleton height="8" width="60%" />
-                    <Skeleton height="8" width="80%" />
-                    <Skeleton height="8" width="40%" />
-                  </Stack>
-                  <HStack flex="1" gap="2" flexWrap="wrap">
-                    <Skeleton width="30%" height="80px" />
-                    <Skeleton width="30%" height="80px" />
-                    <Skeleton width="30%" height="80px" />
-                    <Skeleton width="30%" height="80px" />
-                    <Skeleton width="30%" height="80px" />
-                    <Skeleton width="30%" height="80px" />
-                    <Skeleton width="30%" height="80px" />
-                    <Skeleton width="30%" height="80px" />
-                  </HStack>
+          if (task || init !== "DONE") {
+            return (
+              <HStack gap="5" alignItems="start">
+                <Stack width={200} gap="5">
+                  <Skeleton height="8" width="90%" />
+                  <Skeleton height="8" width="60%" />
+                  <Skeleton height="8" width="80%" />
+                  <Skeleton height="8" width="40%" />
+                </Stack>
+                <HStack flex="1" gap="2" flexWrap="wrap">
+                  <Skeleton width="30%" height="80px" />
+                  <Skeleton width="30%" height="80px" />
+                  <Skeleton width="30%" height="80px" />
+                  <Skeleton width="30%" height="80px" />
+                  <Skeleton width="30%" height="80px" />
+                  <Skeleton width="30%" height="80px" />
+                  <Skeleton width="30%" height="80px" />
+                  <Skeleton width="30%" height="80px" />
                 </HStack>
-              );
-            }
-
-            return <Hello />;
+              </HStack>
+            );
           }
+
+          if (!fields?.length) return <Hello />;
 
           const tabs = [...new Set(fields.map((f) => f.tab))];
 
