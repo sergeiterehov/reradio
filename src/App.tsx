@@ -10,26 +10,19 @@ import { useEffect, useState } from "react";
 import { Toaster, toaster } from "./components/ui/toaster";
 import { TaskProgress } from "./components/TaskProgress";
 import { Tooltip } from "./components/ui/tooltip";
-import type { UI } from "@/utils/ui";
 import { useTranslation } from "react-i18next";
 import { Share } from "./components/Share";
 
 function App() {
-  const radio = useStore(Store, (s) => s.radio);
   const init = useStore(Store, (s) => s.init);
   const task = useStore(Store, (s) => s.task);
+  const ui = useStore(Store, (s) => s.ui);
 
   const { t } = useTranslation();
 
   useEffect(() => {
     Actions.init();
   }, []);
-
-  const [ui, setUI] = useState<UI.Root>();
-  useEffect(() => {
-    setUI(radio.ui());
-    return radio.subscribe_ui_change(() => setUI(radio.ui()));
-  }, [radio]);
 
   const [activeTab, setActiveTab] = useState<string>("");
   useEffect(() => {

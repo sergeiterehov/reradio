@@ -1,16 +1,29 @@
 import { Library } from "@/drivers/library";
 import type { Radio } from "@/drivers/radio";
 import { Actions, Store } from "@/store";
-import { Box, createListCollection, HStack, Portal, Select, Separator, Stack, Tabs, Text } from "@chakra-ui/react";
+import {
+  Box,
+  Button,
+  createListCollection,
+  HStack,
+  IconButton,
+  Portal,
+  Select,
+  Separator,
+  Stack,
+  Tabs,
+  Text,
+} from "@chakra-ui/react";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { TbHistory } from "react-icons/tb";
+import { TbHistory, TbPlus, TbTrash } from "react-icons/tb";
 import { useStore } from "zustand";
 
 function HistoryList() {
   const { t } = useTranslation();
 
   const history = useStore(Store, (s) => s.history);
+  const ui = useStore(Store, (s) => s.ui);
 
   const radios = new Map(Library.map((R) => [R.Info.id, R]));
 
@@ -19,20 +32,41 @@ function HistoryList() {
   }, []);
 
   return (
-    <Stack>
-      {history.length === 0 && (
-        <Box color="fg.subtle" p="4" rounded="lg" textAlign="center">
-          {t("history_is_empty")}
-        </Box>
-      )}
-      {history.map((img) => {
-        const R = radios.get(img.radio_id);
-        if (!R) return null;
+    <Select.Context>
+      {(select) => (
+        <Stack>
+          <HStack mb="1">
+            <Button
+              flexGrow="1"
+              variant="outline"
+              rounded="lg"
+              disabled={!ui?.fields.length}
+              onClick={() => Actions.saveHistory()}
+            >
+              <TbPlus />
+              {t("history_save_current_state")}
+            </Button>
+            <IconButton
+              variant="outline"
+              rounded="lg"
+              disabled={history.length === 0}
+              onClick={() => confirm() && Actions.clearHistory()}
+            >
+              <TbTrash />
+            </IconButton>
+          </HStack>
+          {history.length === 0 && (
+            <Box color="fg.subtle" p="4" rounded="lg" textAlign="center">
+              {t("history_is_empty")}
+            </Box>
+          )}
+          {history.map((img) => {
+            const R = radios.get(img.radio_id);
+            if (!R) return null;
 
-        return (
-          <Select.Context key={img.id}>
-            {(select) => (
+            return (
               <HStack
+                key={img.id}
                 bg="bg.subtle"
                 p="2"
                 rounded="lg"
@@ -49,11 +83,11 @@ function HistoryList() {
                   {new Date(img.timestamp).toLocaleString()}
                 </Text>
               </HStack>
-            )}
-          </Select.Context>
-        );
-      })}
-    </Stack>
+            );
+          })}
+        </Stack>
+      )}
+    </Select.Context>
   );
 }
 

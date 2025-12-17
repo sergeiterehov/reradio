@@ -8,7 +8,7 @@ import YaMetrika from "./YaMetrika";
 import type { UI } from "./utils/ui";
 import { clipboardReplaceChannel, clipboardWriteChannels } from "./utils/serialize";
 import { serial } from "./utils/serial";
-import { history_add, history_all_short, history_get, sharing_put, type ImageRecord } from "./db";
+import { history_add, history_all_short, history_clear, history_get, sharing_put, type ImageRecord } from "./db";
 import { gzip_compress, gzip_decompress } from "./utils/gzip";
 
 enableMapSet();
@@ -24,6 +24,7 @@ export type Store = {
   radio: Radio;
   task?: "READ" | "WRITE" | "LOAD" | "UPLOAD" | "SHARE" | "FETCH_SHARED";
   progress?: number;
+  ui?: UI.Root;
 
   sharing?: FetchState<string>;
   history: Omit<ImageRecord, "snapshot">[];
@@ -44,11 +45,26 @@ const _makeSharedLink = (id: string) => {
 };
 
 let _unsubscribe_progress: () => void;
+let _unsubscribe_ui_change: () => void;
 
 const _get = Store.getState;
 const _set = Store.setState;
 
-const _handleProgress = (k: number, _step?: string) => _set({ progress: k });
+const _handle_progress = (k: number, _step?: string) => _set({ progress: k });
+
+const _handle_ui_change = () => _set({ ui: _get().radio.ui() });
+
+const _setRadio = (radio: Radio) => {
+  _unsubscribe_progress?.();
+  _unsubscribe_ui_change?.();
+
+  _unsubscribe_progress = radio.subscribe_progress(_handle_progress);
+  _unsubscribe_ui_change = radio.subscribe_ui_change(_handle_ui_change);
+
+  _set({ radio });
+
+  _handle_ui_change();
+};
 
 const _clearTask = () => _set({ task: undefined, progress: undefined });
 
@@ -100,16 +116,7 @@ const _tryLastOpened = async () => {
   return true;
 };
 
-const _storeLastRead = async () => {
-  const { radio } = _get();
-  const img = await radio.upload();
-
-  const history_id = await history_add({
-    timestamp: Date.now(),
-    radio_id: radio.info.id,
-    snapshot: img.snapshot,
-    version: img.version,
-  });
+const _storeLastHistoryId = async (history_id: string) => {
   sessionStorage.setItem(LAST_READ_KEY, history_id);
   localStorage.setItem(LAST_READ_KEY, history_id);
 };
@@ -159,7 +166,7 @@ export const Actions = {
       _clearTask();
     }
 
-    await _storeLastRead();
+    await Actions.saveHistory();
   },
 
   write: async () => {
@@ -191,10 +198,7 @@ export const Actions = {
     _clear_sharing();
 
     const newRadio = new RadioClass();
-    _unsubscribe_progress();
-    _unsubscribe_progress = newRadio.subscribe_progress(_handleProgress);
-
-    _set({ radio: newRadio });
+    _setRadio(newRadio);
   },
 
   fetchSharedLink: async () => {
@@ -290,8 +294,7 @@ export const Actions = {
       if (!RadioClass) throw new Error("Radio driver not found");
 
       const newRadio = new RadioClass();
-      _unsubscribe_progress();
-      _unsubscribe_progress = newRadio.subscribe_progress(_handleProgress);
+      _setRadio(newRadio);
 
       const link = _makeSharedLink(id);
 
@@ -319,6 +322,29 @@ export const Actions = {
     Actions.changeRadio(Class);
     const { radio } = _get();
     radio.load(Buffer.from(img.snapshot), img.version);
+
+    _storeLastHistoryId(id);
+  },
+
+  saveHistory: async () => {
+    const { radio } = _get();
+    const { snapshot, version } = await radio.upload();
+
+    const history_id = await history_add({
+      radio_id: radio.info.id,
+      version,
+      timestamp: Date.now(),
+      snapshot,
+    });
+
+    _storeLastHistoryId(history_id);
+
+    await Actions.refreshHistory();
+  },
+
+  clearHistory: async () => {
+    await history_clear();
+    await Actions.refreshHistory();
   },
 
   clearChannelSelection: (channels: UI.Field.Channels) => {
@@ -493,5 +519,5 @@ export const Actions = {
   };
 
   _set(initialState);
-  _unsubscribe_progress = radio.subscribe_progress(_handleProgress);
+  _setRadio(radio);
 }

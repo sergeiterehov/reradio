@@ -47,6 +47,11 @@ async function get_db() {
   return db;
 }
 
+export async function history_clear() {
+  const db = await get_db();
+  await db.clear("images");
+}
+
 export async function history_add(record: Omit<ImageRecord, "id">) {
   const db = await get_db();
 

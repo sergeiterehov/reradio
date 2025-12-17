@@ -120,6 +120,7 @@
     "high_no_tx_tooltip": "Blocks transmission if battery voltage is abnormally high (rarely used).",
     "history": "History",
     "history_is_empty": "Here, images of the latest read settings will be displayed, so you can always return to a certain point in the past.",
+    "history_save_current_state": "Save current settings",
     "hz": "Hz",
     "id": "ID",
     "id_from_radio": "Radio ID",
