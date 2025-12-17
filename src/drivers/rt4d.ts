@@ -618,7 +618,7 @@ export class RT4DRadio extends Radio {
             options: ["NFM", "FM", "AM", "SSB"],
             get: (i) => {
               const mode = channels[i].amfm.get();
-              const band = channels[i].amfm.get();
+              const band = channels[i].band.get();
 
               if (mode === 0 && band === 1) return 0;
 
