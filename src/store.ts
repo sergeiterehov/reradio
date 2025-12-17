@@ -35,11 +35,11 @@ export type Store = {
 
 export const Store = createStore<Store>()(immer((_) => ({} as Store)));
 
-const _urlSharedRegex = /^#s\/(?<id>[a-zA-Z0-9_-]+)$/;
+const _urlSharedRegex = /^\/s\/(?<id>[a-zA-Z0-9_-]+)$/;
 
 const _makeSharedLink = (id: string) => {
-  const hash = `#s/${id}`;
-  const link = `${window.location.origin}/${hash}`;
+  const pathname = `s/${id}`;
+  const link = `${window.location.origin}/${pathname}`;
   return link;
 };
 
@@ -56,7 +56,7 @@ const _clear_sharing = () => {
   if (!CLOUD) return;
 
   _set({ sharing: undefined });
-  history.replaceState(null, "", location.pathname + location.search);
+  history.replaceState(null, "", "/");
 };
 
 const _useSelection = (index: number, channels: UI.Field.Channels): { indexes: number[]; multiselect: boolean } => {
@@ -73,7 +73,7 @@ const _useSelection = (index: number, channels: UI.Field.Channels): { indexes: n
 const _trySharedLink = () => {
   if (!CLOUD) return;
 
-  const hash = window.location.hash;
+  const hash = window.location.pathname;
   if (!hash) return;
   const match = _urlSharedRegex.exec(hash);
   if (!match) return;
@@ -249,8 +249,7 @@ export const Actions = {
       const link = _makeSharedLink(data.id);
 
       _set({ sharing: { loading: false, result: link }, task: undefined });
-      const url = new URL(link);
-      window.location.hash = url.hash;
+      window.history.replaceState(null, "", new URL(link));
 
       await sharing_put({
         id: data.id,
