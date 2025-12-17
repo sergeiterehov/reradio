@@ -9,10 +9,12 @@ import type { UI } from "./utils/ui";
 import { clipboardReplaceChannel, clipboardWriteChannels } from "./utils/serialize";
 import { serial } from "./utils/serial";
 import { history_add, history_all_short, history_get, sharing_put, type ImageRecord } from "./db";
+import { gzip_compress, gzip_decompress } from "./utils/gzip";
 
 enableMapSet();
 
 const LAST_READ_KEY = "last_read";
+const CLOUD = import.meta.env.VITE_CLOUD_API;
 
 type FetchState<T> = { loading: true } | { loading: false; result: T } | { loading: false; error: unknown };
 
@@ -33,7 +35,7 @@ export type Store = {
 
 export const Store = createStore<Store>()(immer((_) => ({} as Store)));
 
-const _urlSharedRegex = /^#s\/(?<id>[a-zA-Z_0-9]+)$/;
+const _urlSharedRegex = /^#s\/(?<id>[a-zA-Z0-9_-]+)$/;
 
 const _makeSharedLink = (id: string) => {
   const hash = `#s/${id}`;
@@ -51,7 +53,7 @@ const _handleProgress = (k: number, _step?: string) => _set({ progress: k });
 const _clearTask = () => _set({ task: undefined, progress: undefined });
 
 const _clear_sharing = () => {
-  if (!import.meta.env.VITE_CLOUD_API) return;
+  if (!CLOUD) return;
 
   _set({ sharing: undefined });
   window.location.hash = "";
@@ -69,7 +71,7 @@ const _useSelection = (index: number, channels: UI.Field.Channels): { indexes: n
 };
 
 const _trySharedLink = () => {
-  if (!import.meta.env.VITE_CLOUD_API) return;
+  if (!CLOUD) return;
 
   const hash = window.location.hash;
   if (!hash) return;
@@ -196,7 +198,7 @@ export const Actions = {
   },
 
   fetchSharedLink: async () => {
-    if (!import.meta.env.VITE_CLOUD_API) return;
+    if (!CLOUD) return;
 
     const { radio, task } = _get();
 
@@ -208,10 +210,24 @@ export const Actions = {
 
     try {
       const { snapshot, version } = await radio.upload();
-      const formData = new FormData();
-      formData.append("file", new Blob([snapshot]));
-      formData.append("meta", JSON.stringify({ radio_id: radio.info.id, radio_version: version }));
-      const res = await fetch(`${import.meta.env.VITE_CLOUD_API}/upload`, { method: "POST", body: formData });
+
+      const meta = Buffer.from(
+        JSON.stringify({
+          version: 1,
+          radio_id: radio.info.id,
+          radio_version: version,
+        }),
+        "utf8"
+      );
+      const gzip = await gzip_compress(snapshot);
+
+      const payload = Buffer.alloc(1 + 2 + meta.length + gzip.length);
+      payload.writeUInt8(1, 0);
+      payload.writeUInt16LE(meta.length, 1);
+      meta.copy(payload, 3);
+      gzip.copy(payload, 3 + meta.length);
+
+      const res = await fetch(`${CLOUD}/share`, { method: "POST", body: payload });
 
       if (res.status !== 200) {
         try {
@@ -243,30 +259,32 @@ export const Actions = {
   },
 
   fetchSharedSnapshot: async (id: string) => {
-    if (!import.meta.env.VITE_CLOUD_API) return;
+    if (!CLOUD) return;
 
     if (_get().task) return;
 
     _set({ sharing: { loading: true }, task: "FETCH_SHARED" });
     try {
-      const res_metadata = await fetch(`${import.meta.env.VITE_CLOUD_API}/metadata/${id}`, { method: "GET" });
-      if (res_metadata.status !== 200) throw new Error(res_metadata.statusText);
+      const res = await fetch(`${CLOUD}/s/${id}`, { method: "GET" });
+      if (res.status !== 200) throw new Error(res.statusText);
+
+      const raw = Buffer.from(await res.bytes());
+      if (raw.readUInt8(0) !== 1) throw new Error("Unknown file version");
+
+      const meta_len = raw.readUInt16LE(1);
 
       const meta: {
         version: number;
         radio_id: string;
         radio_version: number;
-        create_at: number;
-        gz_level: number;
-      } = await res_metadata.json();
+      } = JSON.parse(raw.slice(3, 3 + meta_len).toString("utf8"));
+      if (meta.version !== 1) throw new Error("Unknown meta version");
+
+      const gzip = raw.slice(3 + meta_len);
+      const snapshot = await gzip_decompress(gzip);
 
       const RadioClass = Library.find((R) => R.Info.id === meta.radio_id);
       if (!RadioClass) throw new Error("Radio driver not found");
-
-      const res_snapshot = await fetch(`${import.meta.env.VITE_CLOUD_API}/file/${id}`, { method: "GET" });
-      if (res_metadata.status !== 200) throw new Error(res_metadata.statusText);
-
-      const snapshot = Buffer.from(await res_snapshot.bytes());
 
       const newRadio = new RadioClass();
       _unsubscribe_progress();
