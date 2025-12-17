@@ -1,5 +1,5 @@
 import { useStore } from "zustand";
-import { ButtonGroup, Fieldset, HStack, Icon, IconButton, Stack, Tabs, Text } from "@chakra-ui/react";
+import { ButtonGroup, Fieldset, HStack, Icon, IconButton, Skeleton, Stack, Tabs, Text } from "@chakra-ui/react";
 import { TbDeviceMobileSearch, TbDeviceMobileUp, TbRadar2 } from "react-icons/tb";
 import { Actions, Store } from "./store";
 import { AnyField } from "./components/fields/AnyField";
@@ -10,20 +10,19 @@ import { useEffect, useState } from "react";
 import { Toaster, toaster } from "./components/ui/toaster";
 import { TaskProgress } from "./components/TaskProgress";
 import { Tooltip } from "./components/ui/tooltip";
-import type { UI } from "@/utils/ui";
 import { useTranslation } from "react-i18next";
+import { Share } from "./components/Share";
 
 function App() {
-  const radio = useStore(Store, (s) => s.radio);
-  const active_task = useStore(Store, (s) => s.task !== undefined);
+  const init = useStore(Store, (s) => s.init);
+  const task = useStore(Store, (s) => s.task);
+  const ui = useStore(Store, (s) => s.ui);
 
   const { t } = useTranslation();
 
-  const [ui, setUI] = useState<UI.Root>();
   useEffect(() => {
-    setUI(radio.ui());
-    return radio.subscribe_ui_change(() => setUI(radio.ui()));
-  }, [radio]);
+    Actions.init();
+  }, []);
 
   const [activeTab, setActiveTab] = useState<string>("");
   useEffect(() => {
@@ -76,20 +75,44 @@ function App() {
           <RadioSelector />
           <ButtonGroup variant="surface">
             <Tooltip content={t("download_from_radio")}>
-              <IconButton disabled={active_task} colorPalette="blue" rounded="full" onClick={() => Actions.download()}>
+              <IconButton disabled={Boolean(task)} colorPalette="blue" rounded="full" onClick={() => Actions.read()}>
                 <TbDeviceMobileSearch />
               </IconButton>
             </Tooltip>
             <Tooltip content={t("upload_to_radio")}>
-              <IconButton disabled={active_task} colorPalette="green" rounded="full" onClick={() => Actions.upload()}>
+              <IconButton disabled={Boolean(task)} colorPalette="green" rounded="full" onClick={() => Actions.write()}>
                 <TbDeviceMobileUp />
               </IconButton>
             </Tooltip>
+            {import.meta.env.VITE_CLOUD_API && ui && ui.fields.length > 0 && <Share />}
           </ButtonGroup>
           <TaskProgress />
         </HStack>
         {(() => {
           const fields = ui?.fields.filter((f) => f.type !== "none");
+
+          if (task || init !== "DONE") {
+            return (
+              <HStack gap="5" alignItems="start">
+                <Stack width={200} gap="5">
+                  <Skeleton height="8" width="90%" />
+                  <Skeleton height="8" width="60%" />
+                  <Skeleton height="8" width="80%" />
+                  <Skeleton height="8" width="40%" />
+                </Stack>
+                <HStack flex="1" gap="2" flexWrap="wrap">
+                  <Skeleton width="30%" height="80px" />
+                  <Skeleton width="30%" height="80px" />
+                  <Skeleton width="30%" height="80px" />
+                  <Skeleton width="30%" height="80px" />
+                  <Skeleton width="30%" height="80px" />
+                  <Skeleton width="30%" height="80px" />
+                  <Skeleton width="30%" height="80px" />
+                  <Skeleton width="30%" height="80px" />
+                </HStack>
+              </HStack>
+            );
+          }
 
           if (!fields?.length) return <Hello />;
 

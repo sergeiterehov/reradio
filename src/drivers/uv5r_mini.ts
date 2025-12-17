@@ -67,6 +67,7 @@ function _crypto(symbolIndex: number, buffer: Buffer): Buffer {
 
 export class UV5RMiniRadio extends Radio {
   static override Info: RadioInfo = {
+    id: "uv5rmini",
     vendor: "Baofeng",
     model: "UV-5R Mini",
   };
@@ -518,6 +519,11 @@ export class UV5RMiniRadio extends Radio {
     this._img = snapshot;
     this._mem = mem;
     this.dispatch_ui_change();
+  }
+
+  override async upload() {
+    if (!this._img) throw new Error("No data");
+    return { version: 0, snapshot: Buffer.from(this._img) };
   }
 
   override async read() {

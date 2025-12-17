@@ -57,6 +57,7 @@ const KEY_FUNCTIONS = [
 
 export class TK11Radio extends QuanshengBaseRadio {
   static Info: RadioInfo = {
+    id: "tk11",
     vendor: "Quansheng",
     model: "TK11",
   };
@@ -631,6 +632,11 @@ export class TK11Radio extends QuanshengBaseRadio {
     this._img = snapshot;
     this._mem = mem;
     this.dispatch_ui_change();
+  }
+
+  override async upload() {
+    if (!this._img) throw new Error("No data");
+    return { version: 0, snapshot: Buffer.from(this._img) };
   }
 
   override async read() {

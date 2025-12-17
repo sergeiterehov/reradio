@@ -1,7 +1,6 @@
 import { Demos } from "@/drivers/library";
-import { Actions, Store } from "@/store";
-import { Button, Heading, HStack, IconButton, Link, Stack, Tabs, Text } from "@chakra-ui/react";
-import { Buffer } from "buffer";
+import { Actions } from "@/store";
+import { Button, HStack, IconButton, Link, Stack, Text } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";
 import { TbBrandGithub, TbBrandTelegram } from "react-icons/tb";
 
@@ -15,6 +14,7 @@ export function Hello() {
           <Stack>
             {[...Demos.keys()].map((R, i, all) => (
               <Button
+                key={i}
                 variant="subtle"
                 rounded="xl"
                 height="auto"
@@ -22,11 +22,7 @@ export function Hello() {
                 px="3"
                 justifyContent="start"
                 style={{ opacity: 1 - i / all.length }}
-                onClick={async () => {
-                  Actions.changeRadio(R);
-                  const radio = Store.getState().radio;
-                  Demos.get(R)!().then(({ default: img }) => radio.load(Buffer.from(img, "hex")));
-                }}
+                onClick={() => Actions.loadDemo(R)}
               >{`${R.Info.vendor} ${R.Info.model}`}</Button>
             ))}
           </Stack>

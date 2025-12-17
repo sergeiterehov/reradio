@@ -14,6 +14,7 @@ const MEM_SIZE = 0x03e0;
 
 export class BF888Radio extends Radio {
   static override Info: RadioInfo = {
+    id: "bf888",
     vendor: "Baofeng",
     model: "BF-888",
   };
@@ -127,6 +128,11 @@ export class BF888Radio extends Radio {
     this._img = snapshot;
     this._mem = this._parse(this._img);
     this.dispatch_ui_change();
+  }
+
+  override async upload() {
+    if (!this._img) throw new Error("No data");
+    return { version: 0, snapshot: Buffer.from(this._img) };
   }
 
   protected async _enter_programming_mode() {

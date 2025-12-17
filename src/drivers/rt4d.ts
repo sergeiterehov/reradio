@@ -173,6 +173,7 @@ function checksum(buf: Buffer, offset: number = 0, length: number = buf.length) 
 
 export class RT4DRadio extends Radio {
   static override Info: RadioInfo = {
+    id: "rt4d",
     vendor: "Radtel",
     model: "RT-4D V3",
   };
@@ -1332,6 +1333,11 @@ export class RT4DRadio extends Radio {
     this._mem = mem;
 
     this.dispatch_ui_change();
+  }
+
+  override async upload() {
+    if (!this._img) throw new Error("No data");
+    return { version: 0, snapshot: Buffer.from(this._img) };
   }
 
   async read() {

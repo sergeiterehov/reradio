@@ -8,6 +8,7 @@ import { t } from "i18next";
 
 export class BFC50Radio extends BaseT18ProtocolRadio {
   static Info: RadioInfo = {
+    id: "bfc55",
     vendor: "Baofeng",
     model: "BF-C50",
   };
