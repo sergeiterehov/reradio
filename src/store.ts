@@ -56,7 +56,7 @@ const _clear_sharing = () => {
   if (!CLOUD) return;
 
   _set({ sharing: undefined });
-  window.location.hash = "";
+  history.replaceState(null, "", location.pathname + location.search);
 };
 
 const _useSelection = (index: number, channels: UI.Field.Channels): { indexes: number[]; multiselect: boolean } => {
