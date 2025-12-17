@@ -227,7 +227,11 @@ export const Actions = {
       meta.copy(payload, 3);
       gzip.copy(payload, 3 + meta.length);
 
-      const res = await fetch(`${CLOUD}/share`, { method: "POST", body: payload });
+      const res = await fetch(`${CLOUD}/share`, {
+        method: "POST",
+        body: payload,
+        headers: [["Content-Type", "application/octet-stream"]],
+      });
 
       if (res.status !== 200) {
         try {
@@ -265,7 +269,7 @@ export const Actions = {
 
     _set({ sharing: { loading: true }, task: "FETCH_SHARED" });
     try {
-      const res = await fetch(`${CLOUD}/s/${id}`, { method: "GET" });
+      const res = await fetch(`${CLOUD}/share/${id}`, { method: "GET" });
       if (res.status !== 200) throw new Error(res.statusText);
 
       const raw = Buffer.from(await res.bytes());
