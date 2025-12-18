@@ -8,7 +8,16 @@ import YaMetrika from "./YaMetrika";
 import type { UI } from "./utils/ui";
 import { clipboardReplaceChannel, clipboardWriteChannels } from "./utils/serialize";
 import { serial } from "./utils/serial";
-import { history_add, history_all_short, history_clear, history_get, sharing_put, type ImageRecord } from "./db";
+import {
+  history_add,
+  history_all_short,
+  history_clear,
+  history_delete,
+  history_get,
+  history_patch,
+  sharing_put,
+  type ImageRecord,
+} from "./db";
 import { gzip_compress, gzip_decompress } from "./utils/gzip";
 
 enableMapSet();
@@ -345,6 +354,26 @@ export const Actions = {
   clearHistory: async () => {
     await history_clear();
     await Actions.refreshHistory();
+  },
+
+  renameHistoryItem: async (id: string, name: string) => {
+    _set((s) => {
+      const item = s.history.find((h) => h.id === id);
+      if (!item) return;
+      item.name = name;
+    });
+
+    await history_patch(id, { name });
+  },
+
+  deleteHistoryItem: async (id: string) => {
+    _set((s) => {
+      const index = s.history.findIndex((h) => h.id === id);
+      if (index === -1) return;
+      s.history.splice(index, 1);
+    });
+
+    await history_delete(id);
   },
 
   clearChannelSelection: (channels: UI.Field.Channels) => {

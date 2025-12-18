@@ -802,7 +802,7 @@ function ChannelMenuItems(props: { field: UI.Field.Channels; index: number }) {
           onClick={() => Actions.delete(index, field)}
         >
           <TbTrash />
-          {t("delete_channel")}
+          {t("delete")}
         </Menu.Item>
       )}
     </>

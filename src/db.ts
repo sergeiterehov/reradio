@@ -98,6 +98,19 @@ export async function history_get(id: ImageRecord["id"]) {
   return await db.get("images", id);
 }
 
+export async function history_patch(id: ImageRecord["id"], patch: Partial<ImageRecord>) {
+  const db = await get_db();
+  const current = await db.get("images", id);
+  if (!current) return;
+
+  await db.put("images", { ...current, ...patch, id });
+}
+
+export async function history_delete(id: ImageRecord["id"]) {
+  const db = await get_db();
+  await db.delete("images", id);
+}
+
 export async function sharing_put(record: SharingRecord) {
   const db = await get_db();
 

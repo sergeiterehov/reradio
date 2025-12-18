@@ -7,6 +7,7 @@ import {
   createListCollection,
   HStack,
   IconButton,
+  Menu,
   Portal,
   Select,
   Separator,
@@ -14,9 +15,9 @@ import {
   Tabs,
   Text,
 } from "@chakra-ui/react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { TbHistory, TbPlus, TbTrash } from "react-icons/tb";
+import { TbHistory, TbPlus, TbTextSpellcheck, TbTrash } from "react-icons/tb";
 import { useStore } from "zustand";
 
 function HistoryList() {
@@ -27,6 +28,8 @@ function HistoryList() {
 
   const radios = new Map(Library.map((R) => [R.Info.id, R]));
 
+  const [active_id, setActive_id] = useState<string>();
+
   useEffect(() => {
     Actions.refreshHistory();
   }, []);
@@ -34,58 +37,95 @@ function HistoryList() {
   return (
     <Select.Context>
       {(select) => (
-        <Stack>
-          <HStack mb="1">
-            <Button
-              flexGrow="1"
-              variant="outline"
-              rounded="lg"
-              disabled={!ui?.fields.length}
-              onClick={() => Actions.saveHistory()}
-            >
-              <TbPlus />
-              {t("history_save_current_state")}
-            </Button>
-            <IconButton
-              variant="outline"
-              rounded="lg"
-              disabled={history.length === 0}
-              onClick={() => confirm() && Actions.clearHistory()}
-            >
-              <TbTrash />
-            </IconButton>
-          </HStack>
-          {history.length === 0 && (
-            <Box color="fg.subtle" p="4" rounded="lg" textAlign="center">
-              {t("history_is_empty")}
-            </Box>
-          )}
-          {history.map((img) => {
-            const R = radios.get(img.radio_id);
-            if (!R) return null;
+        <Menu.Root unmountOnExit lazyMount>
+          <Menu.Context>
+            {(menu) => (
+              <Stack>
+                <HStack mb="1">
+                  <Button
+                    flexGrow="1"
+                    variant="outline"
+                    rounded="lg"
+                    disabled={!ui?.fields.length}
+                    onClick={() => Actions.saveHistory()}
+                  >
+                    <TbPlus />
+                    {t("history_save_current_state")}
+                  </Button>
+                  <IconButton
+                    variant="outline"
+                    rounded="lg"
+                    disabled={history.length === 0}
+                    onClick={() => confirm() && Actions.clearHistory()}
+                  >
+                    <TbTrash />
+                  </IconButton>
+                </HStack>
+                {history.length === 0 && (
+                  <Box color="fg.subtle" p="4" rounded="lg" textAlign="center">
+                    {t("history_is_empty")}
+                  </Box>
+                )}
+                {history.map((img) => {
+                  const R = radios.get(img.radio_id);
+                  if (!R) return null;
 
-            return (
-              <HStack
-                key={img.id}
-                bg="bg.subtle"
-                p="2"
-                rounded="lg"
-                cursor="pointer"
-                _hover={{ bg: "bg.muted" }}
+                  return (
+                    <Button
+                      key={img.id}
+                      {...menu.getContextTriggerProps()}
+                      aria-expanded={menu.open && active_id === img.id}
+                      onMouseDown={() => setActive_id(img.id)}
+                      variant="subtle"
+                      textAlign="start"
+                      p="2"
+                      rounded="lg"
+                      data-state="open"
+                      overflow="hidden"
+                      _open={{ animation: "fade-in 300ms ease-out" }}
+                      onClick={() => {
+                        Actions.openFromHistory(img.id);
+                        select.setOpen(false);
+                      }}
+                    >
+                      {img.name ? <Text truncate>{img.name}</Text> : null}
+                      <Text flexGrow="1" fontWeight="normal">{`${R.Info.vendor} ${R.Info.model}`}</Text>
+                      <Text color="fg.subtle" fontSize="xs">
+                        {new Date(img.timestamp).toLocaleString()}
+                      </Text>
+                    </Button>
+                  );
+                })}
+              </Stack>
+            )}
+          </Menu.Context>
+          <Menu.Positioner>
+            <Menu.Content>
+              <Menu.Item
+                value="rename"
                 onClick={() => {
-                  Actions.openFromHistory(img.id);
-                  select.setOpen(false);
+                  const active = history.find((h) => h.id === active_id);
+                  if (!active) return;
+                  const newName = prompt("New name", active.name);
+                  if (newName === null) return;
+                  Actions.renameHistoryItem(active.id, newName);
                 }}
               >
-                {img.name ? <Text>{img.name}</Text> : null}
-                <Text flexGrow="1">{`${R.Info.vendor} ${R.Info.model}`}</Text>
-                <Text color="fg.subtle" fontSize="xs">
-                  {new Date(img.timestamp).toLocaleString()}
-                </Text>
-              </HStack>
-            );
-          })}
-        </Stack>
+                <TbTextSpellcheck />
+                {t("rename")}
+              </Menu.Item>
+              <Menu.Item
+                value="delete"
+                color="fg.error"
+                _hover={{ bg: "bg.error", color: "fg.error" }}
+                onClick={() => active_id && confirm() && Actions.deleteHistoryItem(active_id)}
+              >
+                <TbTrash />
+                {t("delete")}
+              </Menu.Item>
+            </Menu.Content>
+          </Menu.Positioner>
+        </Menu.Root>
       )}
     </Select.Context>
   );
@@ -109,6 +149,8 @@ export function RadioSelector() {
 
   return (
     <Select.Root
+      unmountOnExit
+      lazyMount
       collection={radios}
       value={[Library.indexOf(radio.constructor as typeof Radio).toString()]}
       onValueChange={(e) => {
@@ -135,7 +177,7 @@ export function RadioSelector() {
               unmountOnExit
               variant="line"
               orientation="vertical"
-              css={{ "& .chakra-tabs__content": { flexGrow: 1, p: 4 } }}
+              css={{ "& .chakra-tabs__content": { flexGrow: 1, p: 4, overflow: "hidden" } }}
             >
               <Tabs.List py="4">
                 <Tabs.Trigger value="history">
