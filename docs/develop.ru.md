@@ -126,7 +126,7 @@ export class NewRadio extends Radio {
           },
         },
 
-        common_ui.sql(settings2.squelch_level, { min: 0, max: 9 }),
+        common_ui.sql(settings.squelch_level, { min: 0, max: 9 }),
       ],
     };
   }
@@ -160,8 +160,8 @@ export class NewRadio extends Radio {
     const ack = await serial.read(1);
     if (ack[0] !== 0x06) throw new Error("No ACK");
 
-    const img = Buffer.concat(blocks);
-    this.load(img);
+    const img = await serial.read(2048);
+    this.load(img, 0);
 
     this.dispatch_progress(1);
   }
