@@ -1,5 +1,5 @@
 import { Buffer } from "buffer";
-import { Radio, type RadioInfo } from "./radio";
+import { Radio, type RadioInfo } from "./_radio";
 import { hex } from "@/utils/radio";
 import { serial } from "@/utils/serial";
 

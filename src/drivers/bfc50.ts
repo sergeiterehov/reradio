@@ -1,5 +1,5 @@
 import { Buffer } from "buffer";
-import type { RadioInfo } from "./radio";
+import type { RadioInfo } from "./_radio";
 import { common_ui } from "@/utils/common_ui";
 import { create_mem_mapper, array_of } from "@/utils/mem";
 import { BaseT18ProtocolRadio } from "./radtel_t18";

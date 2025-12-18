@@ -1,5 +1,5 @@
 import type { UI } from "@/utils/ui";
-import { Radio, type RadioInfo } from "./radio";
+import { Radio, type RadioInfo } from "./_radio";
 import { serial } from "@/utils/serial";
 import { Buffer } from "buffer";
 import { common_ui, modify_field, UITab } from "@/utils/common_ui";

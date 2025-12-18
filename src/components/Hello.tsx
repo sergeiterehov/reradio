@@ -1,4 +1,4 @@
-import { Demos } from "@/drivers/library";
+import { Demos } from "@/demo";
 import { Actions } from "@/store";
 import { Button, HStack, IconButton, Link, Stack, Text } from "@chakra-ui/react";
 import { useTranslation } from "react-i18next";

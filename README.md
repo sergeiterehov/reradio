@@ -4,14 +4,6 @@
 
 ![ReRadio screenshot](docs/demo.png)
 
-## Только Chromium
-
-ReRadio возможен только потому, что в браузерах на базе Chromium есть поддержка [Web Serial API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Serial_API). Именно этот протокол используется для общения с радиостанциями.
-
-- Google Chrome
-- Microsoft Edge
-- Opera
-
 ## Проблема или вопрос?
 
 Создай Issue на GitHub!
@@ -20,11 +12,8 @@ ReRadio возможен только потому, что в браузерах
 
 Запросы на добавление новых станций тоже принимаются.
 
-## English?
-
-![do you speak it?](https://media.tenor.com/VeuRoHHjyFAAAAAM/english-motherfucker.gif)
-
-Until an international developer community emerges, the source code will remain in Russian.
+- Следи за обновлениями в [Telegram](https://t.me/reradio)
+- Напиши автору [напрямую](https://t.me/sergeiterehov)
 
 ## Common UI: понятный интерфейс
 
@@ -46,24 +35,35 @@ Until an international developer community emerges, the source code will remain 
 
 Остальные языки могут быть добавлены по необходимости.
 
+## Ограничения
+
+ReRadio возможен только потому, что в браузерах на базе Chromium есть поддержка [Web Serial API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Serial_API). Именно этот протокол используется для общения с радиостанциями.
+
+- Google Chrome
+- Microsoft Edge
+- Opera
+
+### Драйвера и операционные системы
+
+Реализация API может отличаться в разных операционных системах. Это приводит к тому, что некоторые рации будут работать в одной ОС, и не будут - в другой.
+
+Природа пока ясна не до конца. Например, Baofeng UV-5R Mini не работает в Google Chrome на MacOS.
+
 ## Как добавить станцию?
+
+Вступай в ряды разработчиков! \
+Не бойся трудностей, если раньше не писал на TypeScript. Если будут вопросы по реализации, пиши о них в issue.
+
+[Подробная инструкция](docs/develop.ru.md)
 
 Все драйвера находятся в папке `src/drivers`. Посмотри, как реализованы другие простые станции, чтобы понять принцип разработки. Хороший пример - Baofeng BF-888 `src/drivers/bf888.ts`.
 
-Есть несколько обязательных элементов драйвера:
-- `static Info` - информация о станции
-- `ui()` - описание интерфейса настроек
-- `async read()` - чтение настроек из станции
-- `async write()` - загрузка настроек в станцию
-- `async upload(): {snapshot, version}` - выгрузка образа настроек
-- `async load(snapshot, version)` - загрузка образа настроек из файла
+## English?
 
-### React
+![do you speak it?](https://media.tenor.com/VeuRoHHjyFAAAAAM/english-motherfucker.gif)
 
-Хотя приложение и построено на React, драйвера не взаимодействуют с ним напрямую. Драйвер содержит состояние и описание ui. Для синхронизации состояния с React интерфейсом используй эти функции:
-- `dispatch_ui()` - когда обновляется значение в настройках
-- `dispatch_ui_change()` - когда меняется набор настроек
-- `dispatch_progress(0..1)` - по ходу выполнения чтения или загрузки.
+Until an international developer community emerges, the source code will remain in Russian.
+
 
 ---
 

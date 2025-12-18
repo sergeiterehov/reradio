@@ -1,5 +1,5 @@
-import { Library } from "@/drivers/library";
-import type { Radio } from "@/drivers/radio";
+import { Library } from "@/drivers/_library";
+import type { Radio } from "@/drivers/_radio";
 import { Actions, Store } from "@/store";
 import {
   Box,

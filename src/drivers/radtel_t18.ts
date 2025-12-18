@@ -1,5 +1,5 @@
 import { Buffer } from "buffer";
-import { Radio, type RadioInfo } from "./radio";
+import { Radio, type RadioInfo } from "./_radio";
 import { array_of, create_mem_mapper } from "@/utils/mem";
 import type { UI } from "@/utils/ui";
 import { common_ui } from "@/utils/common_ui";

@@ -1,7 +1,7 @@
 import { Buffer } from "buffer";
 import { QuanshengBaseRadio } from "./quansheng";
 import type { UI } from "@/utils/ui";
-import type { RadioInfo } from "./radio";
+import type { RadioInfo } from "./_radio";
 import { array_of, create_mem_mapper, type M } from "@/utils/mem";
 import { common_ui } from "@/utils/common_ui";
 import { t } from "i18next";

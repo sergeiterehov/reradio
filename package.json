@@ -9,6 +9,9 @@
     "lint": "eslint .",
     "preview": "vite preview"
   },
+  "engines": {
+    "node": ">=24"
+  },
   "dependencies": {
     "@chakra-ui/react": "^3.28.0",
     "@emotion/react": "^11.14.0",
