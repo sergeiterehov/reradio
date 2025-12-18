@@ -16,6 +16,7 @@ jobs:
         run: |
           echo "VITE_BUILD=$(git rev-parse --short HEAD)-$(date -u +'%Y%m%d-%H%M%S')" > .env
           echo "VITE_YANDEX_METRIKA=${{ vars.YANDEX_METRIKA }}" >> .env
+          echo "VITE_CLOUD_API=${{ vars.CLOUD_API }}" >> .env
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
