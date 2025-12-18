@@ -2,7 +2,7 @@ import { Buffer } from "buffer";
 import type { UI } from "@/utils/ui";
 import { QuanshengBaseRadio } from "./quansheng";
 import type { RadioInfo } from "./radio";
-import { array_of, create_mem_mapper, type M } from "@/utils/mem";
+import { array_of, create_mem_mapper, set_string, type M } from "@/utils/mem";
 import { CTCSS_TONES, DCS_CODES, trim_string } from "@/utils/radio";
 import { common_ui, modify_field, UITab } from "@/utils/common_ui";
 import { t } from "i18next";
@@ -308,6 +308,10 @@ export class UVK5Radio extends QuanshengBaseRadio {
               if (i >= channelname.length) return VFO_CHANNEL_NAMES[i - channelname.length];
 
               return trim_string(channelname.at(i)?.name.get() || "") || `CH-${i + 1}`;
+            },
+            set: (i, val) => {
+              if (i >= channelname.length) return;
+              set_string(channelname[i].name, val, "\x00");
             },
           },
           swap: (a, b) => {
