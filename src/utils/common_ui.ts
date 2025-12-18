@@ -1,7 +1,7 @@
 import { t } from "i18next";
 import type { M } from "./mem";
 import type { UI } from "./ui";
-import { DCS_CODES, DMR_ALL_CALL_ID, trim_string } from "./radio";
+import { CTCSS_TONES, DCS_CODES, DMR_ALL_CALL_ID, trim_string } from "./radio";
 
 type _GetSetNumber = { get(): number; set(val: number): void };
 
@@ -54,6 +54,8 @@ export const common_ui = {
 
   channel_squelch_lbcd: (ref_by_channel: (i: number) => M.LBCD): UI.Field.Channels["squelch_rx"] => ({
     options: ["Off", "CTCSS", "DCS"],
+    codes: DCS_CODES,
+    tones: CTCSS_TONES,
     get: (i) => {
       const ref = ref_by_channel(i);
 
