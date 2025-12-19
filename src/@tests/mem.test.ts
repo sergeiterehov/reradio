@@ -66,6 +66,10 @@ test("Main types and callback", () => {
   obj.buf.fill(0xff);
 
   expect(obj.buf.get()).toEqual(Buffer.from([0xff, 0xff]));
+
+  expect(() => obj.buf.set(Buffer.alloc(100))).toThrow();
+  expect(() => obj.str.set("1")).toThrow();
+  expect(() => obj.lbcd.set(123456789)).toThrow();
 });
 
 test("Struct", () => {
@@ -162,6 +166,8 @@ test("To JS", () => {
 
   const obj = {
     custom_meta: "Hello, world!",
+    empty1: null,
+    empty2: undefined,
     number: m.u16(),
     raw: m.buf(4),
     list: m.array(4, () =>
@@ -174,6 +180,9 @@ test("To JS", () => {
   };
 
   expect(to_js(obj)).toEqual({
+    custom_meta: undefined,
+    empty1: null,
+    empty2: undefined,
     number: 0,
     raw: "00 00 00 00",
     list: new Array(4).fill({ id: 0, deleted: 0, type: 0, name: "".padEnd(14, "\x00") }),
