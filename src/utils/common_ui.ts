@@ -72,7 +72,7 @@ export const common_ui = {
       const ref = ref_by_channel(i);
 
       if (val.mode === "Off") {
-        ref.raw.set([0xff, 0xff]);
+        ref.raw.fill(0);
       } else if (val.mode === "CTCSS") {
         ref.set(val.freq * 10);
       } else if (val.mode === "DCS") {
