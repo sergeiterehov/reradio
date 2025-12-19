@@ -1,7 +1,7 @@
 import { Buffer } from "buffer";
 import { Radio, type RadioInfo } from "./_radio";
 import type { UI } from "@/utils/ui";
-import { array_of, create_mem_mapper } from "@/utils/mem";
+import { create_mem_mapper } from "@/utils/mem";
 import { common_ui, modify_field, UITab } from "@/utils/common_ui";
 import { DCS_CODES } from "@/utils/radio";
 import { t } from "i18next";
@@ -47,7 +47,7 @@ export class UV5RRadio extends Radio {
 
     return {
       ...m.seek(0x0000).skip(0, {}),
-      memory: array_of(128, () =>
+      memory: m.array(128, () =>
         m.struct(() => ({
           rxfreq: m.lbcd(4),
           txfreq: m.lbcd(4),
@@ -75,9 +75,9 @@ export class UV5RRadio extends Radio {
       ),
 
       ...m.seek(0x0b00).skip(0, {}),
-      pttid: array_of(15, () => ({
-        code: m.u8_array(5),
-        unused: m.u8_array(11),
+      pttid: m.array(15, () => ({
+        code: m.buf(5),
+        unused: m.buf(11),
       })),
 
       ...m.seek(0x0e20).skip(0, {}),
@@ -92,7 +92,7 @@ export class UV5RRadio extends Radio {
         tdr: m.u8(),
         beep: m.u8(),
         timeout: m.u8(),
-        unknown3: m.u8_array(4),
+        unknown3: m.buf(4),
         voice: m.u8(),
         unknown4: m.u8(),
         dtmfst: m.u8(),
@@ -108,7 +108,7 @@ export class UV5RRadio extends Radio {
         bcl: m.u8(),
         autolk: m.u8(),
         sftd: m.u8(),
-        unknown6: m.u8_array(3),
+        unknown6: m.buf(3),
         wtled: m.u8(),
         rxled: m.u8(),
         txled: m.u8(),
@@ -129,9 +129,9 @@ export class UV5RRadio extends Radio {
       },
 
       ...m.seek(0x1000).skip(0, {}),
-      names: array_of(128, () => ({
+      names: m.array(128, () => ({
         name: m.str(7),
-        unknown2: m.u8_array(9),
+        unknown2: m.buf(9),
       })),
 
       ...m.seek(0x1ee0).skip(0, {}),
@@ -150,12 +150,7 @@ export class UV5RRadio extends Radio {
     const { memory, names, pttid, settings, poweron_msg } = mem;
 
     const dtmf_chars = "0123456789ABCD*#";
-    const ptt_id_code_options: string[] = pttid.map((id) =>
-      id.code
-        .get()
-        .map((c) => dtmf_chars[c])
-        .join("")
-    );
+    const ptt_id_code_options: string[] = pttid.map((id) => [...id.code.get()].map((c) => dtmf_chars[c]).join(""));
 
     return {
       fields: [
@@ -171,11 +166,11 @@ export class UV5RRadio extends Radio {
             get: (i) => memory[i].rxfreq.raw.get()[0] === 0xff,
             delete: (i) => {
               const raw = memory[i].__raw;
-              raw.set(Array(raw.size).fill(0xff));
+              raw.fill(0xff);
             },
             init: (i) => {
               const ch = memory[i];
-              ch.__raw.set([...Array(12).fill(0xff), 0x00, 0x00, 0x00, 0x00]);
+              ch.__raw.set(Buffer.alloc(12).fill(0xff, 0, 12));
               ch.rxfreq.set(130_000_00);
               ch.txfreq.set(130_000_00);
             },
@@ -287,11 +282,10 @@ export class UV5RRadio extends Radio {
             pad: "0",
             uppercase: true,
             length: id.code.size,
-            get: () => id.code.get(),
+            get: () => [...id.code.get()],
             set: (val) => {
-              id.code.set(val as number[]);
-              // update ptt_id_code_options
-              this.dispatch_ui_change();
+              id.code.set(Buffer.from(val));
+              this.dispatch_ui_change(); // update ptt_id_code_options
             },
           })
         ),

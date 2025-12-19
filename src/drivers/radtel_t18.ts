@@ -1,6 +1,6 @@
 import { Buffer } from "buffer";
 import { Radio, type RadioInfo } from "./_radio";
-import { array_of, create_mem_mapper } from "@/utils/mem";
+import { create_mem_mapper } from "@/utils/mem";
 import type { UI } from "@/utils/ui";
 import { common_ui } from "@/utils/common_ui";
 import { t } from "i18next";
@@ -196,7 +196,7 @@ export class T18Radio extends BaseT18ProtocolRadio {
       _m: m,
 
       ...m.seek(0x0000).skip(0, {}),
-      memory: array_of(this._channels, () => ({
+      memory: m.array(this._channels, () => ({
         rxfreq: m.lbcd(4),
         txfreq: m.lbcd(4),
         rxtone: m.lbcd(2),

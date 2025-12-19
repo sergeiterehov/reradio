@@ -1,35 +1,28 @@
 import { Buffer } from "buffer";
 
 export namespace M {
-  export type U8Ptr = { _m_type: "u8ptr"; addr: number; get(i: number): number; set(i: number, val: number): void };
   export type U8 = { _m_type: "u8"; addr: number; get(): number; set(val: number): void };
   export type U16 = { _m_type: "u16"; addr: number; get(): number; set(val: number): void };
   export type S16 = { _m_type: "s16"; addr: number; get(): number; set(val: number): void };
   export type U32 = { _m_type: "u32"; addr: number; get(): number; set(val: number): void };
-  export type U8array = {
-    _m_type: "u8array";
-    addr: number;
-    size: number;
-    get(): number[];
-    set(val: number[]): void;
-  };
   export type Buf = {
     _m_type: "buf";
     addr: number;
     size: number;
     get(): Buffer;
     set(val: Buffer): void;
+    fill(val: number): void;
   };
   export type Bits = { _m_type: "u8bits"; raw: U8; bits: number[]; get(): number; set(val: number): void };
   export type LBCD = {
     _m_type: "lbcd";
-    raw: U8array;
+    raw: Buf;
     get(): number;
     set(val: number): void;
     setDigit(order: number, val: number): void;
   };
-  export type Str = { _m_type: "str"; raw: U8array; get(): string; set(val: string): void };
-  export type Struct<T extends object> = { _m_type: "struct"; __raw: U8array } & T;
+  export type Str = { _m_type: "str"; raw: Buf; get(): string; set(val: string): void };
+  export type Struct<T extends object> = { _m_type: "struct"; __raw: Buf } & T;
 }
 
 export type MemMapper = {
@@ -38,17 +31,16 @@ export type MemMapper = {
   offset: (offset: number) => MemMapper;
   at: <T>(addr: number, fn: (mapper: MemMapper) => T) => T;
   skip: <R>(size: number, ret: R) => R;
-  u8_ptr: () => M.U8Ptr;
   u8: () => M.U8;
   u16: () => M.U16;
   s16: () => M.S16;
   u32: () => M.U32;
-  u8_array: (size: number) => M.U8array;
   buf: (size: number) => M.Buf;
   bitmap: <T extends string>(names: { [K in T]: number }) => { [K in Exclude<T, "" | `_${string}`>]: M.Bits };
   lbcd: (size: number) => M.LBCD;
   str: (size: number) => M.Str;
   struct: <T extends object>(fn: (mapper: MemMapper) => T) => M.Struct<T>;
+  array: <T>(size: number, fn: (i: number, mapper: MemMapper) => T) => T[];
 };
 
 export const create_mem_mapper = (data: Buffer, onchange?: () => void): MemMapper => {
@@ -82,21 +74,6 @@ export const create_mem_mapper = (data: Buffer, onchange?: () => void): MemMappe
     skip: <R>(size: number, ret: R): R => {
       cur += size;
       return ret;
-    },
-
-    u8_ptr: (): M.U8Ptr => {
-      const _cur = cur;
-      return {
-        _m_type: "u8ptr",
-        addr: _cur,
-        get: (i) => {
-          return data.readUInt8(_cur + i);
-        },
-        set: (i, val) => {
-          data.writeUInt8(val, _cur + i);
-          onchange?.();
-        },
-      };
     },
 
     u8: (): M.U8 => {
@@ -138,7 +115,6 @@ export const create_mem_mapper = (data: Buffer, onchange?: () => void): MemMappe
         _m_type: "s16",
         addr: _cur,
         get: () => {
-          console.log("Reading S16 at", _cur, "value:", data.slice(_cur, _cur + 2));
           return data.readInt16LE(_cur);
         },
         set: (val) => {
@@ -164,27 +140,6 @@ export const create_mem_mapper = (data: Buffer, onchange?: () => void): MemMappe
       };
     },
 
-    u8_array: (size: number): M.U8array => {
-      const _cur = cur;
-      cur += size;
-      return {
-        _m_type: "u8array",
-        addr: _cur,
-        size,
-        get: () => {
-          const res: number[] = [];
-          for (let i = 0; i < size; i += 1) res.push(data.readUInt8(_cur + i));
-          return res;
-        },
-        set: (vals) => {
-          if (size !== vals.length) throw new Error("Wrong array length");
-
-          for (let i = 0; i < size; i += 1) data.writeUInt8(vals[i], _cur + i);
-          onchange?.();
-        },
-      };
-    },
-
     buf: (size: number): M.Buf => {
       const _cur = cur;
       cur += size;
@@ -199,6 +154,10 @@ export const create_mem_mapper = (data: Buffer, onchange?: () => void): MemMappe
           if (size !== val.length) throw new Error("Wrong buffer length");
 
           val.copy(data, _cur);
+          onchange?.();
+        },
+        fill: (val) => {
+          data.fill(val, _cur, _cur + size);
           onchange?.();
         },
       };
@@ -251,7 +210,7 @@ export const create_mem_mapper = (data: Buffer, onchange?: () => void): MemMappe
 
     lbcd: (size: number): M.LBCD => {
       const _cur = cur;
-      const raw = mapper.u8_array(size);
+      const raw = mapper.buf(size);
 
       return {
         _m_type: "lbcd",
@@ -296,7 +255,7 @@ export const create_mem_mapper = (data: Buffer, onchange?: () => void): MemMappe
 
     str: (size: number) => {
       const _cur = cur;
-      const raw = mapper.u8_array(size);
+      const raw = mapper.buf(size);
 
       return {
         _m_type: "str",
@@ -325,8 +284,13 @@ export const create_mem_mapper = (data: Buffer, onchange?: () => void): MemMappe
       const props = fn(mapper);
       const end_cur = cur;
 
-      return { ...props, _m_type: "struct", __raw: mapper.seek(begin_cur).u8_array(end_cur - begin_cur) };
+      return { ...props, _m_type: "struct", __raw: mapper.seek(begin_cur).buf(end_cur - begin_cur) };
     },
+
+    array: (size, fn) =>
+      Array(size)
+        .fill(0)
+        .map((_, i) => fn(i, mapper)),
   };
 
   return mapper;
@@ -371,12 +335,6 @@ export const to_js = <T>(value: T): ToJS<T> => {
 
   return undefined as ToJS<T>;
 };
-
-export const dup = <T extends string | null>(size: number, value: T): T[] => Array(size).fill(value);
-export const array_of = <T>(size: number, fn: (i: number) => T): T[] =>
-  Array(size)
-    .fill(0)
-    .map((_, i) => fn(i));
 
 export const set_string = (str: M.Str, val: string, pad = "\xFF") => {
   return str.set(val.substring(0, str.raw.size).padEnd(str.raw.size, pad));

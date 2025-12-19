@@ -1,7 +1,7 @@
 import { Buffer } from "buffer";
 import type { RadioInfo } from "./_radio";
 import { common_ui } from "@/utils/common_ui";
-import { create_mem_mapper, array_of } from "@/utils/mem";
+import { create_mem_mapper } from "@/utils/mem";
 import { BaseT18ProtocolRadio } from "./radtel_t18";
 import type { UI } from "@/utils/ui";
 import { t } from "i18next";
@@ -28,7 +28,7 @@ export class BFC50Radio extends BaseT18ProtocolRadio {
       _m: m,
 
       ...m.seek(0x0000).skip(0, {}),
-      memory: array_of(16, () => ({
+      memory: m.array(16, () => ({
         rxfreq: m.lbcd(4),
         txfreq: m.lbcd(4),
         rxtone: m.lbcd(2),

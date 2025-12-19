@@ -3,7 +3,7 @@ import { Radio, type RadioInfo } from "./_radio";
 import { serial } from "@/utils/serial";
 import { Buffer } from "buffer";
 import { common_ui, modify_field, UITab } from "@/utils/common_ui";
-import { array_of, create_mem_mapper, set_string, type M } from "@/utils/mem";
+import { create_mem_mapper, set_string, type M } from "@/utils/mem";
 import { CTCSS_TONES, DCS_CODES, DMR_ALL_CALL_ID, trim_string } from "@/utils/radio";
 import { t } from "i18next";
 
@@ -232,15 +232,15 @@ export class RT4DRadio extends Radio {
     return {
       ...m.seek(ADDR_CH).skip(0, {}),
 
-      channels: array_of(1024, map_channel),
+      channels: m.array(1024, map_channel),
 
       ...m.seek(ADDR_VFO).skip(0, {}),
 
-      vfo_ab: array_of(2, map_channel),
+      vfo_ab: m.array(2, map_channel),
 
       ...m.seek(ADDR_CONTACT).skip(0, {}),
 
-      contacts: array_of(10_000, () =>
+      contacts: m.array(10_000, () =>
         m.struct(() => ({
           type: m.u8(), // 0=individual, 1=group, 2=all-call, empty
           id: m.u32(), // hex id
@@ -250,16 +250,16 @@ export class RT4DRadio extends Radio {
 
       ...m.seek(ADDR_TGLIST).skip(0, {}),
 
-      tg_lists: array_of(250, () =>
+      tg_lists: m.array(250, () =>
         m.struct(() => ({
           name: m.str(16),
-          contacts: array_of(32, () => m.u16()),
+          contacts: m.array(32, () => m.u16()),
         }))
       ),
 
       ...m.seek(ADDR_ENCRYPT).skip(0, {}),
 
-      keys: array_of(256, () =>
+      keys: m.array(256, () =>
         m.struct(() => ({
           _unknown0: m.buf(1),
           type: m.u8(), // 0=ARC, 1=AES128, 2=AES256, 3=?, 4=?, empty
@@ -270,18 +270,18 @@ export class RT4DRadio extends Radio {
 
       ...m.seek(ADDR_ZONE).skip(0, {}),
 
-      zones: array_of(250, () =>
+      zones: m.array(250, () =>
         m.struct(() => ({
           a_channel: m.u16(), // index of zones channel
           b_channel: m.u16(), // index of zones channel
           name: m.str(16),
-          channels: array_of(250, () => m.u16()), // indexes
+          channels: m.array(250, () => m.u16()), // indexes
         }))
       ),
 
       ...m.seek(ADDR_FM).skip(0, {}),
 
-      fm: array_of(80, () =>
+      fm: m.array(80, () =>
         m.struct(() => ({
           range: m.u8(),
           freq: m.u16(), // mhz * 10
@@ -345,7 +345,7 @@ export class RT4DRadio extends Radio {
         tx_priority: m.u8(), // 0=edit, 1=busy
         main_ptt: m.u8(), // 0=ch-a, 1=ch-main
         _unknown128: m.buf(14),
-        lock_ranges: array_of(4, () => ({
+        lock_ranges: m.array(4, () => ({
           type: m.u8(), // 0=rx-tx, 1=rx, 2=lock
           start: m.u16(),
           end: m.u16(),
@@ -413,7 +413,7 @@ export class RT4DRadio extends Radio {
           remote_control: m.u8(), // 0=off, 1=on
           _unknown521: m.buf(1),
           // 1-16, stun, wake, kill, monitor
-          list: array_of(20, () =>
+          list: m.array(20, () =>
             m.struct(() => ({
               code: m.str(14),
               _unknown1: m.buf(1),
@@ -477,7 +477,7 @@ export class RT4DRadio extends Radio {
       ...m.seek(ADDR_SMS_PRESET).skip(0, {}),
 
       // preset, draft, received, sent
-      sms: array_of(16 + 128 + 128 + 128, () =>
+      sms: m.array(16 + 128 + 128 + 128, () =>
         m.struct(() => ({
           box: m.u8(), // 0=preset, 1=draft, 2=received, 3=sent
           type: m.u8(), // 0=individual, 1=group, 2=all, unknown
@@ -555,12 +555,12 @@ export class RT4DRadio extends Radio {
             get: (i) => channels[i].type.get() > 1,
             delete: (i) => {
               const ch = channels[i];
-              ch.__raw.set(new Array(ch.__raw.size).fill(0xff));
+              ch.__raw.fill(0xff);
               this._resolve_channel_deleted(i);
             },
             init: (i) => {
               const ch = channels[i];
-              ch.__raw.set(new Array(ch.__raw.size).fill(0x00));
+              ch.__raw.fill(0x00);
               ch.rx_freq.set(446_000_00);
               ch.tx_freq.set(ch.rx_freq.get());
               ch.type.set(TYPE_ANALOG);
@@ -847,7 +847,7 @@ export class RT4DRadio extends Radio {
             const c = contacts[i];
             const type = c.type.get();
 
-            c.__raw.set(new Array(c.__raw.size).fill(0xff));
+            c.__raw.fill(0xff);
 
             this._resolve_contact_deleted(i, type);
           },
@@ -876,7 +876,7 @@ export class RT4DRadio extends Radio {
             };
           },
           delete: (i) => {
-            keys[i].__raw.set(new Array(keys[i].__raw.size).fill(0xff));
+            keys[i].__raw.fill(0xff);
             this._resolve_key_deleted(i);
           },
           set_ui: (i) => [
@@ -1116,7 +1116,7 @@ export class RT4DRadio extends Radio {
             if (freq === 0xffff) return {};
             return { freq: (freq / 10).toFixed(1), name: trim_string(fm[i].name.get()) };
           },
-          delete: (i) => fm[i].__raw.set(new Array(fm[i].__raw.size).fill(0xff)),
+          delete: (i) => fm[i].__raw.fill(0xff),
           set_ui: (i) => [
             {
               type: "text",

@@ -1,6 +1,6 @@
 import { Buffer } from "buffer";
 import { Radio, type RadioInfo } from "./_radio";
-import { array_of, create_mem_mapper } from "@/utils/mem";
+import { create_mem_mapper } from "@/utils/mem";
 import type { UI } from "@/utils/ui";
 import { common_ui } from "@/utils/common_ui";
 import { t } from "i18next";
@@ -24,13 +24,13 @@ export class BF888Radio extends Radio {
 
     return {
       ...m.seek(0x0010).skip(0, {}),
-      memory: array_of(16, () => ({
+      memory: m.array(16, () => ({
         rxfreq: m.lbcd(4),
         txfreq: m.lbcd(4),
         rxtone: m.lbcd(2),
         txtone: m.lbcd(2),
         ...m.bitmap({ unknown3: 1, unknown2: 1, unknown1: 1, skip: 1, highpower: 1, narrow: 1, beatshift: 1, bcl: 1 }),
-        unknown4: m.u8_array(3),
+        unknown4: m.buf(3),
       })),
       ...m.seek(0x02b0).skip(0, {}),
       settings: {
@@ -51,7 +51,7 @@ export class BF888Radio extends Radio {
         squelchlevel: m.u8(),
         sidekeyfunction: m.u8(),
         timeouttimer: m.u8(),
-        unused2: m.u8_array(3),
+        unused2: m.buf(3),
         ...m.bitmap({ unused3: 7, scanmode: 1 }),
       },
     };

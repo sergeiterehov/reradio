@@ -2,7 +2,7 @@ import { Buffer } from "buffer";
 import { Radio, type RadioInfo } from "./_radio";
 import type { UI } from "@/utils/ui";
 import { serial } from "@/utils/serial";
-import { array_of, create_mem_mapper, type M } from "@/utils/mem";
+import { create_mem_mapper, type M } from "@/utils/mem";
 import { common_ui, UITab } from "@/utils/common_ui";
 import { CTCSS_TONES, DCS_CODES, trim_string } from "@/utils/radio";
 import { t } from "i18next";
@@ -114,7 +114,7 @@ export class UV5RMiniRadio extends Radio {
     const m = create_mem_mapper(img, this.dispatch_ui);
 
     return {
-      channels: array_of(this._channels, () =>
+      channels: m.array(this._channels, () =>
         m.struct(() => ({
           rxfreq: m.lbcd(4),
           txfreq: m.lbcd(4),
@@ -134,9 +134,9 @@ export class UV5RMiniRadio extends Radio {
 
       ...m.seek(0x8000).skip(0, {}),
 
-      vfo: array_of(2, () =>
+      vfo: m.array(2, () =>
         m.struct(() => ({
-          freq: m.u8_array(8),
+          freq: m.buf(8),
           rxtone: m.u16(),
           txtone: m.u16(),
           _unknown0: m.u8(),
@@ -147,10 +147,10 @@ export class UV5RMiniRadio extends Radio {
           ...m.bitmap({ _unknown2: 1, wide: 1, _unknown3: 5, fhss: 1 }),
           _unknown4: m.u8(),
           step: m.u8(),
-          offset: m.u8_array(6),
-          _unknown5: m.u8_array(2),
+          offset: m.buf(6),
+          _unknown5: m.buf(2),
           sqmode: m.u8(),
-          _unknown6: m.u8_array(3),
+          _unknown6: m.buf(3),
         }))
       ),
 
@@ -187,14 +187,14 @@ export class UV5RMiniRadio extends Radio {
         keylock: m.u8(),
         powerondistype: m.u8(),
         tone: m.u8(),
-        _unknown4: m.u8_array(2),
+        _unknown4: m.buf(2),
         voxdlytime: m.u8(),
         menuquittime: m.u8(),
-        _unknown5: m.u8_array(2),
+        _unknown5: m.buf(2),
         dispani: m.u8(),
-        _unknown11: m.u8_array(3),
+        _unknown11: m.buf(3),
         totalarm: m.u8(),
-        _unknown6: m.u8_array(2),
+        _unknown6: m.buf(2),
         ctsdcsscantype: m.u8(),
         vfoscanmin: m.u16(),
         vfoscanmax: m.u16(),
@@ -203,7 +203,7 @@ export class UV5RMiniRadio extends Radio {
         key1short: m.u8(),
         _unknown7: m.u8(),
         key2short: m.u8(),
-        _unknown8: m.u8_array(2),
+        _unknown8: m.buf(2),
         rstmenu: m.u8(),
         singlewatch: m.u8(),
         hangup: m.u8(),
@@ -218,7 +218,7 @@ export class UV5RMiniRadio extends Radio {
       ...m.seek(this._ANI_ADDR).skip(0, {}),
 
       ani: m.struct(() => ({
-        code: m.u8_array(5),
+        code: m.buf(5),
         _unknown: m.u8(),
         ...m.bitmap({ _unused1: 6, aniid: 2 }),
         dtmfon: m.u8(),
@@ -229,21 +229,21 @@ export class UV5RMiniRadio extends Radio {
 
       ...m.seek(this._PTT_ID_ADDR).skip(0, {}),
 
-      pttid: array_of(20, () =>
+      pttid: m.array(20, () =>
         m.struct(() => ({
-          code: m.u8_array(5),
+          code: m.buf(5),
           name: m.str(10),
           _unused: m.u8(),
         }))
       ),
 
       upcode: m.struct(() => ({
-        _unknown32: m.u8_array(32),
-        code: m.u8_array(16),
+        _unknown32: m.buf(32),
+        code: m.buf(16),
       })),
 
       downcode: m.struct(() => ({
-        code: m.u8_array(16),
+        code: m.buf(16),
       })),
     };
   }
@@ -304,10 +304,10 @@ export class UV5RMiniRadio extends Radio {
           },
           empty: {
             get: (i) => channels[i].__raw.get()[0] === 0xff,
-            delete: (i) => channels[i].__raw.set(new Array(channels[i].__raw.size).fill(0xff)),
+            delete: (i) => channels[i].__raw.fill(0xff),
             init: (i) => {
               const ch = channels[i];
-              ch.__raw.set(new Array(channels[i].__raw.size).fill(0x00));
+              ch.__raw.fill(0x00);
               ch.rxfreq.set(446_006_25);
               ch.txfreq.set(ch.rxfreq.get());
               ch.name.set("".padEnd(ch.name.raw.size, "\xFF"));
@@ -358,10 +358,7 @@ export class UV5RMiniRadio extends Radio {
           ptt_id: {
             on_options: ["Off", "Begin", "End", "BeginAndEnd"],
             id_options: pttid.map((id) => {
-              const code = id.code
-                .get()
-                .map((c) => DTMF_CHARS[c] || "")
-                .join("");
+              const code = [...id.code.get()].map((c) => DTMF_CHARS[c] || "").join("");
               if (!code) return t("off");
 
               const name = trim_string(id.name.get());
@@ -435,9 +432,9 @@ export class UV5RMiniRadio extends Radio {
             pad: "\xff",
             uppercase: true,
             length: id.code.size,
-            get: () => id.code.get(),
+            get: () => [...id.code.get()],
             set: (val) => {
-              id.code.set(val);
+              id.code.set(Buffer.from(val));
               this.dispatch_ui_change();
             },
           },

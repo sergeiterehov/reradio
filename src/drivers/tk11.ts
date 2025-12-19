@@ -2,7 +2,7 @@ import { Buffer } from "buffer";
 import { QuanshengBaseRadio } from "./quansheng";
 import type { UI } from "@/utils/ui";
 import type { RadioInfo } from "./_radio";
-import { array_of, create_mem_mapper, type M } from "@/utils/mem";
+import { create_mem_mapper, type M } from "@/utils/mem";
 import { common_ui } from "@/utils/common_ui";
 import { t } from "i18next";
 import { CTCSS_TONES, DCS_CODES, trim_string } from "@/utils/radio";
@@ -86,7 +86,7 @@ export class TK11Radio extends QuanshengBaseRadio {
     return {
       ...m.seek(0x00000).skip(0, {}),
 
-      channels: array_of(999, () =>
+      channels: m.array(999, () =>
         m.struct(() => ({
           rx_freq: m.u32(),
           freq_diff: m.u32(),
@@ -109,16 +109,16 @@ export class TK11Radio extends QuanshengBaseRadio {
           name: m.str(16),
           rx_qt: m.u32(),
           tx_qt: m.u32(),
-          unknown: m.u8_array(8),
+          unknown: m.buf(8),
           tx_qt2: m.u32(),
           signal: m.u8(),
-          unknown_2: m.u8_array(3),
+          unknown_2: m.buf(3),
         }))
       ),
 
       ...m.seek(0x11000).skip(0, {}),
 
-      channels_usage: array_of(1011, () =>
+      channels_usage: m.array(1011, () =>
         m.struct(() => ({
           flag: m.u8(),
         }))
@@ -130,8 +130,8 @@ export class TK11Radio extends QuanshengBaseRadio {
         vfo_frequency: m.u16(),
         channel_id: m.u8(),
         memory_vfo_flag: m.u8(),
-        unknown: m.u8_array(4),
-        frequencies: array_of(32, () => m.u16()),
+        unknown: m.buf(4),
+        frequencies: m.array(32, () => m.u16()),
       })),
 
       ...m.seek(0x13000).skip(0, {}),
@@ -187,7 +187,7 @@ export class TK11Radio extends QuanshengBaseRadio {
         match_threshold: m.u8(),
         unknown_2: m.u8(),
         cw_pitch_freq: m.u16(),
-        unknown_3: m.u8_array(4),
+        unknown_3: m.buf(4),
         dtmf_separator: m.u16(),
         dtmf_group_code: m.u16(),
         dtmf_reset_time: m.u8(),
@@ -197,10 +197,10 @@ export class TK11Radio extends QuanshengBaseRadio {
         dtmf_d_code_time: m.u16(),
         dtmf_continue_time: m.u16(),
         dtmf_interval_time: m.u16(),
-        dtmf_id: m.u8_array(8),
-        dtmf_up_code: m.u8_array(16),
-        dtmf_down_code: m.u8_array(16),
-        unknown_4: m.u8_array(16),
+        dtmf_id: m.buf(8),
+        dtmf_up_code: m.buf(16),
+        dtmf_down_code: m.buf(16),
+        unknown_4: m.buf(16),
         tone5_separator: m.u16(),
         tone5_group_code: m.u16(),
         tone5_reset_time: m.u8(),
@@ -211,11 +211,11 @@ export class TK11Radio extends QuanshengBaseRadio {
         tone5_resv1: m.u8(),
         tone5_single_continue_time: m.u16(),
         tone5_single_interval_time: m.u16(),
-        tone5_id: m.u8_array(8),
-        tone5_up_code: m.u8_array(16),
-        tone5_down_code: m.u8_array(16),
-        tone5_user_freq: array_of(15, () => m.u16()),
-        tone5_revs5: m.u8_array(2),
+        tone5_id: m.buf(8),
+        tone5_up_code: m.buf(16),
+        tone5_down_code: m.buf(16),
+        tone5_user_freq: m.array(15, () => m.u16()),
+        tone5_revs5: m.buf(2),
         logo_string1: m.str(16),
         logo_string2: m.str(16),
       })),
@@ -223,12 +223,12 @@ export class TK11Radio extends QuanshengBaseRadio {
       ...m.seek(0x14000).skip(0, {}),
 
       general2: m.struct(() => ({
-        unknown_5: m.u8_array(48),
-        dtmf_kill: m.u8_array(8),
-        dtmf_wakeup: m.u8_array(8),
-        tone5_kill: m.u8_array(8),
-        tone5_wakeup: m.u8_array(8),
-        unknown_6: m.u8_array(16),
+        unknown_5: m.buf(48),
+        dtmf_kill: m.buf(8),
+        dtmf_wakeup: m.buf(8),
+        tone5_kill: m.buf(8),
+        tone5_wakeup: m.buf(8),
+        unknown_6: m.buf(16),
         device_name: m.str(16),
       })),
 
@@ -247,14 +247,14 @@ export class TK11Radio extends QuanshengBaseRadio {
 
       ...m.seek(0x16000).skip(0, {}),
 
-      scan_list: array_of(32, () =>
+      scan_list: m.array(32, () =>
         m.struct(() => ({
           name: m.str(16),
           prio_1: m.u16(),
           prio_2: m.u16(),
-          unknown: m.u8_array(4),
-          channels: array_of(48, () => m.u16()),
-          unknown_2: m.u8_array(8),
+          unknown: m.buf(4),
+          channels: m.array(48, () => m.u16()),
+          unknown_2: m.buf(8),
         }))
       ),
 
@@ -266,59 +266,59 @@ export class TK11Radio extends QuanshengBaseRadio {
         kill_flag: m.u8(),
         encrypt_flag: m.u8(),
         noaa_tx_flag: m.u8(),
-        _unknown6: m.u8_array(3),
+        _unknown6: m.buf(3),
         lock_freq_flag: m.u8(),
-        _unknown1: m.u8_array(7),
-        band_enable: array_of(13, () => m.u8()),
-        _unknown2: m.u8_array(3),
-        band_tx_enable: array_of(13, () => m.u8()),
-        _unknown3: m.u8_array(3),
-        band_rx_start: array_of(13, () => m.u32()),
-        _unknown4: m.u8_array(4),
-        band_rx_end: array_of(13, () => m.u32()),
-        _unknown8: m.u8_array(4),
-        band_tx_start: array_of(13, () => m.u32()),
-        _unknown9: m.u8_array(4),
-        band_tx_end: array_of(13, () => m.u32()),
-        _unknown7: m.u8_array(4),
+        _unknown1: m.buf(7),
+        band_enable: m.array(13, () => m.u8()),
+        _unknown2: m.buf(3),
+        band_tx_enable: m.array(13, () => m.u8()),
+        _unknown3: m.buf(3),
+        band_rx_start: m.array(13, () => m.u32()),
+        _unknown4: m.buf(4),
+        band_rx_end: m.array(13, () => m.u32()),
+        _unknown8: m.buf(4),
+        band_tx_start: m.array(13, () => m.u32()),
+        _unknown9: m.buf(4),
+        band_tx_end: m.array(13, () => m.u32()),
+        _unknown7: m.buf(4),
         MwSwAgc_period: m.s16(),
         MwSwAgc_step: m.s16(),
         MwSwAgc_LowerLimit: m.s16(),
         MwSwAgc_UpperLimit: m.s16(),
         MwSwAgc_gain: m.s16(),
-        _unknown10: m.u8_array(6),
+        _unknown10: m.buf(6),
       })),
 
       ...m.seek(0x1a000).skip(0, {}),
 
-      dtmf_contacts: array_of(16, () =>
+      dtmf_contacts: m.array(16, () =>
         m.struct(() => ({
           name: m.str(16),
-          code_id: m.u8_array(8),
+          code_id: m.buf(8),
         }))
       ),
 
       ...m.seek(0x1a800).skip(0, {}),
 
-      tone5_contacts: array_of(16, () =>
+      tone5_contacts: m.array(16, () =>
         m.struct(() => ({
           name: m.str(16),
-          code_id: m.u8_array(8),
+          code_id: m.buf(8),
         }))
       ),
 
       ...m.seek(0x22000).skip(0, {}),
 
-      noaa_decode_addresses: array_of(16, () =>
+      noaa_decode_addresses: m.array(16, () =>
         m.struct(() => ({
-          address: m.u8_array(8),
-          info: m.u8_array(32),
+          address: m.buf(8),
+          info: m.buf(32),
         }))
       ),
 
       ...m.seek(0x22280).skip(0, {}),
 
-      noaa_same_events_control: m.u8_array(128),
+      noaa_same_events_control: m.buf(128),
     };
   }
 
@@ -393,7 +393,7 @@ export class TK11Radio extends QuanshengBaseRadio {
             init: (i) => {
               mem.channels_usage[i].flag.set(8);
               const ch = mem.channels[i];
-              ch.__raw.set(Array(ch.__raw.size).fill(0));
+              ch.__raw.fill(0);
               ch.rx_freq.set(446_006_25);
               ch.mode.set(MODE_FM);
               ch.power.set(1);

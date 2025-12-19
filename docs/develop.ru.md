@@ -74,7 +74,7 @@
 ```ts
 import { Buffer } from "buffer";
 import { Radio, type RadioInfo } from "./_radio";
-import { array_of, create_mem_mapper } from "@/utils/mem";
+import { create_mem_mapper } from "@/utils/mem";
 import { common_ui } from "@/utils/common_ui";
 import { serial } from "@/utils/serial";
 import type { UI } from "@/utils/ui";
@@ -94,7 +94,7 @@ export class NewRadio extends Radio {
       // MARK: Channels
       ...m.seek(0x0000).skip(0, {}),
 
-      channels: array_of(999, () =>
+      channels: m.array(999, () =>
         m.struct(() => ({
           freq: m.u32(),
         })),

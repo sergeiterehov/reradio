@@ -2,7 +2,7 @@ import { Buffer } from "buffer";
 import type { UI } from "@/utils/ui";
 import { QuanshengBaseRadio } from "./quansheng";
 import type { RadioInfo } from "./_radio";
-import { array_of, create_mem_mapper, set_string, type M } from "@/utils/mem";
+import { create_mem_mapper, set_string, type M } from "@/utils/mem";
 import { CTCSS_TONES, DCS_CODES, trim_string } from "@/utils/radio";
 import { common_ui, modify_field, UITab } from "@/utils/common_ui";
 import { t } from "i18next";
@@ -76,7 +76,7 @@ export class UVK5Radio extends QuanshengBaseRadio {
     const m = create_mem_mapper(img, this.dispatch_ui);
 
     return {
-      channels: array_of(214, () =>
+      channels: m.array(214, () =>
         m.struct(() => ({
           freq: m.u32(),
           offset: m.u32(),
@@ -122,14 +122,14 @@ export class UVK5Radio extends QuanshengBaseRadio {
       ),
 
       ...m.seek(0xd60).skip(0, {}),
-      channel_attributes: array_of(200, () =>
+      channel_attributes: m.array(200, () =>
         m.struct(() => ({
           ...m.bitmap({ is_scanlist1: 1, is_scanlist2: 1, compander: 2, is_free: 1, band: 3 }),
         }))
       ),
 
       ...m.seek(0xe40).skip(0, {}),
-      fmfreq: array_of(20, () => m.u16()),
+      fmfreq: m.array(20, () => m.u16()),
 
       ...m.seek(0xe70).skip(0, {}),
       call_channel: m.u8(),
@@ -158,7 +158,7 @@ export class UVK5Radio extends QuanshengBaseRadio {
       scan_resume_mode: m.u8(),
       auto_keypad_lock: m.u8(),
       power_on_dispmode: m.u8(),
-      password: m.u8_array(8),
+      password: m.buf(8),
 
       ...m.seek(0xea0).skip(0, {}),
       keypad_tone: m.u8(),
@@ -222,17 +222,17 @@ export class UVK5Radio extends QuanshengBaseRadio {
       },
 
       ...m.seek(0xf50).skip(0, {}),
-      channelname: array_of(200, () => m.struct(() => ({ name: m.str(16) }))),
+      channelname: m.array(200, () => m.struct(() => ({ name: m.str(16) }))),
 
       ...m.seek(0x1c00).skip(0, {}),
-      dtmfcontact: array_of(16, () => ({
+      dtmfcontact: m.array(16, () => ({
         name: m.str(8),
         number: m.str(3),
         unused_00: m.str(5),
       })),
 
       ...m.seek(0x1ed0).skip(0, {}),
-      perbandpowersettings: array_of(7, () => ({
+      perbandpowersettings: m.array(7, () => ({
         low: {
           start: m.u8(),
           mid: m.u8(),
@@ -248,11 +248,11 @@ export class UVK5Radio extends QuanshengBaseRadio {
           mid: m.u8(),
           end: m.u8(),
         },
-        unused_00: m.u8_array(7),
+        unused_00: m.buf(7),
       })),
 
       ...m.seek(0x1f40).skip(0, {}),
-      battery_level: array_of(6, () => m.u16()),
+      battery_level: m.array(6, () => m.u16()),
     };
   }
 
@@ -343,7 +343,7 @@ export class UVK5Radio extends QuanshengBaseRadio {
             },
             delete: (i) => {
               const ch = channels[i];
-              ch.__raw.set(Array(ch.__raw.size).fill(0xff));
+              ch.__raw.fill(0xff);
               if (i < channel_attributes.length) {
                 const name = channelname[i].name;
                 name.set("".padEnd(name.raw.size, "\x00"));
@@ -355,7 +355,7 @@ export class UVK5Radio extends QuanshengBaseRadio {
             },
             init: (i) => {
               const ch = channels[i];
-              ch.__raw.set(Array(ch.__raw.size).fill(0x00));
+              ch.__raw.fill(0x00);
               ch.freq.set(400_000_00);
               if (i < channel_attributes.length) {
                 const attr = channel_attributes[i];
