@@ -603,9 +603,9 @@ export class UVK5ProgRadio extends QuanshengBaseRadio {
 
                 const version = trim_string(this._bootloader_version.toString("ascii"));
 
-                if (version.startsWith("2.")) return `${version} - UV-K5 Rev 1 (MT6250DA).`;
-                if (version.startsWith("1.")) return `${version} - UV-K5 Rev 2 (BK4000 + PA/LNA)`;
-                if (version.startsWith("3.")) return `${version} - UV-K5 Rev 2 (BK4000 + PA/LNA)`;
+                if (version.startsWith("2.")) return `${version} - V1: Karina, IJV...`;
+                if (version.startsWith("1.")) return `${version} - V2: F4HWN`;
+                if (version.startsWith("3.")) return `${version} - V3: Karina, IJV...`;
 
                 return version;
               },
