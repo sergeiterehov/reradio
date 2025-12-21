@@ -163,11 +163,8 @@ export class UV5RRadio extends Radio {
             memory[b].__raw.set(t);
           },
           empty: {
-            get: (i) => memory[i].rxfreq.raw.get()[0] === 0xff,
-            delete: (i) => {
-              const raw = memory[i].__raw;
-              raw.fill(0xff);
-            },
+            get: (i) => memory[i].rxfreq.__raw.__view[0] === 0xff,
+            delete: (i) => memory[i].__raw.fill(0xff),
             init: (i) => {
               const ch = memory[i];
               ch.__raw.set(Buffer.alloc(12).fill(0xff, 0, 12));

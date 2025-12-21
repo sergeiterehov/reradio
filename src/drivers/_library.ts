@@ -7,6 +7,7 @@ import { BFC50Radio } from "./bfc50";
 import { TK11Radio } from "./tk11";
 import { UV5RMiniRadio } from "./uv5r_mini";
 import { RT4DRadio } from "./rt4d";
+import { THUV88Radio, THUV98Radio, THUV99Radio } from "./thuv88";
 
 export const Library: (typeof Radio)[] = [
   BF888Radio,
@@ -24,4 +25,7 @@ export const Library: (typeof Radio)[] = [
   RT4DRadio,
   RB18Radio,
   RB618Radio,
+  THUV88Radio,
+  THUV98Radio,
+  THUV99Radio,
 ];

@@ -94,9 +94,9 @@ test("Struct", () => {
 
   expect(img).toEqual(Buffer.from([0, 1, 2, 3]));
 
-  obj.struct.__raw.set(Buffer.alloc(2, 42));
+  obj.struct.__raw.set(Buffer.from([2, 42]));
 
-  expect(img).toEqual(Buffer.from([0, 42, 42, 3]));
+  expect(img).toEqual(Buffer.from([0, 2, 42, 3]));
 });
 
 test("Navigation", () => {
@@ -187,4 +187,36 @@ test("To JS", () => {
     raw: "00 00 00 00",
     list: new Array(4).fill({ id: 0, deleted: 0, type: 0, name: "".padEnd(14, "\x00") }),
   });
+});
+
+test("Bits size", () => {
+  const img = Buffer.alloc(16);
+  const m = create_mem_mapper(img);
+
+  img.writeUInt8(0b10101010, 0);
+  img.writeUInt16LE(0b0101010101010101, 1);
+  img.writeUInt32LE(0b11001100110011001100110011001100, 3);
+
+  const b1 = m.bitmap({ all: 8 });
+  expect(b1.all.get()).toBe(0b10101010);
+
+  b1.all.set(0b11111111);
+  expect(b1.all.get()).toBe(0b11111111);
+
+  const b2 = m.bitmap({ all: 16 }, m.u16());
+  expect(b2.all.get()).toBe(0b0101010101010101);
+
+  b2.all.set(0b1111111111111111);
+  expect(b2.all.get()).toBe(0b1111111111111111);
+
+  const b4 = m.bitmap({ all: 32 }, m.u32());
+  expect(b4.all.get()).toBe(0b11001100110011001100110011001100);
+
+  b4.all.set(0b11111111111111111111111111111111);
+  expect(b4.all.get()).toBe(0b11111111111111111111111111111111);
+
+  expect(() => m.bitmap({ all: 6 })).toThrow();
+  expect(() => m.bitmap({ all: 12 })).toThrow();
+  expect(() => m.bitmap({ all: 24 })).toThrow();
+  expect(() => m.bitmap({ all: 40 })).toThrow();
 });

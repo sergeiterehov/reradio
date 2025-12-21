@@ -75,7 +75,7 @@ export namespace UI {
       };
       power?: {
         options: number[];
-        name?: (val: number) => string;
+        name?: (i_option: number) => string;
         get: (i: number) => number;
         set: (i: number, i_option: number) => void;
       };
