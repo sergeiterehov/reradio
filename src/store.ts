@@ -71,7 +71,7 @@ const _setRadio = (radio: Radio) => {
   _unsubscribe_progress = radio.subscribe_progress(_handle_progress);
   _unsubscribe_ui_change = radio.subscribe_ui_change(_handle_ui_change);
 
-  _set({ radio });
+  _set({ radio, ui: undefined });
 
   _handle_ui_change();
 };

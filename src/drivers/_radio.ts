@@ -7,6 +7,7 @@ export type RadioInfo = {
   id: string;
   vendor: string;
   model: string;
+  beta?: boolean;
 };
 
 export class Radio {
