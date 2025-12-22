@@ -23,6 +23,7 @@ export const UITab = {
   TGLists: t("uitab_tg_lists"),
   Zones: t("uitab_zones"),
   Spectrum: t("uitab_spectrum"),
+  FMRadio: t("uitab_fm_radio"),
 };
 
 export const modify_field = <F extends UI.Field.Any, R extends UI.Field.Any>(field: F, modifier: (field: F) => R): R =>
@@ -307,7 +308,10 @@ export const common_ui = {
     get: () => Boolean(ref.get()),
     set: (val) => ref.set(val ? 1 : 0),
   }),
-  pow_battery_save_ratio: (ref: _GetSetNumber, config: { max?: number } = {}): UI.Field.Slider => ({
+  pow_battery_save_ratio: (
+    ref: _GetSetNumber,
+    config: { max?: number; names?: { [k in number]?: string } } = {}
+  ): UI.Field.Slider => ({
     type: "slider",
     id: "bat_save_ratio",
     name: t("bat_save"),
@@ -315,7 +319,7 @@ export const common_ui = {
     tab: UITab.Power,
     min: 0,
     max: config.max ?? 4,
-    label: (val) => (val ? `1:${val}` : t("off")),
+    label: (val) => config.names?.[val] || (val ? `1:${val}` : t("off")),
     get: () => ref.get(),
     set: (val) => ref.set(Number(val)),
   }),
@@ -429,6 +433,16 @@ export const common_ui = {
     min: 0,
     max: (config.to - config.from) / config.step,
     label: (val) => (val ? `${config.from + val * config.step} ms` : "Off"),
+    get: () => ref.get(),
+    set: (val) => ref.set(Number(val)),
+  }),
+  sql_ste_select: (ref: _GetSetNumber, config: { options: string[] }): UI.Field.Select => ({
+    type: "select",
+    id: "sql_ste",
+    name: t("sql_ste"),
+    description: t("sql_ste_tooltip"),
+    tab: UITab.System,
+    options: config.options,
     get: () => ref.get(),
     set: (val) => ref.set(Number(val)),
   }),
@@ -553,6 +567,17 @@ export const common_ui = {
       const val = config.seconds?.[rawVal] ?? rawVal;
       return val ? t("seconds_value", { replace: { value: val } }) : t("off");
     },
+    get: () => ref.get(),
+    set: (val) => ref.set(Number(val)),
+  }),
+
+  backlight_timeout_select: (ref: _GetSetNumber, config: { options: string[] }): UI.Field.Select => ({
+    type: "select",
+    id: "backlight_timeout",
+    name: t("backlight_timeout"),
+    description: t("backlight_timeout_tooltip"),
+    tab: UITab.Power,
+    options: config.options,
     get: () => ref.get(),
     set: (val) => ref.set(Number(val)),
   }),

@@ -3,7 +3,7 @@ import { Radio, type RadioInfo } from "./_radio";
 import { serial } from "@/utils/serial";
 import { Buffer } from "buffer";
 import { create_mem_mapper, set_string, type M, type MemMapper } from "@/utils/mem";
-import { common_ui } from "@/utils/common_ui";
+import { common_ui, UITab } from "@/utils/common_ui";
 import { CTCSS_TONES, DCS_CODES, trim_string } from "@/utils/radio";
 import { t } from "i18next";
 
@@ -24,19 +24,24 @@ export class THUV88Radio extends Radio {
   protected readonly _BLOCK_SIZE = 0x20;
 
   protected readonly _FINGERPRINT = Buffer.from("\xFE\xFE\xEF\xEE\xE1UV88", "ascii");
+
+  protected readonly _INDENT_CMD = Buffer.from("\xFE\xFE\xEE\xEF\xE0UV88\xFD", "ascii");
+  protected readonly _EN_READ_CMD = Buffer.from("\xFE\xFE\xEE\xEF\xE2UV88\xFD", "ascii");
+  protected readonly _EN_READ_CMD_ACK = Buffer.from("\xFE\xFE\xEF\xEE\xE6\x00\xFD", "ascii");
+  protected readonly _EN_WRITE_CMD = Buffer.from("\xFE\xFE\xEE\xEF\xE3UV88\xFD", "ascii");
+  protected readonly _EN_WRITE_CMD_ACK = Buffer.from("\xFE\xFE\xEF\xEE\xE6\x00\xFD", "ascii");
+  protected readonly _EXIT_CMD = Buffer.from("\xFE\xFE\xEE\xEF\xE5UV88\xFD", "ascii");
+
   protected readonly _READ_CMD = Buffer.from("\xFE\xFE\xEE\xEF\xEB", "ascii");
   protected readonly _READ_ACK = Buffer.from("\xFE\xFE\xEF\xEE\xE4", "ascii");
-
   protected readonly _WRITE_CMD = Buffer.from("\xFE\xFE\xEE\xEF\xE4", "ascii");
-
-  protected readonly _MAGIC_0 = Buffer.from("\xFE\xFE\xEE\xEF\xE0UV88\xFD", "ascii");
-  protected readonly _MAGIC_2 = Buffer.from("\xFE\xFE\xEE\xEF\xE2UV88\xFD", "ascii");
-  protected readonly _MAGIC_2_ACK = Buffer.from("\xFE\xFE\xEF\xEE\xE6\x00\xFD", "ascii");
-  protected readonly _MAGIC_5 = Buffer.from("\xFE\xFE\xEE\xEF\xE5UV88\xFD", "ascii");
 
   protected readonly _SIDE_KEY_FUNCTIONS?: string[];
 
   protected readonly _SETTINGS_FORMAT: "88" | "99" = "88";
+  protected readonly _DISPLAY_TIMEOUTS: boolean = false;
+  protected readonly _DISPLAY_HELLO_LOGO: boolean = false;
+  protected readonly _STE_OPTIONS: string[] = [t("off"), t("frequency")];
 
   protected _img?: Buffer;
   protected _mem?: ReturnType<typeof this._parse>;
@@ -272,7 +277,7 @@ export class THUV88Radio extends Radio {
       ...m.seek(0x2180).skip(0, {}),
 
       fm_stations: m.array(24, () => m.u32()),
-      fmmap: m.buf(4),
+      fmmap: map_bits_array(4, m),
       fmfrqs: m.u32(),
     };
   }
@@ -312,11 +317,27 @@ export class THUV88Radio extends Radio {
     };
   }
 
+  protected _get_fm_radio_freq(val: number): number {
+    if (val < 64_00_000 || val > 108_00_000) return 88_00_000;
+    return val;
+  }
+
   override ui(): UI.Root {
     const mem = this._mem;
     if (!mem) return { fields: [] };
 
-    const { chan_avail, chan_name, chan_skip, channels } = mem;
+    const {
+      chan_avail,
+      chan_name,
+      chan_skip,
+      channels,
+      settings,
+      settings2,
+      openradioname,
+      fmfrqs,
+      fm_stations,
+      fmmap,
+    } = mem;
 
     return {
       fields: [
@@ -392,12 +413,154 @@ export class THUV88Radio extends Radio {
             set: (i, val) => channels[i].pttid.set(val.on),
           },
         } as UI.Field.Channels,
+
+        // MARK: Settings
+
+        {
+          type: "select",
+          id: "tx_ch_select",
+          name: "Priority transmit",
+          tab: UITab.System,
+          short: true,
+          options: ["Last channel", "Main channel"],
+          get: () => settings.txChSelect.get(),
+          set: (val) => settings.txChSelect.set(val),
+        },
+        common_ui.vox(settings.voxSw),
+        common_ui.vox_level(settings.voxLevel, { min: 1, max: 7 }),
+        common_ui.dual_watch(settings.dualWait),
+        common_ui.sql(settings.sqlLevel, { min: 0, max: 9 }),
+        this._DISPLAY_TIMEOUTS
+          ? common_ui.backlight_timeout(
+              {
+                get: () => {
+                  const val = settings.ledMode.get();
+                  if (val === 1) return 7;
+                  if (val > 1) return val - 1;
+                  return val;
+                },
+                set: (val) => {
+                  let res = val;
+                  if (val === 7) {
+                    res = 1;
+                  } else if (val >= 1) {
+                    res = val + 1;
+                  }
+                  settings.ledMode.set(res);
+                },
+              },
+              {
+                min: 0,
+                max: 7,
+                names: { 0: t("off"), 7: t("always_on") },
+                seconds: [0, 5, 10, 15, 20, 25, 30, 999],
+              }
+            )
+          : common_ui.backlight_timeout_select(settings.ledMode, {
+              options: [t("off"), t("always_on"), t("auto")],
+            }),
+        // FIXME: Background Light Color
+        common_ui.backlight_brightness(settings.light, { min: 0, max: 6 }),
+        common_ui.beep(settings.beep),
+        common_ui.pow_tot(settings.tot, { from: 0, to: 270, step: 30 }),
+        common_ui.roger_beep(settings.roger),
+        common_ui.pow_battery_save_ratio(settings.saveMode, { max: 3, names: { 3: "1:4" } }),
+        common_ui.scan_mode(settings.scanType, { options: [t("scan_time"), t("scan_carrier"), t("scan_search")] }),
+        common_ui.keypad_lock_auto(settings.keylock),
+        common_ui.voice_prompt(settings.swAudio),
+        common_ui.hello_mode(settings.introScreen, {
+          options: [t("off"), t("hello_voltage"), t("hello_text"), t("hello_picture")].slice(
+            0,
+            this._DISPLAY_HELLO_LOGO ? undefined : -1
+          ),
+        }),
+        {
+          type: "select",
+          id: "key_lock_mode",
+          name: "Key lock mode",
+          tab: UITab.Control,
+          short: true,
+          options: ["All", "PTT", "Key", "Key & Side Key"],
+          get: () => settings.keyMode.get(),
+          set: (val) => settings.keyMode.set(val),
+        },
+        common_ui.channel_display_mode(settings.disMode, { options: [t("frequency"), t("channel"), t("name")] }),
+        common_ui.sql_ste_select(settings.endToneElim, { options: this._STE_OPTIONS }),
+        common_ui.hello_msg_str_x(
+          {
+            ...openradioname.name1,
+            set: (val) => {
+              openradioname.name1.set(val);
+              if ("introScreen1" in settings) set_string(settings.introScreen1, val);
+            },
+          },
+          { line: 0, pad: "\x00" }
+        ),
+        common_ui.hello_msg_str_x(openradioname.name2, { line: 1, pad: "\x00" }),
+        common_ui.vox_delay(settings.voxDelay, { from: 0.5, to: 5.0, step: 0.5 }),
+        {
+          type: "label",
+          id: "lock",
+          name: t("frequency_lock"),
+          tab: UITab.System,
+          get: () => {
+            const options: { [k in number]?: string } = { 3: "EU", 4: "US" };
+            const val = settings2.region.get();
+            return options[val] || `Unknown ${val}`;
+          },
+        },
+        ...(this._SIDE_KEY_FUNCTIONS && "sideKey1" in settings
+          ? [
+              common_ui.key_side_short_x_fn(settings.sideKey1, { key: "1", functions: this._SIDE_KEY_FUNCTIONS }),
+              common_ui.key_side_long_x_fn(settings.sideKey1_long, { key: "1", functions: this._SIDE_KEY_FUNCTIONS }),
+              common_ui.key_side_short_x_fn(settings.sideKey2, { key: "2", functions: this._SIDE_KEY_FUNCTIONS }),
+              common_ui.key_side_long_x_fn(settings.sideKey2_long, { key: "2", functions: this._SIDE_KEY_FUNCTIONS }),
+            ]
+          : []),
+
+        // MARK: FM
+
+        {
+          type: "text",
+          id: "fm_freq",
+          name: t("frequency"),
+          tab: UITab.FMRadio,
+          get: () => (this._get_fm_radio_freq(fmfrqs.get()) / 100_000).toFixed(1),
+          set: (val) => fmfrqs.set(Math.max(64, Math.min(108, Number.parseFloat(val) || 0)) * 100_000),
+        },
+        {
+          type: "table",
+          name: t("fm"),
+          id: "fm_presets",
+          tab: UITab.FMRadio,
+          size: () => 24,
+          header: () => ({ freq: { name: t("frequency") } }),
+          get: (i) => ({
+            freq: fmmap[i].get() ? (this._get_fm_radio_freq(fm_stations[i].get()) / 100_000).toFixed(1) : undefined,
+          }),
+          set_ui: (i) => [
+            {
+              type: "switcher",
+              id: "status",
+              name: t("status"),
+              get: () => fmmap[i].get() === 1,
+              set: (val) => fmmap[i].set(val ? 1 : 0),
+            },
+            {
+              type: "text",
+              id: "freq",
+              name: t("frequency"),
+              get: () => (this._get_fm_radio_freq(fm_stations[i].get()) / 100_000).toFixed(1),
+              set: (val) => fm_stations[i].set(this._get_fm_radio_freq(Number.parseFloat(val) * 100_000 || 0)),
+            },
+          ],
+        },
       ],
     };
   }
 
   protected async _indent() {
-    await serial.write(this._MAGIC_0);
+    await serial.write(this._INDENT_CMD);
 
     const ack = await serial.read(36);
     if (!ack.slice(0, this._FINGERPRINT.length).equals(this._FINGERPRINT)) {
@@ -437,15 +600,8 @@ export class THUV88Radio extends Radio {
     cmd.writeUInt8(0xfd, this._READ_CMD.length + 4 + 2 + data.length + 1);
   }
 
-  protected async _enter_programming_mode() {
-    await serial.write(this._MAGIC_2);
-
-    const ack = await serial.read(7);
-    if (!ack.equals(this._MAGIC_2_ACK)) throw new Error("Programming mode is not accepted");
-  }
-
   protected async _exit_program_mode() {
-    await serial.write(this._MAGIC_5);
+    await serial.write(this._EXIT_CMD);
     await serial.clear();
   }
 
@@ -471,7 +627,11 @@ export class THUV88Radio extends Radio {
     this.dispatch_ui_change();
 
     await this._indent();
-    await this._enter_programming_mode();
+
+    await serial.write(this._EN_READ_CMD);
+
+    const ack = await serial.read(7);
+    if (!ack.equals(this._EN_READ_CMD_ACK)) throw new Error("Program reading is not accepted");
 
     this.dispatch_progress(0.1);
 
@@ -501,7 +661,11 @@ export class THUV88Radio extends Radio {
     await serial.clear();
 
     await this._indent();
-    await this._enter_programming_mode();
+
+    await serial.write(this._EN_WRITE_CMD);
+
+    const ack = await serial.read(7);
+    if (!ack.equals(this._EN_WRITE_CMD_ACK)) throw new Error("Program writing is not accepted");
 
     this.dispatch_progress(0.1);
 
@@ -532,10 +696,10 @@ export class THUV98Radio extends THUV88Radio {
 
   protected readonly _FINGERPRINT = Buffer.from("\xFE\xFE\xEF\xEE\xE1UV98", "ascii");
 
-  protected readonly _MAGIC_0 = Buffer.from("\xFE\xFE\xEE\xEF\xE0UV98\xFD", "ascii");
-  protected readonly _MAGIC_2 = Buffer.from("\xFE\xFE\xEE\xEF\xE2UV98\xFD", "ascii");
-  protected readonly _MAGIC_3 = Buffer.from("\xFE\xFE\xEE\xEF\xE3UV98\xFD", "ascii");
-  protected readonly _MAGIC_5 = Buffer.from("\xFE\xFE\xEE\xEF\xE5UV98\xFD", "ascii");
+  protected readonly _INDENT_CMD = Buffer.from("\xFE\xFE\xEE\xEF\xE0UV98\xFD", "ascii");
+  protected readonly _EN_READ_CMD = Buffer.from("\xFE\xFE\xEE\xEF\xE2UV98\xFD", "ascii");
+  protected readonly _EN_WRITE_CMD = Buffer.from("\xFE\xFE\xEE\xEF\xE3UV98\xFD", "ascii");
+  protected readonly _EXIT_CMD = Buffer.from("\xFE\xFE\xEE\xEF\xE5UV98\xFD", "ascii");
 }
 
 export class THUV99Radio extends THUV88Radio {
@@ -548,12 +712,16 @@ export class THUV99Radio extends THUV88Radio {
 
   protected readonly _FINGERPRINT = Buffer.from("\xFE\xFE\xEF\xEE\xE1UV99", "ascii");
 
-  protected readonly _MAGIC_0 = Buffer.from("\xFE\xFE\xEE\xEF\xE0UV99\xFD", "ascii");
-  protected readonly _MAGIC_2 = Buffer.from("\xFE\xFE\xEE\xEF\xE2UV99\xFD", "ascii");
-  protected readonly _MAGIC_3 = Buffer.from("\xFE\xFE\xEE\xEF\xE3UV99\xFD", "ascii");
-  protected readonly _MAGIC_5 = Buffer.from("\xFE\xFE\xEE\xEF\xE5UV99\xFD", "ascii");
+  protected readonly _INDENT_CMD = Buffer.from("\xFE\xFE\xEE\xEF\xE0UV99\xFD", "ascii");
+  protected readonly _EN_READ_CMD = Buffer.from("\xFE\xFE\xEE\xEF\xE2UV99\xFD", "ascii");
+  protected readonly _EN_WRITE_CMD = Buffer.from("\xFE\xFE\xEE\xEF\xE3UV99\xFD", "ascii");
+  protected readonly _EXIT_CMD = Buffer.from("\xFE\xFE\xEE\xEF\xE5UV99\xFD", "ascii");
 
   protected readonly _SETTINGS_FORMAT = "99";
+  protected readonly _DISPLAY_TIMEOUTS = true;
+  protected readonly _DISPLAY_HELLO_LOGO = true;
+
+  protected _STE_OPTIONS = [t("frequency"), "120°", "180°", "240°"];
 
   protected readonly _SIDE_KEY_FUNCTIONS = [
     "None",
