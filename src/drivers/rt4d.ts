@@ -1108,7 +1108,7 @@ export class RT4DRadio extends Radio {
           id: "fm_list",
           name: t("fm"),
           description: t("fm_tooltip"),
-          tab: t("fm"),
+          tab: UITab.FMRadio,
           size: () => fm.length,
           header: () => ({ freq: { name: t("frequency") }, name: { name: t("name") } }),
           get: (i) => {

@@ -346,7 +346,7 @@ export class UVK5Radio extends QuanshengBaseRadio {
               ch.__raw.fill(0xff);
               if (i < channel_attributes.length) {
                 const name = channelname[i].name;
-                name.set("".padEnd(name.raw.size, "\x00"));
+                name.set("".padEnd(name.__raw.size, "\x00"));
 
                 const attr = channel_attributes[i];
                 attr.band.set(7);

@@ -2,7 +2,7 @@ import { Buffer } from "buffer";
 import { Radio, type RadioInfo } from "./_radio";
 import type { UI } from "@/utils/ui";
 import { serial } from "@/utils/serial";
-import { create_mem_mapper, type M } from "@/utils/mem";
+import { create_mem_mapper, set_string, type M } from "@/utils/mem";
 import { common_ui, UITab } from "@/utils/common_ui";
 import { CTCSS_TONES, DCS_CODES, trim_string } from "@/utils/radio";
 import { t } from "i18next";
@@ -291,11 +291,7 @@ export class UV5RMiniRadio extends Radio {
           ...common_ui.channels({ size: channels.length }),
           channel: {
             get: (i) => trim_string(channels[i].name.get()) || `CH-${(i + 1).toString().padStart(3, "0")}`,
-            set: (i, val) => {
-              const name = channels[i].name;
-              const size = name.raw.size;
-              name.set(val.substring(0, size).padEnd(size, "\xFF"));
-            },
+            set: (i, val) => set_string(channels[i].name, val, "\xFF"),
           },
           swap: (a, b) => {
             const t = channels[a].__raw.get();
@@ -303,14 +299,14 @@ export class UV5RMiniRadio extends Radio {
             channels[b].__raw.set(t);
           },
           empty: {
-            get: (i) => channels[i].__raw.get()[0] === 0xff,
+            get: (i) => channels[i].__raw.__view[0] === 0xff,
             delete: (i) => channels[i].__raw.fill(0xff),
             init: (i) => {
               const ch = channels[i];
               ch.__raw.fill(0x00);
               ch.rxfreq.set(446_006_25);
               ch.txfreq.set(ch.rxfreq.get());
-              ch.name.set("".padEnd(ch.name.raw.size, "\xFF"));
+              set_string(ch.name, "", "\xFF");
             },
           },
           freq: {
@@ -445,7 +441,7 @@ export class UV5RMiniRadio extends Radio {
             tab: UITab.DTMF,
             get: () => trim_string(id.name.get()),
             set: (val) => {
-              id.name.set(val.substring(0, id.name.raw.size).padEnd(id.name.raw.size, "\xFF"));
+              set_string(id.name, val, "\xFF");
               this.dispatch_ui_change();
             },
           },

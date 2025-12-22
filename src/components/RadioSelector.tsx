@@ -6,6 +6,7 @@ import {
   Button,
   createListCollection,
   HStack,
+  Icon,
   IconButton,
   Menu,
   Portal,
@@ -17,7 +18,7 @@ import {
 } from "@chakra-ui/react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { TbHistory, TbPlus, TbTextSpellcheck, TbTrash } from "react-icons/tb";
+import { TbBeta, TbHistory, TbPlus, TbTextSpellcheck, TbTrash } from "react-icons/tb";
 import { useStore } from "zustand";
 
 function HistoryList() {
@@ -135,13 +136,14 @@ export function RadioSelector() {
   const { t } = useTranslation();
 
   const radio = useStore(Store, (s) => s.radio);
+  const developer = useStore(Store, (s) => s.developer);
 
-  const vendors = [...new Set(Library.map((r) => r.Info.vendor))];
+  const vendors = [...new Set(Library.filter((r) => !r.Info.beta || developer).map((r) => r.Info.vendor))];
 
   const radios = createListCollection({
-    items: Library.map((RadioClass, i) => ({
+    items: Library.filter((r) => !r.Info.beta || developer).map((RadioClass) => ({
       RadioClass,
-      value: i.toString(),
+      value: Library.indexOf(RadioClass).toString(),
       label: `${RadioClass.Info.vendor} ${RadioClass.Info.model}`,
       vendor: RadioClass.Info.vendor,
     })),
@@ -163,6 +165,7 @@ export function RadioSelector() {
       <Select.Control>
         <Select.Trigger rounded="full" cursor="pointer">
           <HStack flexGrow="1" justifyContent="center">
+            {radio.info.beta && <Text color="fg.warning">Experimental</Text>}
             <Select.ValueText textAlign="center" />
             <Select.Indicator />
           </HStack>
@@ -172,7 +175,7 @@ export function RadioSelector() {
         <Select.Positioner>
           <Select.Content borderRadius="2xl" p="0" shadow="lg">
             <Tabs.Root
-              defaultValue={vendors[0]}
+              defaultValue={radio.info.vendor}
               lazyMount
               unmountOnExit
               variant="line"
@@ -214,6 +217,19 @@ export function RadioSelector() {
                           _selected={{ bg: "colorPalette.muted", _hover: { bg: "colorPalette.muted" } }}
                         >
                           <Box flexGrow="1">{item.RadioClass.Info.model}</Box>
+                          {item.RadioClass.Info.beta && (
+                            <HStack
+                              gap="0.5"
+                              bg="fg.warning"
+                              color="white"
+                              rounded="sm"
+                              fontSize="xs"
+                              fontWeight="normal"
+                              px="1"
+                            >
+                              Experimental
+                            </HStack>
+                          )}
                           <Select.ItemIndicator />
                         </Select.Item>
                       ))}

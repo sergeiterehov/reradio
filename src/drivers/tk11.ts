@@ -2,7 +2,7 @@ import { Buffer } from "buffer";
 import { QuanshengBaseRadio } from "./quansheng";
 import type { UI } from "@/utils/ui";
 import type { RadioInfo } from "./_radio";
-import { create_mem_mapper, type M } from "@/utils/mem";
+import { create_mem_mapper, set_string, type M } from "@/utils/mem";
 import { common_ui } from "@/utils/common_ui";
 import { t } from "i18next";
 import { CTCSS_TONES, DCS_CODES, trim_string } from "@/utils/radio";
@@ -375,16 +375,17 @@ export class TK11Radio extends QuanshengBaseRadio {
             set: (i, val) => mem.channels[i].name.set(val.substring(0, 16).padEnd(16, "\x00")),
           },
           swap: (a, b) => {
-            if (a >= mem.channels.length || b >= mem.channels.length) return;
+            const { channels, channels_usage } = mem;
+            if (a >= channels.length || b >= channels.length) return;
             {
-              const t = mem.channels[a].__raw.get();
-              mem.channels[a].__raw.set(mem.channels[b].__raw.get());
-              mem.channels[b].__raw.set(t);
+              const t = channels[a].__raw.get();
+              channels[a].__raw.set(channels[b].__raw.get());
+              channels[b].__raw.set(t);
             }
             {
-              const t = mem.channels_usage[a].__raw.get();
-              mem.channels_usage[a].__raw.set(mem.channels_usage[b].__raw.get());
-              mem.channels_usage[b].__raw.set(t);
+              const t = channels_usage[a].__raw.get();
+              channels_usage[a].__raw.set(channels_usage[b].__raw.get());
+              channels_usage[b].__raw.set(t);
             }
           },
           empty: {
@@ -397,7 +398,7 @@ export class TK11Radio extends QuanshengBaseRadio {
               ch.rx_freq.set(446_006_25);
               ch.mode.set(MODE_FM);
               ch.power.set(1);
-              ch.name.set(`CH-${String(i + 1).padStart(3, "0")}`.padEnd(ch.name.raw.size, "\x00"));
+              set_string(ch.name, `CH-${String(i + 1).padStart(3, "0")}`, "\x00");
             },
           },
           freq: {

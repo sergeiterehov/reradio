@@ -16,10 +16,6 @@ export const CTCSS_TONES = [
   186.2, 189.9, 192.8, 196.6, 199.5, 203.5, 206.5, 210.7, 218.1, 225.7, 229.1, 233.6, 241.8, 250.3, 254.1,
 ];
 
-export function hex(buffer: Buffer) {
-  return buffer.toString("hex").toUpperCase().match(/../g)?.join(" ") || "";
-}
-
 export function* range(start: number, end: number, step: number = 1) {
   for (let i = start; i < end; i += step) {
     yield i;
@@ -27,16 +23,16 @@ export function* range(start: number, end: number, step: number = 1) {
 }
 
 export function trim_string(str: string) {
-  return str.replace(/\s*[\x00\xFF]+.*$/, "");
+  return str.replace(/\s*([\x00\xFF]+.*)?$/, "");
 }
 
-export function download_buffer(img: Buffer) {
+export function download_buffer(img: Buffer, name: string = "output.bin") {
   const blob = new Blob([img], { type: "application/octet-stream" });
   const url = URL.createObjectURL(blob);
 
   const a = document.createElement("a");
   a.href = url;
-  a.download = "output.bin";
+  a.download = name;
   document.body.appendChild(a);
   a.click();
 

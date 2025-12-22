@@ -20,16 +20,21 @@ import {
   type ImageRecord,
 } from "./db";
 import { gzip_compress, gzip_decompress } from "./utils/gzip";
+import { download_buffer } from "./utils/radio";
+import { toaster } from "./toaster";
 
 enableMapSet();
 
 const LAST_READ_KEY = "last_read";
+const DEVELOPER_KEY = "developer";
 const CLOUD = import.meta.env.VITE_CLOUD_API;
 
 type FetchState<T> = { loading: true } | { loading: false; result: T } | { loading: false; error: unknown };
 
 export type Store = {
   init: "NO" | "IN_PROGRESS" | "DONE";
+
+  developer: boolean;
 
   radio: Radio;
   task?: "READ" | "WRITE" | "LOAD" | "UPLOAD" | "SHARE" | "FETCH_SHARED";
@@ -71,7 +76,7 @@ const _setRadio = (radio: Radio) => {
   _unsubscribe_progress = radio.subscribe_progress(_handle_progress);
   _unsubscribe_ui_change = radio.subscribe_ui_change(_handle_ui_change);
 
-  _set({ radio });
+  _set({ radio, ui: undefined });
 
   _handle_ui_change();
 };
@@ -144,6 +149,12 @@ export const Actions = {
     } finally {
       _set({ init: "DONE" });
     }
+  },
+
+  iAmDeveloper: () => {
+    _set({ developer: true });
+    localStorage.setItem(DEVELOPER_KEY, "1");
+    toaster.warning({ title: "You are developer!", description: "Now you can use experimental drivers" });
   },
 
   loadDemo: async (RadioClass: typeof Radio) => {
@@ -220,10 +231,13 @@ export const Actions = {
 
     _set({ sharing: { loading: true }, task: "SHARE" });
 
-    await new Promise((r) => setTimeout(r, 3_000));
-
     try {
       const { snapshot, version } = await radio.upload();
+
+      if (radio.info.beta) {
+        download_buffer(snapshot, `${radio.info.id}_${new Date().toISOString().replaceAll(/[^\d-]+/g, "_")}.img`);
+        throw new Error("Only downloading available for experimental drivers");
+      }
 
       const meta = Buffer.from(
         JSON.stringify({
@@ -240,6 +254,8 @@ export const Actions = {
       payload.writeUInt16LE(meta.length, 1);
       meta.copy(payload, 3);
       gzip.copy(payload, 3 + meta.length);
+
+      await new Promise((r) => setTimeout(r, 3_000));
 
       const res = await fetch(`${CLOUD}/share`, {
         method: "POST",
@@ -543,6 +559,7 @@ export const Actions = {
 
   const initialState: Store = {
     init: "NO",
+    developer: localStorage.getItem(DEVELOPER_KEY) === "1",
     radio,
     selectedChannels: new Map(),
     history: [],

@@ -1,30 +1,38 @@
 import { Demos } from "@/demo";
-import { Actions } from "@/store";
+import { Actions, Store } from "@/store";
 import { Button, HStack, IconButton, Link, Stack, Text } from "@chakra-ui/react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { TbBrandGithub, TbBrandTelegram } from "react-icons/tb";
+import { useStore } from "zustand";
 
 export function Hello() {
   const { t } = useTranslation();
+
+  const developer = useStore(Store, (s) => s.developer);
+
+  const [devCounter, setDevCounter] = useState(developer ? 999 : 0);
 
   return (
     <HStack justify="center" h="calc(100vh - 100px)">
       <HStack gap="10" alignItems="start">
         <Stack gap="4">
           <Stack>
-            {[...Demos.keys()].map((R, i, all) => (
-              <Button
-                key={i}
-                variant="subtle"
-                rounded="xl"
-                height="auto"
-                py="1"
-                px="3"
-                justifyContent="start"
-                style={{ opacity: 1 - i / all.length }}
-                onClick={() => Actions.loadDemo(R)}
-              >{`${R.Info.vendor} ${R.Info.model}`}</Button>
-            ))}
+            {[...Demos.keys()]
+              .filter((R) => !R.Info.beta || developer)
+              .map((R, i, all) => (
+                <Button
+                  key={i}
+                  variant="subtle"
+                  rounded="xl"
+                  height="auto"
+                  py="1"
+                  px="3"
+                  justifyContent="start"
+                  style={{ opacity: 1 - i / all.length }}
+                  onClick={() => Actions.loadDemo(R)}
+                >{`${R.Info.vendor} ${R.Info.model}`}</Button>
+              ))}
           </Stack>
         </Stack>
         <Stack maxW={250} gap="4" color="fg.muted">
@@ -41,7 +49,21 @@ export function Hello() {
               </Link>
             </IconButton>
           </HStack>
-          <Text fontSize="xs">{t("build_number", { replace: { number: import.meta.env.VITE_BUILD || "-" } })}</Text>
+          <Text
+            fontSize="xs"
+            onClick={() => {
+              const next = devCounter + 1;
+              setDevCounter(next);
+              if (next === 7) Actions.iAmDeveloper();
+            }}
+          >
+            {t("build_number", { replace: { number: import.meta.env.VITE_BUILD || "-" } })}
+            {developer && (
+              <Text fontSize="xs" color="fg.warning">
+                {t("developer_mode")}
+              </Text>
+            )}
+          </Text>
         </Stack>
       </HStack>
     </HStack>

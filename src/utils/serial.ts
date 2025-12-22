@@ -1,8 +1,11 @@
 import { Buffer } from "buffer";
-import { hex } from "@/utils/radio";
 
 const SERIAL_TIMEOUT_MS = 1_000;
 const SERIAL_LOG = true;
+
+export function hex(buffer: Buffer) {
+  return buffer.toString("hex").toUpperCase().match(/../g)?.join(" ") || "";
+}
 
 export type Serial = {
   begin(config: SerialOptions): Promise<void>;

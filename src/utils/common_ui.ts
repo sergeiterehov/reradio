@@ -1,5 +1,5 @@
 import { t } from "i18next";
-import type { M } from "./mem";
+import { set_string, type M } from "./mem";
 import type { UI } from "./ui";
 import { CTCSS_TONES, DCS_CODES, DMR_ALL_CALL_ID, trim_string } from "./radio";
 
@@ -23,6 +23,7 @@ export const UITab = {
   TGLists: t("uitab_tg_lists"),
   Zones: t("uitab_zones"),
   Spectrum: t("uitab_spectrum"),
+  FMRadio: t("uitab_fm_radio"),
 };
 
 export const modify_field = <F extends UI.Field.Any, R extends UI.Field.Any>(field: F, modifier: (field: F) => R): R =>
@@ -59,7 +60,7 @@ export const common_ui = {
     get: (i) => {
       const ref = ref_by_channel(i);
 
-      if (ref.raw.get()[0] === 0xff) return { mode: "Off" };
+      if (ref.__raw.get()[0] === 0xff) return { mode: "Off" };
 
       const tone = ref.get();
 
@@ -72,7 +73,7 @@ export const common_ui = {
       const ref = ref_by_channel(i);
 
       if (val.mode === "Off") {
-        ref.raw.fill(0);
+        ref.__raw.fill(0);
       } else if (val.mode === "CTCSS") {
         ref.set(val.freq * 10);
       } else if (val.mode === "DCS") {
@@ -307,7 +308,10 @@ export const common_ui = {
     get: () => Boolean(ref.get()),
     set: (val) => ref.set(val ? 1 : 0),
   }),
-  pow_battery_save_ratio: (ref: _GetSetNumber, config: { max?: number } = {}): UI.Field.Slider => ({
+  pow_battery_save_ratio: (
+    ref: _GetSetNumber,
+    config: { max?: number; names?: { [k in number]?: string } } = {}
+  ): UI.Field.Slider => ({
     type: "slider",
     id: "bat_save_ratio",
     name: t("bat_save"),
@@ -315,7 +319,7 @@ export const common_ui = {
     tab: UITab.Power,
     min: 0,
     max: config.max ?? 4,
-    label: (val) => (val ? `1:${val}` : t("off")),
+    label: (val) => config.names?.[val] || (val ? `1:${val}` : t("off")),
     get: () => ref.get(),
     set: (val) => ref.set(Number(val)),
   }),
@@ -429,6 +433,16 @@ export const common_ui = {
     min: 0,
     max: (config.to - config.from) / config.step,
     label: (val) => (val ? `${config.from + val * config.step} ms` : "Off"),
+    get: () => ref.get(),
+    set: (val) => ref.set(Number(val)),
+  }),
+  sql_ste_select: (ref: _GetSetNumber, config: { options: string[] }): UI.Field.Select => ({
+    type: "select",
+    id: "sql_ste",
+    name: t("sql_ste"),
+    description: t("sql_ste_tooltip"),
+    tab: UITab.System,
+    options: config.options,
     get: () => ref.get(),
     set: (val) => ref.set(Number(val)),
   }),
@@ -557,6 +571,17 @@ export const common_ui = {
     set: (val) => ref.set(Number(val)),
   }),
 
+  backlight_timeout_select: (ref: _GetSetNumber, config: { options: string[] }): UI.Field.Select => ({
+    type: "select",
+    id: "backlight_timeout",
+    name: t("backlight_timeout"),
+    description: t("backlight_timeout_tooltip"),
+    tab: UITab.Power,
+    options: config.options,
+    get: () => ref.get(),
+    set: (val) => ref.set(Number(val)),
+  }),
+
   backlight_brightness: (ref: _GetSetNumber, config: { min: number; max: number }): UI.Field.Slider => ({
     type: "slider",
     id: "backlight_brightness",
@@ -577,12 +602,7 @@ export const common_ui = {
     description: t("device_name_tooltip"),
     tab: UITab.Interface,
     get: () => trim_string(ref.get()),
-    set: (val) =>
-      ref.set(
-        String(val)
-          .substring(0, ref.raw.size)
-          .padEnd(ref.raw.size, config.pad || " ")
-      ),
+    set: (val) => set_string(ref, val, config.pad || " "),
   }),
 
   hello_msg_str_x: (str_ref: M.Str, config: { line: number; pad?: string }): UI.Field.Text => ({
@@ -592,12 +612,7 @@ export const common_ui = {
     description: config.line === 0 ? t("hello_msg_str_x_tooltip") : undefined,
     tab: UITab.Interface,
     get: () => trim_string(str_ref.get()),
-    set: (val) =>
-      str_ref.set(
-        String(val)
-          .substring(0, str_ref.raw.size)
-          .padEnd(str_ref.raw.size, config.pad || " ")
-      ),
+    set: (val) => set_string(str_ref, val, config.pad || " "),
   }),
 
   hello_mode: (ref: _GetSetNumber, config: { options: string[] }): UI.Field.Select => ({
