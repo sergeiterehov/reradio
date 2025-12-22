@@ -357,11 +357,15 @@ export class THUV88Radio extends Radio {
             delete: (i) => chan_avail[i].set(0),
             init: (i) => {
               chan_avail[i].set(1);
+              chan_skip[i].set(0);
 
               const ch = channels[i];
               ch.__raw.fill(0);
               ch.rxfreq.set(446_000_00);
               ch.txfreq.set(446_000_00);
+              ch.wide.set(1);
+              ch.rxtone.set(0xfff);
+              ch.txtone.set(0xfff);
             },
           },
           freq: {
