@@ -1,6 +1,6 @@
 import { hex, serial } from "@/utils/serial";
 import { Buffer } from "buffer";
-import { afterAll, afterEach, beforeAll, beforeEach, expect, test, vi } from "vitest";
+import { afterEach, expect, test, vi } from "vitest";
 
 function mockSerial() {
   const serial = {
@@ -40,7 +40,7 @@ afterEach(() => {
 });
 
 test("Try API", async () => {
-  await expect(serial.begin({ baudRate: 9600 })).rejects;
+  await expect(serial.begin({ baudRate: 9600 })).rejects.toThrow();
 });
 
 test("Serial", async () => {
@@ -48,11 +48,11 @@ test("Serial", async () => {
 
   await expect(serial.end()).resolves;
 
-  await expect(serial.write(Buffer.from([1]))).rejects;
+  await expect(serial.write(Buffer.from([1]))).rejects.toThrow();
 
   await serial.begin({ baudRate: 9600 });
 
-  await expect(serial.begin({ baudRate: 9600 })).rejects;
+  await expect(serial.begin({ baudRate: 9600 })).rejects.toThrow();
 
   await serial.write(Buffer.from([1, 2, 3]));
   await serial.write(Buffer.from([4, 5, 6]));
@@ -68,7 +68,7 @@ test("Serial", async () => {
   await serial.write(Buffer.from([1, 2, 3]));
   await serial.clear({ timeout: 10 });
 
-  await expect(Promise.all([serial.read(1, { timeout: 50 }), serial.read(1, { timeout: 50 })])).rejects;
+  await expect(Promise.all([serial.read(1, { timeout: 50 }), serial.read(1, { timeout: 50 })])).rejects.toThrow();
   await serial.clear({ timeout: 10 });
 
   await serial.end();
