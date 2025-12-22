@@ -52,6 +52,7 @@
     "delete": "Delete",
     "denoise_level": "Denoise level",
     "denoise_level_tooltip": "Adjusts the intensity of the digital noise reduction algorithm to minimize background static and improve audio clarity during reception. Higher levels provide more noise suppression but may also affect weak signal intelligibility.",
+    "developer_mode": "Developer mode",
     "device_name": "Device name",
     "device_name_tooltip": "Sets a custom name for the radio device, which may be displayed on the screen or used for identification in software applications.",
     "dmr_call_contact": "Call contact",

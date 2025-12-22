@@ -21,16 +21,20 @@ import {
 } from "./db";
 import { gzip_compress, gzip_decompress } from "./utils/gzip";
 import { download_buffer } from "./utils/radio";
+import { toaster } from "./toaster";
 
 enableMapSet();
 
 const LAST_READ_KEY = "last_read";
+const DEVELOPER_KEY = "developer";
 const CLOUD = import.meta.env.VITE_CLOUD_API;
 
 type FetchState<T> = { loading: true } | { loading: false; result: T } | { loading: false; error: unknown };
 
 export type Store = {
   init: "NO" | "IN_PROGRESS" | "DONE";
+
+  developer: boolean;
 
   radio: Radio;
   task?: "READ" | "WRITE" | "LOAD" | "UPLOAD" | "SHARE" | "FETCH_SHARED";
@@ -145,6 +149,12 @@ export const Actions = {
     } finally {
       _set({ init: "DONE" });
     }
+  },
+
+  iAmDeveloper: () => {
+    _set({ developer: true });
+    localStorage.setItem(DEVELOPER_KEY, "1");
+    toaster.warning({ title: "You are developer!", description: "Now you can use experimental drivers" });
   },
 
   loadDemo: async (RadioClass: typeof Radio) => {
@@ -549,6 +559,7 @@ export const Actions = {
 
   const initialState: Store = {
     init: "NO",
+    developer: localStorage.getItem(DEVELOPER_KEY) === "1",
     radio,
     selectedChannels: new Map(),
     history: [],

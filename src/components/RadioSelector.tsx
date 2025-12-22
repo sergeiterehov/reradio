@@ -136,13 +136,14 @@ export function RadioSelector() {
   const { t } = useTranslation();
 
   const radio = useStore(Store, (s) => s.radio);
+  const developer = useStore(Store, (s) => s.developer);
 
-  const vendors = [...new Set(Library.map((r) => r.Info.vendor))];
+  const vendors = [...new Set(Library.filter((r) => !r.Info.beta || developer).map((r) => r.Info.vendor))];
 
   const radios = createListCollection({
-    items: Library.map((RadioClass, i) => ({
+    items: Library.filter((r) => !r.Info.beta || developer).map((RadioClass) => ({
       RadioClass,
-      value: i.toString(),
+      value: Library.indexOf(RadioClass).toString(),
       label: `${RadioClass.Info.vendor} ${RadioClass.Info.model}`,
       vendor: RadioClass.Info.vendor,
     })),
@@ -164,7 +165,7 @@ export function RadioSelector() {
       <Select.Control>
         <Select.Trigger rounded="full" cursor="pointer">
           <HStack flexGrow="1" justifyContent="center">
-            {radio.info.beta && <Text color="fg.error">Experimental</Text>}
+            {radio.info.beta && <Text color="fg.warning">Experimental</Text>}
             <Select.ValueText textAlign="center" />
             <Select.Indicator />
           </HStack>
@@ -216,23 +217,19 @@ export function RadioSelector() {
                           _selected={{ bg: "colorPalette.muted", _hover: { bg: "colorPalette.muted" } }}
                         >
                           <Box flexGrow="1">{item.RadioClass.Info.model}</Box>
-                          <HStack
-                            gap="1"
-                            bg="red"
-                            color="white"
-                            rounded="sm"
-                            fontSize="xs"
-                            fontWeight="normal"
-                            pe="1"
-                            me="-1"
-                          >
-                            {item.RadioClass.Info.beta && (
-                              <Icon size="sm">
-                                <TbBeta />
-                              </Icon>
-                            )}
-                            {item.RadioClass.Info.beta && <Text>Experimental</Text>}
-                          </HStack>
+                          {item.RadioClass.Info.beta && (
+                            <HStack
+                              gap="0.5"
+                              bg="fg.warning"
+                              color="white"
+                              rounded="sm"
+                              fontSize="xs"
+                              fontWeight="normal"
+                              px="1"
+                            >
+                              Experimental
+                            </HStack>
+                          )}
                           <Select.ItemIndicator />
                         </Select.Item>
                       ))}
