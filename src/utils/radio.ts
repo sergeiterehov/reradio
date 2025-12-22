@@ -26,13 +26,13 @@ export function trim_string(str: string) {
   return str.replace(/\s*([\x00\xFF]+.*)?$/, "");
 }
 
-export function download_buffer(img: Buffer) {
+export function download_buffer(img: Buffer, name: string = "output.bin") {
   const blob = new Blob([img], { type: "application/octet-stream" });
   const url = URL.createObjectURL(blob);
 
   const a = document.createElement("a");
   a.href = url;
-  a.download = "output.bin";
+  a.download = name;
   document.body.appendChild(a);
   a.click();
 

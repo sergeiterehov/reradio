@@ -20,6 +20,7 @@ import {
   type ImageRecord,
 } from "./db";
 import { gzip_compress, gzip_decompress } from "./utils/gzip";
+import { download_buffer } from "./utils/radio";
 
 enableMapSet();
 
@@ -220,10 +221,13 @@ export const Actions = {
 
     _set({ sharing: { loading: true }, task: "SHARE" });
 
-    await new Promise((r) => setTimeout(r, 3_000));
-
     try {
       const { snapshot, version } = await radio.upload();
+
+      if (radio.info.beta) {
+        download_buffer(snapshot, `${radio.info.id}_${new Date().toISOString().replaceAll(/[^\d-]+/g, "_")}.img`);
+        throw new Error("Only downloading available for experimental drivers");
+      }
 
       const meta = Buffer.from(
         JSON.stringify({
@@ -240,6 +244,8 @@ export const Actions = {
       payload.writeUInt16LE(meta.length, 1);
       meta.copy(payload, 3);
       gzip.copy(payload, 3 + meta.length);
+
+      await new Promise((r) => setTimeout(r, 3_000));
 
       const res = await fetch(`${CLOUD}/share`, {
         method: "POST",
