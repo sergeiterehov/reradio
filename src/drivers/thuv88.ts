@@ -349,8 +349,10 @@ export class THUV88Radio extends Radio {
           channel: {
             get: (i) => trim_string(channels[i].name.get() + chan_name[i].get()) || `CH-${i}`,
             set: (i, val) => {
-              set_string(channels[i].name, val.substring(0, 6));
-              set_string(chan_name[i], val.substring(6));
+              set_string(channels[i].name, val.substring(0, 6), " ");
+              set_string(chan_name[i], val.substring(6), " ");
+
+              channels[i].displayName.set(val ? 1 : 0);
             },
           },
           empty: {
@@ -367,6 +369,8 @@ export class THUV88Radio extends Radio {
               ch.wide.set(1);
               ch.rxtone.set(0xfff);
               ch.txtone.set(0xfff);
+              set_string(ch.name, "", " ");
+              set_string(chan_name[i], "", " ");
             },
           },
           freq: {
@@ -464,7 +468,6 @@ export class THUV88Radio extends Radio {
           : common_ui.backlight_timeout_select(settings.ledMode, {
               options: [t("off"), t("always_on"), t("auto")],
             }),
-        // FIXME: Background Light Color
         common_ui.backlight_brightness(settings.light, { min: 0, max: 6 }),
         common_ui.beep(settings.beep),
         common_ui.pow_tot(settings.tot, { from: 0, to: 270, step: 30 }),
@@ -496,7 +499,7 @@ export class THUV88Radio extends Radio {
             ...openradioname.name1,
             set: (val) => {
               openradioname.name1.set(val);
-              if ("introScreen1" in settings) set_string(settings.introScreen1, val);
+              if ("introScreen1" in settings) set_string(settings.introScreen1, val, " ");
             },
           },
           { line: 0, pad: "\x00" }
