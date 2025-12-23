@@ -136,12 +136,25 @@ const _storeLastHistoryId = async (history_id: string) => {
   localStorage.setItem(LAST_READ_KEY, history_id);
 };
 
+const _checkIdCollisions = async () => {
+  const ids = Library.map((radio) => radio.Info.id);
+  for (let i = 0; i < ids.length; i += 1) {
+    for (let j = i + 1; j < ids.length; j += 1) {
+      if (ids[i] === ids[j]) {
+        throw new Error(`Radio id collision: ${ids[i]}`);
+      }
+    }
+  }
+};
+
 // MARK: Actions
 
 export const Actions = {
   init: async () => {
     if (_get().init !== "NO") return;
     _set({ init: "IN_PROGRESS" });
+
+    _checkIdCollisions();
 
     try {
       if (await _trySharedLink()) return;
