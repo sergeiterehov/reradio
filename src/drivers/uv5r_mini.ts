@@ -570,12 +570,15 @@ export class UV5RMiniRadio extends Radio {
 
     const img = Buffer.alloc(this._MEM_TOTAL);
 
+    let counter = 0;
+    const blocks = this._MEM_RANGES.reduce((acc, r) => acc + r.size / this._BLOCK_SIZE, 0);
     for (const range of this._MEM_RANGES) {
       for (let i = range.addr; i < range.addr + range.size; i += this._BLOCK_SIZE) {
         const block = await this._read_block(i, this._BLOCK_SIZE);
         block.copy(img, i);
 
-        this.dispatch_progress(0.1 + 0.8 * (i / img.length));
+        counter += 1;
+        this.dispatch_progress(0.1 + 0.8 * (counter / blocks));
       }
     }
 
@@ -601,12 +604,15 @@ export class UV5RMiniRadio extends Radio {
 
     this.dispatch_progress(0.1);
 
+    let counter = 0;
+    const blocks = this._MEM_RANGES.reduce((acc, r) => acc + r.size / this._BLOCK_SIZE, 0);
     for (const range of this._MEM_RANGES) {
       for (let i = range.addr; i < range.addr + range.size; i += this._BLOCK_SIZE) {
         const block = img.slice(i, i + this._BLOCK_SIZE);
         await this._write_block(i, block);
 
-        this.dispatch_progress(0.1 + 0.8 * (i / img.length));
+        counter += 1;
+        this.dispatch_progress(0.1 + 0.8 * (counter / blocks));
       }
     }
 
