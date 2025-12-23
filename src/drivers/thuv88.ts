@@ -35,6 +35,7 @@ export class THUV88Radio extends Radio {
   protected readonly _READ_CMD = Buffer.from("\xFE\xFE\xEE\xEF\xEB", "ascii");
   protected readonly _READ_ACK = Buffer.from("\xFE\xFE\xEF\xEE\xE4", "ascii");
   protected readonly _WRITE_CMD = Buffer.from("\xFE\xFE\xEE\xEF\xE4", "ascii");
+  protected readonly _WRITE_ACK = Buffer.from("\xFE\xFE\xEF\xEE\xE6\x00\xFD", "ascii");
 
   protected readonly _SIDE_KEY_FUNCTIONS?: string[];
 
@@ -597,11 +598,14 @@ export class THUV88Radio extends Radio {
 
     const cmd = Buffer.alloc(this._WRITE_CMD.length + 4 + 2 + data.length + 1 + 1);
     this._WRITE_CMD.copy(cmd, 0);
-    cmd.writeUInt32BE(offset, this._READ_CMD.length);
-    cmd.writeUInt16BE(data.length, this._READ_CMD.length + 4);
-    data.copy(cmd, this._READ_CMD.length + 4 + 2);
-    cmd.writeUInt8(checksum, this._READ_CMD.length + 4 + 2 + data.length);
-    cmd.writeUInt8(0xfd, this._READ_CMD.length + 4 + 2 + data.length + 1);
+    cmd.writeUInt32BE(offset, this._WRITE_CMD.length);
+    cmd.writeUInt16BE(data.length, this._WRITE_CMD.length + 4);
+    data.copy(cmd, this._WRITE_CMD.length + 4 + 2);
+    cmd.writeUInt8(checksum, this._WRITE_CMD.length + 4 + 2 + data.length);
+    cmd.writeUInt8(0xfd, this._WRITE_CMD.length + 4 + 2 + data.length + 1);
+
+    const ack = await serial.read(7);
+    if (!ack.equals(this._WRITE_ACK)) throw new Error("Unexpected write ack");
   }
 
   protected async _exit_program_mode() {
@@ -683,8 +687,6 @@ export class THUV88Radio extends Radio {
     }
 
     await this._exit_program_mode();
-
-    await this.load(img);
 
     this.dispatch_progress(1);
   }
