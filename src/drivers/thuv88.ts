@@ -697,6 +697,15 @@ export class THUV88Radio extends Radio {
   }
 }
 
+export class RT85Radio extends THUV88Radio {
+  static Info: RadioInfo = {
+    id: "rt85",
+    vendor: "Retevis",
+    model: "RT85",
+    beta: true,
+  };
+}
+
 export class THUV98Radio extends THUV88Radio {
   static Info: RadioInfo = {
     id: "thuv98",

@@ -6,7 +6,6 @@ import {
   Button,
   createListCollection,
   HStack,
-  Icon,
   IconButton,
   Menu,
   Portal,
@@ -18,7 +17,7 @@ import {
 } from "@chakra-ui/react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { TbBeta, TbHistory, TbPlus, TbTextSpellcheck, TbTrash } from "react-icons/tb";
+import { TbHistory, TbPlus, TbTextSpellcheck, TbTrash } from "react-icons/tb";
 import { useStore } from "zustand";
 
 function HistoryList() {
@@ -138,10 +137,13 @@ export function RadioSelector() {
   const radio = useStore(Store, (s) => s.radio);
   const developer = useStore(Store, (s) => s.developer);
 
-  const vendors = [...new Set(Library.filter((r) => !r.Info.beta || developer).map((r) => r.Info.vendor))];
+  const viewLibrary = Library.filter((r) => !r.Info.beta || developer).sort((a, b) =>
+    a.Info.model.localeCompare(b.Info.model)
+  );
+  const vendors = [...new Set(viewLibrary.map((r) => r.Info.vendor))].sort((a, b) => a.localeCompare(b));
 
   const radios = createListCollection({
-    items: Library.filter((r) => !r.Info.beta || developer).map((RadioClass) => ({
+    items: viewLibrary.map((RadioClass) => ({
       RadioClass,
       value: Library.indexOf(RadioClass).toString(),
       label: `${RadioClass.Info.vendor} ${RadioClass.Info.model}`,
