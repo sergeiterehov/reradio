@@ -72,15 +72,15 @@ export class UV5RMiniRadio extends Radio {
     model: "UV-5R Mini",
   };
 
-  protected readonly _MEM_TOTAL = 0xa1c0;
-  protected readonly _BLOCK_SIZE = 0x40;
+  protected readonly _MEM_TOTAL: number = 0xa1c0;
+  protected readonly _BLOCK_SIZE: number = 0x40;
   protected readonly _MEM_RANGES = [
     { addr: 0x0000, size: 0x8040 },
     { addr: 0x9000, size: 0x0040 },
     { addr: 0xa000, size: 0x01c0 },
   ];
-  protected readonly _ANI_ADDR = 0xa000;
-  protected readonly _PTT_ID_ADDR = 0xa020;
+  protected readonly _ANI_ADDR: number = 0xa000;
+  protected readonly _PTT_ID_ADDR: number = 0xa020;
 
   protected readonly _PROG_CMD = Buffer.from("PROGRAMCOLORPROU", "ascii");
   protected readonly _PROG_ACK = Buffer.from([0x06]);
@@ -91,10 +91,26 @@ export class UV5RMiniRadio extends Radio {
   protected readonly _DCS_CODES = [...DCS_CODES, 645].sort((a, b) => a - b);
   protected readonly _CTCSS_TONE = [...CTCSS_TONES];
 
-  protected readonly _encryption = true;
-  protected readonly _encryption_index = 1;
-  protected readonly _channels = 999;
+  protected readonly _encryption: boolean = true;
+  protected readonly _encryption_index: number = 1;
+  protected readonly _channels: number = 999;
   protected readonly _am_band = [108_000_000, 136_000_000];
+  protected readonly _side_key_functions = [
+    t("fn_fm"),
+    t("fn_scan"),
+    t("fn_search"),
+    t("fn_vox"),
+    t("fn_flashlight"),
+    t("fn_sos"),
+  ];
+  protected readonly _beep_options?: string[];
+  protected readonly _powers = [
+    { watt: 5, name: t("power_high") },
+    { watt: 1, name: t("power_low") },
+  ];
+  protected readonly _ptt_size: number = 20;
+  protected readonly _max_sql: number = 5;
+  protected readonly _save_options?: string[];
   protected readonly _key_indexes = [
     [0x07, 0],
     [0x1c, 1],
@@ -346,14 +362,14 @@ export class UV5RMiniRadio extends Radio {
           squelch_rx: this._get_squelch_ui((i) => channels[i].rxtone),
           squelch_tx: this._get_squelch_ui((i) => channels[i].txtone),
           power: {
-            options: [5, 1],
-            name: (val) => [t("power_high"), t("power_low")][val] || "?",
+            options: this._powers.map((p) => p.watt),
+            name: (val) => this._powers.map((p) => p.name)[val] || "?",
             get: (i) => (channels[i].lowpower.get() === 1 ? 1 : 0),
             set: (i, val) => channels[i].lowpower.set(val),
           },
           ptt_id: {
             on_options: ["Off", "Begin", "End", "BeginAndEnd"],
-            id_options: pttid.map((id) => {
+            id_options: pttid.slice(0, this._ptt_size).map((id) => {
               const code = [...id.code.get()].map((c) => DTMF_CHARS[c] || "").join("");
               if (!code) return t("off");
 
@@ -378,8 +394,10 @@ export class UV5RMiniRadio extends Radio {
             set: (i, val) => channels[i].bcl.set(val ? 1 : 0),
           },
         },
-        common_ui.beep(settings.beep),
-        common_ui.sql(settings.squelch, { min: 0, max: 9 }),
+        this._beep_options
+          ? common_ui.beep_list(settings.beep, { options: this._beep_options })
+          : common_ui.beep(settings.beep),
+        common_ui.sql(settings.squelch, { min: 0, max: this._max_sql }),
         common_ui.pow_tot(settings.tot, { from: 0, to: 180, step: 15 }),
         common_ui.dual_watch(settings.dualstandby),
         common_ui.voice_prompt(settings.voicesw),
@@ -393,7 +411,12 @@ export class UV5RMiniRadio extends Radio {
         }),
         common_ui.keypad_lock_auto(settings.autolock),
         common_ui.roger_beep(settings.roger),
-        common_ui.pow_battery_save(settings.savemode),
+        this._save_options
+          ? common_ui.pow_battery_save_ratio(settings.savemode, {
+              max: this._save_options.length - 1,
+              names: this._save_options,
+            })
+          : common_ui.pow_battery_save(settings.savemode),
         common_ui.rtone(settings.tone, { frequencies: [1000, 1450, 1750, 2100] }),
         common_ui.scan_mode(settings.scanmode, { options: [t("scan_time"), t("scan_carrier"), t("scan_search")] }),
         common_ui.alarm_mode(settings.alarmmode, { options: [t("alarm_site"), t("alarm_tone"), t("alarm_code")] }),
@@ -412,40 +435,52 @@ export class UV5RMiniRadio extends Radio {
               settings.key1short.set(key);
             },
           },
-          { functions: [t("fn_fm"), t("fn_scan"), t("fn_search"), t("fn_vox"), t("fn_sos")] }
+          { functions: this._side_key_functions }
         ),
         common_ui.vox(settings.voxsw),
         common_ui.vox_level(settings.vox, { min: 0, max: 8 }),
         common_ui.vox_delay(settings.voxdlytime, { from: 0.5, to: 2, step: 0.1 }),
 
-        ...pttid.flatMap((id, i): [UI.Field.Chars, UI.Field.Text] => [
-          {
-            type: "chars",
-            id: `ptt_id_${i}`,
-            name: `PTT ID ${i + 1}`,
-            tab: UITab.DTMF,
-            abc: DTMF_CHARS,
-            pad: "\xff",
-            uppercase: true,
-            length: id.code.size,
-            get: () => [...id.code.get()],
-            set: (val) => {
-              id.code.set(Buffer.from(val));
-              this.dispatch_ui_change();
+        // TODO: ANI code
+        {
+          type: "table",
+          id: "dtmfs",
+          name: "DTMF",
+          tab: UITab.DTMF,
+          size: () => this._ptt_size,
+          header: () => ({ num: { name: "#" }, code: { name: t("code") }, name: { name: t("name") } }),
+          get: (i) => ({
+            num: (i + 1).toString(),
+            code: [...pttid[i].code.get()].map((c) => DTMF_CHARS[c] || "").join(""),
+            name: trim_string(pttid[i].name.get()),
+          }),
+          set_ui: (i) => [
+            {
+              type: "chars",
+              id: "code",
+              name: t("code"),
+              abc: DTMF_CHARS,
+              pad: "\xff",
+              uppercase: true,
+              length: pttid[i].code.size,
+              get: () => [...pttid[i].code.get()],
+              set: (val) => {
+                pttid[i].code.set(Buffer.from(val));
+                this.dispatch_ui_change();
+              },
             },
-          },
-          {
-            type: "text",
-            id: `ptt_name_${i}`,
-            name: `Name ${i + 1}`,
-            tab: UITab.DTMF,
-            get: () => trim_string(id.name.get()),
-            set: (val) => {
-              set_string(id.name, val, "\xFF");
-              this.dispatch_ui_change();
+            {
+              type: "text",
+              id: "name",
+              name: t("name"),
+              get: () => trim_string(pttid[i].name.get()),
+              set: (val) => {
+                set_string(pttid[i].name, val, "\xFF");
+                this.dispatch_ui_change();
+              },
             },
-          },
-        ]),
+          ],
+        },
       ],
     };
   }
@@ -535,12 +570,15 @@ export class UV5RMiniRadio extends Radio {
 
     const img = Buffer.alloc(this._MEM_TOTAL);
 
+    let counter = 0;
+    const blocks = this._MEM_RANGES.reduce((acc, r) => acc + r.size / this._BLOCK_SIZE, 0);
     for (const range of this._MEM_RANGES) {
       for (let i = range.addr; i < range.addr + range.size; i += this._BLOCK_SIZE) {
         const block = await this._read_block(i, this._BLOCK_SIZE);
         block.copy(img, i);
 
-        this.dispatch_progress(0.1 + 0.8 * (i / img.length));
+        counter += 1;
+        this.dispatch_progress(0.1 + 0.8 * (counter / blocks));
       }
     }
 
@@ -566,15 +604,49 @@ export class UV5RMiniRadio extends Radio {
 
     this.dispatch_progress(0.1);
 
+    let counter = 0;
+    const blocks = this._MEM_RANGES.reduce((acc, r) => acc + r.size / this._BLOCK_SIZE, 0);
     for (const range of this._MEM_RANGES) {
       for (let i = range.addr; i < range.addr + range.size; i += this._BLOCK_SIZE) {
         const block = img.slice(i, i + this._BLOCK_SIZE);
         await this._write_block(i, block);
 
-        this.dispatch_progress(0.1 + 0.8 * (i / img.length));
+        counter += 1;
+        this.dispatch_progress(0.1 + 0.8 * (counter / blocks));
       }
     }
 
     this.dispatch_progress(1);
   }
+}
+
+export class UV5RHRadio extends UV5RMiniRadio {
+  static override Info: RadioInfo = {
+    id: "uv5rh",
+    vendor: "Baofeng",
+    model: "UV-5RH",
+  };
+
+  protected readonly _MEM_TOTAL = 0xd040;
+  protected readonly _BLOCK_SIZE = 0x40;
+  protected readonly _MEM_RANGES = [
+    { addr: 0x0000, size: 0x8040 },
+    { addr: 0x9000, size: 0x0040 },
+    { addr: 0xa000, size: 0x02c0 },
+    { addr: 0xd000, size: 0x0040 },
+  ];
+
+  protected readonly _PROG_CMD = Buffer.from("PROGRAMBFNORMALU", "ascii");
+
+  protected readonly _channels = 1000;
+  protected readonly _side_key_functions = [t("fn_fm"), t("fn_scan"), t("fn_search"), t("fn_vox")];
+  protected readonly _beep_options = [t("off"), t("beep"), t("voice_prompt"), `${t("beep")} + ${t("voice_prompt")}`];
+  protected readonly _powers = [
+    { watt: 10, name: t("power_high") },
+    { watt: 2, name: t("power_low") },
+    { watt: 5, name: t("power_mid") },
+  ];
+  protected readonly _save_options = [t("off"), "1:1", "1:2", "1:4"];
+  protected readonly _ptt_size = 15;
+  protected readonly _max_sql: number = 9;
 }

@@ -44,6 +44,7 @@
     "chrome_required_body": "Это приложение использует Web Serial API, который на данный момент поддерживается только в Google Chrome.",
     "chrome_required_title": "Требуется Google Chrome",
     "clear_selection": "Отменить выделение",
+    "code": "Код",
     "contact_name": "Имя",
     "copy_clipboard": "Копировать в буфер",
     "cw_pitch_freq": "Частота CW тона",
