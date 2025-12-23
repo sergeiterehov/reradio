@@ -718,7 +718,6 @@ export class THUV99Radio extends THUV88Radio {
     id: "thuv99",
     vendor: "TYT",
     model: "TH-UV99",
-    beta: true,
   };
 
   protected readonly _FINGERPRINT = Buffer.from("\xFE\xFE\xEF\xEE\xE1UV99", "ascii");
@@ -750,4 +749,12 @@ export class THUV99Radio extends THUV88Radio {
     "Talk Around",
     "Frequency Reverse",
   ];
+}
+
+export class RA89Radio extends THUV99Radio {
+  static Info: RadioInfo = {
+    id: "ra89",
+    vendor: "Retevis",
+    model: "RA89",
+  };
 }
