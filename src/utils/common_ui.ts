@@ -269,6 +269,16 @@ export const common_ui = {
     get: () => Boolean(ref.get()),
     set: (val) => ref.set(val ? 1 : 0),
   }),
+  beep_list: (ref: _GetSetNumber, config: { options: string[] }): UI.Field.Select => ({
+    type: "select",
+    id: "beep",
+    name: t("beep"),
+    description: t("beep_tooltip"),
+    tab: UITab.Interface,
+    options: config.options,
+    get: () => ref.get(),
+    set: (val) => ref.set(val),
+  }),
   voice_prompt: (ref: _GetSetNumber): UI.Field.Switcher => ({
     type: "switcher",
     id: "voice_prompt",
