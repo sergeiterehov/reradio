@@ -44,6 +44,7 @@
     "chrome_required_body": "This application uses the Web Serial API, which is currently only supported in Google Chrome.",
     "chrome_required_title": "Google Chrome Required",
     "clear_selection": "Clear selection",
+    "code": "Code",
     "contact_name": "Name",
     "copy_clipboard": "Copy to clipboard",
     "cw_pitch_freq": "CW Pitch Frequency",
