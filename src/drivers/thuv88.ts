@@ -604,6 +604,8 @@ export class THUV88Radio extends Radio {
     cmd.writeUInt8(checksum, this._WRITE_CMD.length + 4 + 2 + data.length);
     cmd.writeUInt8(0xfd, this._WRITE_CMD.length + 4 + 2 + data.length + 1);
 
+    await serial.write(cmd);
+
     const ack = await serial.read(7);
     if (!ack.equals(this._WRITE_ACK)) throw new Error("Unexpected write ack");
   }
