@@ -5,7 +5,7 @@ import { UV16ProHPRadio, UV16ProRadio, UV5RRadio, UV82HPRadio, UV82Radio } from 
 import { UVK5ProgRadio, UVK5Radio } from "./uvk5";
 import { BFC50Radio } from "./bfc50";
 import { TK11Radio } from "./tk11";
-import { UV5RMiniRadio } from "./uv5r_mini";
+import { UV5RHRadio, UV5RMiniRadio } from "./uv5r_mini";
 import { RT4DRadio } from "./rt4d";
 import { RA89Radio, RT85Radio, THUV88Radio, THUV98Radio, THUV99Radio } from "./thuv88";
 
@@ -13,6 +13,7 @@ export const Library: (typeof Radio)[] = [
   BF888Radio,
   BFC50Radio,
   UV5RRadio,
+  UV5RHRadio,
   UV5RMiniRadio,
   UV82Radio,
   UV82HPRadio,

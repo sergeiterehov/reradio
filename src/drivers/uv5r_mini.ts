@@ -72,15 +72,15 @@ export class UV5RMiniRadio extends Radio {
     model: "UV-5R Mini",
   };
 
-  protected readonly _MEM_TOTAL = 0xa1c0;
-  protected readonly _BLOCK_SIZE = 0x40;
+  protected readonly _MEM_TOTAL: number = 0xa1c0;
+  protected readonly _BLOCK_SIZE: number = 0x40;
   protected readonly _MEM_RANGES = [
     { addr: 0x0000, size: 0x8040 },
     { addr: 0x9000, size: 0x0040 },
     { addr: 0xa000, size: 0x01c0 },
   ];
-  protected readonly _ANI_ADDR = 0xa000;
-  protected readonly _PTT_ID_ADDR = 0xa020;
+  protected readonly _ANI_ADDR: number = 0xa000;
+  protected readonly _PTT_ID_ADDR: number = 0xa020;
 
   protected readonly _PROG_CMD = Buffer.from("PROGRAMCOLORPROU", "ascii");
   protected readonly _PROG_ACK = Buffer.from([0x06]);
@@ -91,9 +91,9 @@ export class UV5RMiniRadio extends Radio {
   protected readonly _DCS_CODES = [...DCS_CODES, 645].sort((a, b) => a - b);
   protected readonly _CTCSS_TONE = [...CTCSS_TONES];
 
-  protected readonly _encryption = true;
-  protected readonly _encryption_index = 1;
-  protected readonly _channels = 999;
+  protected readonly _encryption: boolean = true;
+  protected readonly _encryption_index: number = 1;
+  protected readonly _channels: number = 999;
   protected readonly _am_band = [108_000_000, 136_000_000];
   protected readonly _key_indexes = [
     [0x07, 0],
@@ -577,4 +577,41 @@ export class UV5RMiniRadio extends Radio {
 
     this.dispatch_progress(1);
   }
+}
+
+export class UV5RHRadio extends UV5RMiniRadio {
+  static override Info: RadioInfo = {
+    id: "uv5rh",
+    vendor: "Baofeng",
+    model: "UV-5RH",
+  };
+
+  /*
+    VALID_BANDS = [UV17Pro._airband, UV17Pro._vhf_range, UV17Pro._vhf2_range,
+                   UV17Pro._uhf_range, UV17Pro._uhf2_range]
+    POWER_LEVELS = [chirp_common.PowerLevel("High", watts=10.00),
+                    chirp_common.PowerLevel("Low", watts=2.00),
+                    chirp_common.PowerLevel("Medium", watts=5.00)]
+    SCODE_LIST = ["%s" % x for x in range(1, 16)]
+    SQUELCH_LIST = ["Off"] + list("123456789")
+    LIST_PW_SAVEMODE = ["Off", "1:1", "1:2", "1:4"]
+    MODES = UV17Pro.MODES + ['AM']
+    _has_workmode_support = True
+  */
+
+  protected readonly _MEM_TOTAL = 0x8380;
+  protected readonly _BLOCK_SIZE = 0x40;
+  protected readonly _MEM_RANGES = [
+    { addr: 0x0000, size: 0x8040 },
+    { addr: 0x9000, size: 0x0040 },
+    { addr: 0xa000, size: 0x02c0 },
+    { addr: 0xd000, size: 0x0040 },
+  ];
+
+  protected readonly _ANI_ADDR = 0x8080;
+  protected readonly _PTT_ID_ADDR = 0x80a0;
+
+  protected readonly _PROG_CMD = Buffer.from("PROGRAMBFNORMALU", "ascii");
+
+  protected readonly _channels = 1000;
 }
