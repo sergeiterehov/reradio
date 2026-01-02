@@ -1,5 +1,5 @@
 import type { UI } from "@/utils/ui";
-import { ChannelsField } from "./ChannelsField";
+import { ChannelsField } from "./channels/ChannelsField";
 import { SelectField } from "./SelectField";
 import { SwitcherField } from "./SwitcherField";
 import { LabelField } from "./LabelField";
