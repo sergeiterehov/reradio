@@ -19,6 +19,10 @@ import {
   Menu,
   type ButtonProps,
   Slider,
+  Heading,
+  Separator,
+  Link,
+  Spacer,
 } from "@chakra-ui/react";
 import { RadioWatch } from "../RadioWatch";
 import { useRadioOn } from "../useRadioOn";
@@ -38,8 +42,7 @@ import {
   TbTrash,
 } from "react-icons/tb";
 import { Tooltip } from "../ui/tooltip";
-import { useRef, useState } from "react";
-import { RADIO_FREQUENCY_BANDS } from "@/bands";
+import { Fragment, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { t } from "i18next";
 import { Actions, Store } from "@/store";
@@ -48,6 +51,7 @@ import { useMeasure } from "react-use";
 import { AnyField } from "./AnyField";
 import { DMR_ALL_CALL_ID } from "@/utils/radio";
 import { useWindowVirtualizer } from "@tanstack/react-virtual";
+import { bands } from "@/bands";
 
 const SlotNames: { [K in UI.DMRSlot]: string } = {
   DualSlot: t("dmr_slot_dual"),
@@ -239,6 +243,77 @@ function SquelchTxRx(props: {
   );
 }
 
+function FrequencySelector(props: { onSelect: (config: { freq: number }) => void }) {
+  const { onSelect } = props;
+
+  const { t } = useTranslation();
+
+  return (
+    <Stack gap="4">
+      {bands.map((b) => {
+        return (
+          <Fragment key={b.id}>
+            <Stack>
+              <HStack>
+                <Heading size="md" flexGrow="1">
+                  {b.name}
+                </Heading>
+                <Text fontFamily="monospace">
+                  <Link
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      onSelect({ freq: b.freqMin });
+                    }}
+                  >
+                    {(b.freqMin / 1_000_000).toString()}
+                  </Link>
+                  {" - "}
+                  <Link
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      onSelect({ freq: b.freqMax });
+                    }}
+                  >
+                    {(b.freqMax / 1_000_000).toString()}
+                  </Link>
+                  {` ${t("mhz")}`}
+                </Text>
+              </HStack>
+              <Text>{b.description}</Text>
+              {b.channels && (
+                <Stack>
+                  {b.channels.map((ch) => {
+                    return (
+                      <HStack key={ch.number}>
+                        <Text>{ch.name}</Text>
+                        <Box flexGrow="1" borderBottom="dotted" borderColor="fg.subtle" />
+                        <Link
+                          fontFamily="monospace"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            onSelect({ freq: ch.freq });
+                          }}
+                        >
+                          {(ch.freq / 1_000_000).toFixed(6)}
+                        </Link>
+                      </HStack>
+                    );
+                  })}
+                </Stack>
+              )}
+              <Text fontSize="xs">{b.hint}</Text>
+            </Stack>
+            <Separator />
+          </Fragment>
+        );
+      })}
+    </Stack>
+  );
+}
+
 function ChannelForm(props: { field: UI.Field.Channels; index: number }) {
   const { field, index } = props;
   const {
@@ -264,78 +339,85 @@ function ChannelForm(props: { field: UI.Field.Channels; index: number }) {
 
   const is_digital = useRadioOn(() => digital?.get(index));
 
+  const freqInputRef = useRef<HTMLInputElement>(null);
+
   return (
     <Fieldset.Root>
       <Fieldset.Content>
         {freq && (
           <RadioWatch on={() => freq.get(index)}>
             {(value) => (
-              <Field.Root>
-                <Field.Label>
-                  {t("frequency")}
-                  <Tooltip content={t("frequency_tooltip")}>
-                    <TbHelp />
-                  </Tooltip>
-                </Field.Label>
-                <InputGroup flex="1" endElement={t("mhz")}>
-                  <NumberInput.Root
-                    asChild
-                    size="lg"
-                    value={String(value / 1_000_000)}
-                    onValueChange={(e) => freq.set(index, e.valueAsNumber * 1_000_000)}
-                    formatOptions={{
-                      minimumFractionDigits: 6,
-                    }}
-                    min={typeof freq.min === "number" ? freq.min / 1_000_000 : undefined}
-                    max={typeof freq.max === "number" ? freq.max / 1_000_000 : undefined}
-                  >
-                    <NumberInput.Input />
-                  </NumberInput.Root>
-                </InputGroup>
-                <Field.HelperText>
-                  {(() => {
-                    const band = RADIO_FREQUENCY_BANDS.find((b) => b.minHz <= value && value <= b.maxHz);
+              <Popover.Root lazyMount unmountOnExit positioning={{ placement: "left-start" }}>
+                <Popover.Context>
+                  {(popover) => (
+                    <Field.Root>
+                      <Field.Label alignSelf="stretch" {...popover.getAnchorProps()}>
+                        {t("frequency")}
+                        <Tooltip content={t("frequency_tooltip")}>
+                          <TbHelp />
+                        </Tooltip>
+                        <Spacer />
+                        <Link
+                          {...(popover.getTriggerProps() as object)}
+                          color={popover.open ? "fg.subtle" : undefined}
+                          fontSize="xs"
+                        >
+                          {t("select")}
+                        </Link>
+                      </Field.Label>
+                      <InputGroup flex="1" endElement={t("mhz")}>
+                        <NumberInput.Root
+                          asChild
+                          size="lg"
+                          defaultValue={String(value / 1_000_000)}
+                          onValueChange={(e) => freq.set(index, e.valueAsNumber * 1_000_000)}
+                          formatOptions={{
+                            minimumFractionDigits: 6,
+                          }}
+                          min={typeof freq.min === "number" ? freq.min / 1_000_000 : 0}
+                          max={typeof freq.max === "number" ? freq.max / 1_000_000 : undefined}
+                        >
+                          <NumberInput.Input ref={freqInputRef} />
+                        </NumberInput.Root>
+                      </InputGroup>
+                      <Field.HelperText>
+                        {(() => {
+                          const info: string[] = [];
 
-                    if (!band) return t("unknown_band");
+                          const band = bands.find((b) => b.freqMin <= value && b.freqMax > value);
 
-                    const channel = band.channels?.find((c) => c.frequencyHz === value);
+                          if (!band) return t("unknown_band");
 
-                    const ps: string[] = [];
+                          if (band.channels) {
+                            const ch = band.channels.find((ch) => ch.freq === value);
 
-                    ps.push(`${band.name}.`);
+                            info.push(`${ch ? ch.name : t("unknown_channel")}.`);
+                          }
 
-                    if (channel) {
-                      if (channel.channel !== undefined) {
-                        ps.push(t("band_info_channel", { replace: { channel: channel.channel } }));
-                      } else {
-                        ps.push(t("band_info_frequency", { replace: { freq: channel.frequencyHz / 1_000_000 } }));
-                      }
+                          info.push(band.description);
+                          info.push(band.hint);
 
-                      if (channel.description) {
-                        ps.push(channel.description);
-                      }
-                    } else if (band.channels?.length) {
-                      ps.push(t("band_info_not_a_channel", { replace: { count: band.channels.length } }));
-                    }
-
-                    if (channel?.modulation?.length) {
-                      ps.push(t("band_info_modulation_list", { replace: { mods: channel.modulation.join(", ") } }));
-                    } else if (band.modulation.length) {
-                      ps.push(t("band_info_modulation_list", { replace: { mods: band.modulation.join(", ") } }));
-                    }
-
-                    if (band.description) {
-                      ps.push(band.description);
-                    }
-
-                    if (band.remarks) {
-                      ps.push(band.remarks);
-                    }
-
-                    return ps.join(" ");
-                  })()}
-                </Field.HelperText>
-              </Field.Root>
+                          return info.join(" ");
+                        })()}
+                      </Field.HelperText>
+                    </Field.Root>
+                  )}
+                </Popover.Context>
+                <Popover.Positioner>
+                  <Popover.Content width="md">
+                    <Popover.Arrow />
+                    <Popover.Body overflowY="auto">
+                      <FrequencySelector
+                        onSelect={(config) => {
+                          const next = Math.max(freq.min ?? 0, Math.min(freq.max ?? Infinity, config.freq));
+                          freq.set(index, next);
+                          freqInputRef.current!.value = (next / 1_000_000).toString();
+                        }}
+                      />
+                    </Popover.Body>
+                  </Popover.Content>
+                </Popover.Positioner>
+              </Popover.Root>
             )}
           </RadioWatch>
         )}
